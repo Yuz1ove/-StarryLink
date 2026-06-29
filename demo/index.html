@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>星夜守望者 AI 韌性通訊路由助理</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23071316'/%3E%3Cpath d='M32 8l5.7 14.2L53 28l-15.3 5.8L32 56l-5.7-22.2L11 28l15.3-5.8L32 8z' fill='%2362d8d4'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-shell hero" id="top">
+      <nav class="topbar" aria-label="product">
+        <a class="brand-lockup" href="#top" aria-label="星夜守望者首頁">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <span>
+            <strong>星夜守望者</strong>
+            <small>AI 韌性通訊路由助理</small>
+          </span>
+        </a>
+        <div class="status-strip" aria-label="current event status">
+          <span id="heroSeverity">SEV-5</span>
+          <span id="heroMode">災害模式</span>
+          <span id="heroSla">SLA 5 分鐘</span>
+          <span id="heroPrimary">主通道 SMS</span>
+        </div>
+      </nav>
+
+      <section class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">夜間韌性通訊中心</p>
+          <h1>星夜守望者</h1>
+          <h2>AI 韌性通訊路由助理</h2>
+          <p class="hero-subtitle">
+            在災害、弱訊號、基地台壅塞或緊急照護情境下，系統根據網路品質、事件等級、收件者特性與 ACK 回覆狀態，自動選擇最可靠的通訊路徑，並在未確認時啟動備援升級。
+          </p>
+          <div class="capability-grid" aria-label="核心能力">
+            <article><strong>弱網路由</strong><span>頻寬、延遲、封包遺失即時計分</span></article>
+            <article><strong>多通道備援</strong><span>Push、SMS、IVR、衛星與人工</span></article>
+            <article><strong>ACK 追蹤</strong><span>SLA 內追蹤回覆與未確認名單</span></article>
+            <article><strong>可解釋 AI</strong><span>公開分數、原因、風險旗標</span></article>
+          </div>
+          <div class="cht-mini">
+            <strong>CHT 海地星空整合</strong>
+            <span>行動網路</span>
+            <span>固網</span>
+            <span>市話</span>
+            <span>衛星</span>
+            <span>雲端</span>
+            <span>企業簡訊</span>
+          </div>
+          <div class="tag-row" aria-label="core values">
+            <span>AI 路由決策</span>
+            <span>多通道備援</span>
+            <span>ACK 回覆追蹤</span>
+          </div>
+          <div class="hero-actions">
+            <button id="heroStartScript" class="button primary" type="button">啟動現場展示</button>
+            <a class="button ghost" href="#engine">查看決策邏輯</a>
+            <a class="button quiet" href="#demo">進入 Demo 工作區</a>
+          </div>
+        </div>
+
+        <div class="route-visual" aria-label="dynamic route graph">
+          <div class="route-visual-header">
+            <span>目前路由</span>
+            <strong id="mapTitle">颱風夜間家庭平安回報</strong>
+          </div>
+          <div id="routeLegend" class="route-legend" aria-label="路由狀態圖例"></div>
+          <div id="routeMap" class="route-map"></div>
+        </div>
+      </section>
+    </header>
+
+    <main class="site-shell">
+      <section class="demo-toolbar" id="demo" aria-label="event overview">
+        <div>
+          <p class="eyebrow">Live Demo Workspace</p>
+          <h2 id="eventTitle">颱風夜間家庭平安回報</h2>
+          <p id="eventMessage" class="muted">正在載入事件內容...</p>
+        </div>
+        <div class="demo-header-metrics" aria-label="展示狀態摘要">
+          <span><small>事件等級</small><strong id="headerSeverity">SEV-5</strong></span>
+          <span><small>災害模式</small><strong id="headerMode">開啟</strong></span>
+          <span><small>主通道</small><strong id="headerPrimary">SMS</strong></span>
+          <span><small>ACK 完成率</small><strong id="headerAck">0%</strong></span>
+        </div>
+        <div class="toolbar-actions">
+          <button id="createEvent" class="button ghost" type="button">建立事件</button>
+          <button id="runRouting" class="button primary" type="button">執行 AI 路由</button>
+          <button id="openScriptMode" class="button warning" type="button">展示模式</button>
+          <button id="resetDemo" class="button quiet" type="button">重置 Demo</button>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <aside class="panel control-panel" aria-label="情境控制台">
+          <div class="panel-heading">
+            <p class="eyebrow">Scenario Simulator</p>
+            <h3>情境控制台</h3>
+          </div>
+
+          <label class="field">
+            <span>情境選擇</span>
+            <select id="scenarioSelect"></select>
+          </label>
+
+          <div class="scenario-note">
+            <strong id="scenarioRiskTitle">弱網風險</strong>
+            <p id="scenarioRiskText">切換情境後會同步更新收件者、網路與事件風險。</p>
+          </div>
+
+          <label class="range-field">
+            <span>事件等級</span>
+            <output id="severityValue">5</output>
+            <input id="severity" type="range" min="1" max="5" step="1" />
+          </label>
+          <label class="range-field">
+            <span>可用頻寬 kbps</span>
+            <output id="bandwidthValue">48</output>
+            <input id="bandwidth" type="range" min="1" max="1500" step="1" />
+          </label>
+          <label class="range-field">
+            <span>延遲 ms</span>
+            <output id="latencyValue">950</output>
+            <input id="latency" type="range" min="50" max="2500" step="10" />
+          </label>
+          <label class="range-field">
+            <span>封包遺失率 %</span>
+            <output id="packetLossValue">12</output>
+            <input id="packetLoss" type="range" min="0" max="60" step="1" />
+          </label>
+
+          <div class="switch-grid" aria-label="通道開關">
+            <label><input id="mobileAvailable" type="checkbox" /> 行動網路</label>
+            <label><input id="fixedLineAvailable" type="checkbox" /> 固網</label>
+            <label><input id="satelliteAvailable" type="checkbox" /> 衛星</label>
+            <label><input id="powerRisk" type="checkbox" /> 電力風險</label>
+            <label><input id="disasterMode" type="checkbox" /> 災害模式</label>
+          </div>
+
+          <div class="action-stack">
+            <button id="simulateNoAck" class="button warning" type="button">模擬 5 分鐘後未回覆</button>
+            <button id="markManual" class="button ghost" type="button">標記人工處理</button>
+            <button id="resolveEvent" class="button quiet" type="button">結案</button>
+          </div>
+        </aside>
+
+        <section class="panel phone-panel" aria-label="手機端模擬">
+          <div class="panel-heading compact">
+            <p class="eyebrow">Mobile Simulator</p>
+            <h3>手機端</h3>
+          </div>
+          <div class="phone-shell">
+            <div class="phone-status">
+              <span>星夜</span>
+              <span id="phoneChannel">SMS</span>
+            </div>
+            <div class="phone-card">
+              <small id="phoneRecipient">家中長者</small>
+              <h3 id="phoneHeadline">平安確認</h3>
+              <p id="phoneMessage">請於 SLA 內回覆目前狀態。</p>
+              <div class="sla-box">
+                <span>SLA 倒數</span>
+                <strong id="phoneSla">05:00</strong>
+              </div>
+            </div>
+            <div class="phone-actions" aria-label="使用者回覆">
+              <button type="button" data-response="safe">我平安</button>
+              <button type="button" data-response="help">需要協助</button>
+              <button type="button" data-response="no_call">無法通話</button>
+              <button type="button" data-response="medical">需要醫療</button>
+              <button type="button" data-response="location">位置異常</button>
+            </div>
+            <div class="phone-meta">
+              <span id="phoneStatus">待確認</span>
+              <span id="phonePayload">低資料量 ACK</span>
+            </div>
+          </div>
+          <div class="live-route-card">
+            <div class="section-line">
+              <span>即時路由流程</span>
+              <strong id="liveRoutePrimary">SMS</strong>
+            </div>
+            <div id="liveRouteFlow" class="live-route-flow" aria-label="Event to ACK route flow"></div>
+          </div>
+        </section>
+
+        <section class="panel command-panel" aria-label="WEB 管理台">
+          <div class="panel-heading command-heading">
+            <div>
+              <p class="eyebrow">Command Center</p>
+              <h3>WEB 管理台戰情室</h3>
+            </div>
+            <span id="eventStatusBadge" class="badge">routing</span>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <span>預估送達率</span>
+              <strong id="kpiDelivery">0%</strong>
+            </div>
+            <div class="kpi">
+              <span>ACK 完成率</span>
+              <strong id="kpiAck">0%</strong>
+            </div>
+            <div class="kpi">
+              <span>未確認人數</span>
+              <strong id="kpiPending">0</strong>
+            </div>
+            <div class="kpi">
+              <span>備援觸發</span>
+              <strong id="kpiFallback">0</strong>
+            </div>
+          </div>
+
+          <div class="command-grid">
+            <article class="ai-card">
+              <div class="section-line">
+                <span>AI 決策模擬</span>
+                <strong id="aiConfidence">0%</strong>
+              </div>
+              <h4 id="aiSummary">等待路由計算</h4>
+              <p id="aiReason">按下「執行 AI 路由」後，系統會根據事件、網路與收件者特性輸出可解釋原因。</p>
+              <div id="aiRiskFlags" class="tag-row dense"></div>
+              <dl class="decision-list">
+                <div><dt>主通道</dt><dd id="aiPrimary">-</dd></div>
+                <div><dt>備援通道</dt><dd id="aiFallback">-</dd></div>
+                <div><dt>未確認升級</dt><dd id="aiEscalation">-</dd></div>
+              </dl>
+            </article>
+
+            <article>
+              <div class="section-line">
+                <span>網路狀態與壓力</span>
+                <strong id="networkBadge">弱網</strong>
+              </div>
+              <div id="networkMetrics" class="network-grid"></div>
+              <div id="channelStatus" class="channel-status"></div>
+            </article>
+          </div>
+
+          <article class="matrix-card">
+            <div class="section-line">
+              <span>通訊路由評分矩陣</span>
+              <strong id="matrixPrimary">主通道 -</strong>
+            </div>
+            <div id="routeScoreMatrix" class="score-matrix"></div>
+          </article>
+
+          <div class="admin-actions">
+            <button id="redispatch" class="button ghost" type="button">重新派送</button>
+            <button id="escalateFallback" class="button warning" type="button">升級備援</button>
+            <button id="closeFromAdmin" class="button quiet" type="button">結案</button>
+          </div>
+
+          <div class="lists-grid">
+            <article>
+              <div class="section-line"><span>收件者狀態</span><strong id="recipientCount">0 人</strong></div>
+              <div id="recipientList" class="recipient-list"></div>
+            </article>
+            <article>
+              <div class="section-line"><span>事件時間線</span><strong id="timelineCount">0 筆</strong></div>
+              <div id="timeline" class="timeline"></div>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel integration-panel" aria-label="中華電信業務整合構想">
+        <div class="panel-heading">
+          <p class="eyebrow">CHT Integration</p>
+          <h3>中華電信業務整合構想</h3>
+        </div>
+        <div class="integration-grid">
+          <article><strong>行動網路層</strong><span>App Push</span><span>4G / 5G 行動訊號</span><span>基地台壅塞狀態</span></article>
+          <article><strong>簡訊與語音層</strong><span>SMS 企業簡訊</span><span>Voice IVR</span><span>市話 / 行動電話通知</span></article>
+          <article><strong>固網與雲端層</strong><span>固網寬頻</span><span>雲端管理台</span><span>事件紀錄與 API Gateway</span></article>
+          <article><strong>衛星備援層</strong><span>Satellite Relay</span><span>災害或偏鄉備援通訊</span></article>
+          <article><strong>管理與商轉層</strong><span>家庭訂閱制</span><span>社區 / 里辦公處方案</span><span>企業與政府災防方案</span></article>
+        </div>
+      </section>
+
+      <section class="panel business-panel" aria-label="市場與商業模式">
+        <div class="panel-heading">
+          <p class="eyebrow">Market Model</p>
+          <h3>市場與商業模式</h3>
+        </div>
+        <div class="business-grid">
+          <article>
+            <strong>目標客群</strong>
+            <span>家庭照護</span><span>社區防災</span><span>偏鄉醫療</span><span>企業值班與營運不中斷</span><span>政府災防與公益組織</span>
+          </article>
+          <article>
+            <strong>收費模式</strong>
+            <span>家庭版：月費訂閱</span><span>社區版：里辦公處 / 社區管委會方案</span><span>企業版：依通知量、收件人數、備援通道收費</span><span>政府 / NGO：專案型導入</span>
+          </article>
+          <article>
+            <strong>中華電信合作價值</strong>
+            <span>增加 SMS、IVR、雲端平台、衛星備援使用情境</span><span>通訊服務升級為智慧決策與回覆追蹤</span><span>提升防災、長照、偏鄉與企業韌性落地性</span>
+          </article>
+        </div>
+      </section>
+
+      <section id="scriptPanel" class="panel script-panel" aria-label="現場展示模式" aria-hidden="true">
+        <div class="panel-heading command-heading">
+          <div>
+            <p class="eyebrow">Demo Script Mode</p>
+            <h3>現場展示模式</h3>
+          </div>
+          <div class="toolbar-actions">
+            <button id="nextScriptStep" class="button primary" type="button">執行下一步</button>
+            <button id="closeScriptMode" class="button quiet" type="button">關閉</button>
+          </div>
+        </div>
+        <div class="script-layout">
+          <div class="script-stage">
+            <span id="scriptStepIndex">Step 1 / 7</span>
+            <h4 id="scriptTitle">建立家庭平安事件</h4>
+            <p id="scriptDescription">按下一步可依序播放三分鐘展示腳本。</p>
+            <small id="scriptNextHint">下一步：普通網路先走 App Push</small>
+          </div>
+          <ol id="scriptSteps" class="script-steps"></ol>
+        </div>
+      </section>
+
+      <section class="panel engine-panel" id="engine" aria-label="決策引擎">
+        <div class="panel-heading">
+          <p class="eyebrow">Decision Engine</p>
+          <h3>決策引擎</h3>
+        </div>
+        <div class="engine-grid">
+          <article>
+            <div class="section-line"><span>輸入參數 JSON</span><strong>EventScenario</strong></div>
+            <pre id="inputJson"></pre>
+          </article>
+          <article>
+            <div class="section-line"><span>路由評分表</span><strong>Deterministic</strong></div>
+            <div id="scoreTable" class="score-table"></div>
+          </article>
+          <article>
+            <div class="section-line"><span>輸出 RouteDecision JSON</span><strong id="decisionCount">0 decisions</strong></div>
+            <pre id="outputJson"></pre>
+          </article>
+          <article>
+            <div class="section-line"><span>Fallback Plan</span><strong>可解釋 AI</strong></div>
+            <div id="fallbackPlan" class="fallback-plan"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="./data.js"></script>
+    <script src="./scenarios.js"></script>
+    <script src="./routeDecisionEngine.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
