@@ -3,20 +3,27 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>星夜守望者 AI 韌性通訊路由助理</title>
+    <title>星夜｜AI 韌性通訊路由助理</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23071316'/%3E%3Cpath d='M32 8l5.7 14.2L53 28l-15.3 5.8L32 56l-5.7-22.2L11 28l15.3-5.8L32 8z' fill='%2362d8d4'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="site-shell hero" id="top">
       <nav class="topbar" aria-label="product">
-        <a class="brand-lockup" href="#top" aria-label="星夜守望者首頁">
+        <a class="brand-lockup" href="#top" aria-label="星夜首頁">
           <span class="brand-mark" aria-hidden="true">✦</span>
           <span>
-            <strong>星夜守望者</strong>
+            <strong>星夜</strong>
             <small>AI 韌性通訊路由助理</small>
           </span>
         </a>
+        <div class="quick-nav" aria-label="頁面快速導覽">
+          <a href="#top">首頁</a>
+          <a href="#demo">Demo 工作區</a>
+          <a href="#engine">決策引擎</a>
+          <a href="#cht">CHT 整合</a>
+          <a href="#market">市場模式</a>
+        </div>
         <div class="status-strip" aria-label="current event status">
           <span id="heroSeverity">SEV-5</span>
           <span id="heroMode">災害模式</span>
@@ -28,7 +35,7 @@
       <section class="hero-grid">
         <div class="hero-copy">
           <p class="eyebrow">夜間韌性通訊中心</p>
-          <h1>星夜守望者</h1>
+          <h1>星夜</h1>
           <h2>AI 韌性通訊路由助理</h2>
           <p class="hero-subtitle">
             在災害、弱訊號、基地台壅塞或緊急照護情境下，系統根據網路品質、事件等級、收件者特性與 ACK 回覆狀態，自動選擇最可靠的通訊路徑，並在未確認時啟動備援升級。
@@ -44,9 +51,9 @@
             <span>行動網路</span>
             <span>固網</span>
             <span>市話</span>
+            <span>SMS</span>
             <span>衛星</span>
             <span>雲端</span>
-            <span>企業簡訊</span>
           </div>
           <div class="tag-row" aria-label="core values">
             <span>AI 路由決策</span>
@@ -54,9 +61,9 @@
             <span>ACK 回覆追蹤</span>
           </div>
           <div class="hero-actions">
-            <button id="heroStartScript" class="button primary" type="button">啟動現場展示</button>
-            <a class="button ghost" href="#engine">查看決策邏輯</a>
             <a class="button quiet" href="#demo">進入 Demo 工作區</a>
+            <button id="heroStartScript" class="button primary" type="button">3 分鐘展示模式</button>
+            <a class="button ghost" href="#engine">查看決策邏輯</a>
           </div>
         </div>
 
@@ -73,10 +80,10 @@
 
     <main class="site-shell">
       <section class="demo-toolbar" id="demo" aria-label="event overview">
-        <div>
-          <p class="eyebrow">Live Demo Workspace</p>
+        <div class="demo-toolbar-title">
+          <p class="eyebrow">星夜 Demo</p>
           <h2 id="eventTitle">颱風夜間家庭平安回報</h2>
-          <p id="eventMessage" class="muted">正在載入事件內容...</p>
+          <p id="eventMessage" class="muted">AI 韌性通訊路由助理</p>
         </div>
         <div class="demo-header-metrics" aria-label="展示狀態摘要">
           <span><small>事件等級</small><strong id="headerSeverity">SEV-5</strong></span>
@@ -87,7 +94,7 @@
         <div class="toolbar-actions">
           <button id="createEvent" class="button ghost" type="button">建立事件</button>
           <button id="runRouting" class="button primary" type="button">執行 AI 路由</button>
-          <button id="openScriptMode" class="button warning" type="button">展示模式</button>
+          <button id="openScriptMode" class="button warning" type="button">3 分鐘展示模式</button>
           <button id="resetDemo" class="button quiet" type="button">重置 Demo</button>
         </div>
       </section>
@@ -266,7 +273,36 @@
         </section>
       </section>
 
-      <section class="panel integration-panel" aria-label="中華電信業務整合構想">
+      <section class="panel engine-panel" id="engine" aria-label="決策引擎">
+        <div class="panel-heading">
+          <p class="eyebrow">Decision Engine</p>
+          <h3>決策引擎｜可解釋 AI 路由</h3>
+          <p class="engine-summary">
+            星夜根據網路品質、事件等級、收件者特性與 ACK 能力，計算各通訊通道分數，選出主通道與備援通道。
+          </p>
+        </div>
+        <div id="engineInsightCards" class="engine-insight-grid" aria-label="決策摘要"></div>
+        <article class="engine-table-card">
+          <div class="section-line"><span>路由評分表</span><strong id="decisionCount">0 decisions</strong></div>
+          <div id="scoreTable" class="score-matrix engine-score-table"></div>
+        </article>
+        <div class="engine-details-grid">
+          <details class="json-card">
+            <summary>查看輸入 JSON</summary>
+            <pre id="inputJson"></pre>
+          </details>
+          <details class="json-card">
+            <summary>查看 RouteDecision JSON</summary>
+            <pre id="outputJson"></pre>
+          </details>
+          <article class="fallback-card">
+            <div class="section-line"><span>Fallback Plan</span><strong>備援升級</strong></div>
+            <div id="fallbackPlan" class="fallback-plan"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel integration-panel" id="cht" aria-label="中華電信業務整合構想">
         <div class="panel-heading">
           <p class="eyebrow">CHT Integration</p>
           <h3>中華電信業務整合構想</h3>
@@ -280,7 +316,7 @@
         </div>
       </section>
 
-      <section class="panel business-panel" aria-label="市場與商業模式">
+      <section class="panel business-panel" id="market" aria-label="市場與商業模式">
         <div class="panel-heading">
           <p class="eyebrow">Market Model</p>
           <h3>市場與商業模式</h3>
@@ -305,46 +341,28 @@
         <div class="panel-heading command-heading">
           <div>
             <p class="eyebrow">Demo Script Mode</p>
-            <h3>現場展示模式</h3>
+            <h3>3 分鐘展示模式</h3>
           </div>
           <div class="toolbar-actions">
-            <button id="nextScriptStep" class="button primary" type="button">執行下一步</button>
-            <button id="closeScriptMode" class="button quiet" type="button">關閉</button>
+            <button id="nextScriptStep" class="button primary" type="button">下一步</button>
+            <button id="closeScriptMode" class="button quiet" type="button">關閉展示模式</button>
           </div>
         </div>
         <div class="script-layout">
           <div class="script-stage">
             <span id="scriptStepIndex">Step 1 / 7</span>
             <h4 id="scriptTitle">建立家庭平安事件</h4>
-            <p id="scriptDescription">按下一步可依序播放三分鐘展示腳本。</p>
+            <div class="script-copy-block">
+              <strong>我該講什麼</strong>
+              <p id="scriptTalk">按下一步可依序播放三分鐘展示腳本。</p>
+            </div>
+            <div class="script-copy-block">
+              <strong>系統正在做什麼</strong>
+              <p id="scriptSystem">建立事件、調整網路、重新路由與更新 ACK 狀態。</p>
+            </div>
             <small id="scriptNextHint">下一步：普通網路先走 App Push</small>
           </div>
           <ol id="scriptSteps" class="script-steps"></ol>
-        </div>
-      </section>
-
-      <section class="panel engine-panel" id="engine" aria-label="決策引擎">
-        <div class="panel-heading">
-          <p class="eyebrow">Decision Engine</p>
-          <h3>決策引擎</h3>
-        </div>
-        <div class="engine-grid">
-          <article>
-            <div class="section-line"><span>輸入參數 JSON</span><strong>EventScenario</strong></div>
-            <pre id="inputJson"></pre>
-          </article>
-          <article>
-            <div class="section-line"><span>路由評分表</span><strong>Deterministic</strong></div>
-            <div id="scoreTable" class="score-table"></div>
-          </article>
-          <article>
-            <div class="section-line"><span>輸出 RouteDecision JSON</span><strong id="decisionCount">0 decisions</strong></div>
-            <pre id="outputJson"></pre>
-          </article>
-          <article>
-            <div class="section-line"><span>Fallback Plan</span><strong>可解釋 AI</strong></div>
-            <div id="fallbackPlan" class="fallback-plan"></div>
-          </article>
         </div>
       </section>
     </main>

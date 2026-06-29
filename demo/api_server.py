@@ -317,7 +317,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/health":
-            self.json({"status": "ok", "service": "xingye-watch"})
+            self.json({"status": "ok", "service": "xingye"})
         elif self.path == "/api/scenarios":
             self.json(SCENARIOS)
         else:
@@ -345,7 +345,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
-    print("星夜守望者 demo: http://127.0.0.1:8765/")
+    print("星夜 demo: http://127.0.0.1:8765/")
     print("Route API: POST http://127.0.0.1:8765/api/route/plan")
     server.serve_forever()
 

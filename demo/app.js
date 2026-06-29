@@ -57,6 +57,16 @@ function activeDecision() {
 }
 
 function addTimeline(type, title, description, channel, recipient, status) {
+  const duplicateIndex = state.timeline.findIndex(
+    (entry) =>
+      entry.type === type &&
+      entry.title === title &&
+      entry.description === description &&
+      entry.channel === channel &&
+      entry.recipient === recipient &&
+      entry.status === status
+  );
+  if (duplicateIndex >= 0) state.timeline.splice(duplicateIndex, 1);
   state.timeline.unshift({
     time: nowTime(),
     type,
@@ -176,24 +186,33 @@ function markManual() {
   state.event.status = "escalating";
   state.recipients = state.recipients.map((item) =>
     item.id === recipient.id
-      ? { ...item, ackStatus: "escalated", lastChannel: "Manual Call", fallbackAttempts: item.fallbackAttempts + 1 }
+      ? { ...item, ackStatus: "manual_review", lastChannel: "Manual Call", fallbackAttempts: item.fallbackAttempts + 1 }
       : item
   );
   state.fallbackTriggers += 1;
-  addTimeline("manual", "標記人工處理", `${recipient.name} 已交由人工電話或社區守望者追蹤。`, "Manual Call", recipient.name, "escalated");
+  addTimeline("manual", "標記人工處理", `${recipient.name} 已交由人工電話或社區守望者追蹤。`, "Manual Call", recipient.name, "manual_review");
   render();
 }
 
 function acknowledge(responseKey) {
   const recipient = activeRecipient();
   const label = responseLabels[responseKey] || "已回覆";
+  const needsFollowup = ["help", "medical", "location", "no_call"].includes(responseKey);
+  const nextStatus = needsFollowup ? "needs_followup" : "acknowledged";
   state.recipients = state.recipients.map((item) =>
     item.id === recipient.id
-      ? { ...item, ackStatus: "acknowledged", response: label, lastChannel: item.lastChannel || activeDecision()?.selectedChannel || state.plan?.primaryChannel || "-" }
+      ? { ...item, ackStatus: nextStatus, response: label, lastChannel: item.lastChannel || activeDecision()?.selectedChannel || state.plan?.primaryChannel || "-" }
       : item
   );
-  state.event.status = "waiting_ack";
-  addTimeline("ack", "收到 ACK 回覆", `${recipient.name} 回覆「${label}」。`, activeDecision()?.selectedChannel || "-", recipient.name, "acknowledged");
+  state.event.status = needsFollowup ? "escalating" : "waiting_ack";
+  addTimeline(
+    needsFollowup ? "followup" : "ack",
+    needsFollowup ? "需要人工追蹤" : "收到 ACK 回覆",
+    `${recipient.name} 回覆「${label}」${needsFollowup ? "，已列入需處理名單。" : "。"}`,
+    activeDecision()?.selectedChannel || "-",
+    recipient.name,
+    nextStatus
+  );
   render();
 }
 
@@ -274,7 +293,13 @@ function simulateScriptPendingAck() {
       return { ...recipient, ackStatus: "pending", response: null, lastChannel: decision?.selectedChannel || plan.primaryChannel };
     }
     if (index <= 3) {
-      return { ...recipient, ackStatus: "acknowledged", response: index === 2 ? "需要協助" : "我平安", lastChannel: decision?.selectedChannel || plan.primaryChannel };
+      const needsFollowup = index === 2;
+      return {
+        ...recipient,
+        ackStatus: needsFollowup ? "needs_followup" : "acknowledged",
+        response: needsFollowup ? "需要協助" : "我平安",
+        lastChannel: decision?.selectedChannel || plan.primaryChannel,
+      };
     }
     return { ...recipient, ackStatus: "delivered", lastChannel: decision?.selectedChannel || plan.primaryChannel };
   });
@@ -328,7 +353,7 @@ function renderHero() {
   $("headerAck").textContent = `${ackRate}%`;
   $("mapTitle").textContent = state.event.heroTitle;
   $("eventTitle").textContent = state.event.heroTitle;
-  $("eventMessage").textContent = state.event.message;
+  $("eventMessage").textContent = "AI 韌性通訊路由助理";
 }
 
 function renderPhone() {
@@ -360,7 +385,7 @@ function renderCommandCenter() {
   $("kpiPending").textContent = pending;
   $("kpiFallback").textContent = state.fallbackTriggers;
   $("aiConfidence").textContent = `${state.plan.confidence}%`;
-  $("aiSummary").textContent = `${state.event.heroTitle}：推薦 ${state.plan.primaryChannel}`;
+  $("aiSummary").textContent = `星夜建議主通道：${state.plan.primaryChannel}`;
   $("aiReason").textContent = decisionNarrative();
   $("aiPrimary").textContent = state.plan.primaryChannel;
   $("aiFallback").textContent = state.plan.fallbackChannels.join("、") || "無";
@@ -498,8 +523,34 @@ function renderEngine() {
     null,
     2
   );
-  $("scoreTable").innerHTML = state.plan.scoreTable.map(scoreRow).join("");
+  $("engineInsightCards").innerHTML = engineInsightCardsHtml();
+  $("scoreTable").innerHTML = routeScoreMatrixHtml();
   $("fallbackPlan").innerHTML = fallbackPlanHtml();
+}
+
+function engineInsightCardsHtml() {
+  const risks = [];
+  if (state.network.bandwidthKbps < 64 || state.network.latencyMs > 800) risks.push("弱網");
+  if (state.network.disasterMode) risks.push("災害模式");
+  if (state.network.congestionLevel >= 70) risks.push("基地台壅塞");
+  if (!risks.length) risks.push("正常網路");
+  const cards = [
+    ["目前風險", risks.join(" / "), `${state.network.bandwidthKbps}kbps · ${state.network.latencyMs}ms · loss ${state.network.packetLossPercent}%`],
+    ["最佳主通道", state.plan.primaryChannel, state.plan.reason],
+    ["備援通道", state.plan.fallbackChannels.join(" / ") || "無", state.plan.escalationStrategy],
+    ["決策信心", `${state.plan.confidence}%`, "依通道可用性、ACK 能力、弱網適性與收件者族群加權。"],
+  ];
+  return cards
+    .map(
+      ([label, value, detail]) => `
+        <article class="engine-insight-card">
+          <span>${label}</span>
+          <strong>${value}</strong>
+          <p>${detail}</p>
+        </article>
+      `
+    )
+    .join("");
 }
 
 function scoreRow(row) {
@@ -576,16 +627,19 @@ function renderScript() {
   const nextStep = demoScript[Math.min(activeIndex + 1, demoScript.length - 1)];
   $("scriptStepIndex").textContent = `Step ${activeIndex + 1} / ${demoScript.length}`;
   $("scriptTitle").textContent = step.title;
-  $("scriptDescription").textContent = step.description;
+  $("scriptTalk").textContent = step.talk || step.description;
+  $("scriptSystem").textContent = step.systemAction || step.description;
   $("scriptNextHint").textContent = state.scriptIndex >= demoScript.length ? "展示已完成，可重新播放。" : `下一步：${nextStep.title}`;
   $("scriptSteps").innerHTML = demoScript
     .map((item, index) => `<li class="${index < state.scriptIndex ? "done" : index === activeIndex ? "active" : ""}">${item.title}</li>`)
     .join("");
-  $("nextScriptStep").textContent = state.scriptIndex >= demoScript.length ? "重新播放" : `執行 Step ${activeIndex + 1}`;
+  $("nextScriptStep").textContent = state.scriptIndex >= demoScript.length ? "重新播放" : "下一步";
 }
 
 function statusLabel(status, response) {
   if (status === "acknowledged") return response || "已確認";
+  if (status === "needs_followup") return response ? `需要處理：${response}` : "需要處理";
+  if (status === "manual_review") return "需人工追蹤";
   if (status === "delivered") return "已送達";
   if (status === "failed") return "失敗";
   if (status === "escalated") return "需升級";
