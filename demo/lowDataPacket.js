@@ -1,17 +1,26 @@
 (function (global) {
   const replyLabels = {
     SAFE: "我安全",
-    NEED_HELP: "我需要協助",
-    CANNOT_MOVE: "我無法移動",
-    DISCOMFORT: "我身體不適",
+    NEED_HELP: "需要救援",
+    INJURED: "我受傷",
+    TRAPPED: "我被困住",
+    NEED_MEDICAL: "我需要醫療",
+    CANNOT_TALK: "無法說話",
+    CANNOT_MOVE: "我被困住",
+    DISCOMFORT: "我受傷",
     LOCATION_UNKNOWN: "我不知道位置",
     NO_RESPONSE: "無法回覆",
   };
 
   const routeLabels = {
+    WIFI: "Wi-Fi",
+    LTE: "5G / LTE",
+    SMS: "SMS",
+    BLE_RELAY: "BLE Relay",
+    SATELLITE: "Satellite Backup",
     APP_PUSH: "App",
     LOW_DATA_TEXT: "低資料",
-    SMS_SIMULATED: "簡訊模擬",
+    SMS_SIMULATED: "SMS",
     VOICE_IVR_SIMULATED: "Voice IVR 模擬",
     NONE: "無",
   };
@@ -29,44 +38,87 @@
     return "U";
   }
 
+  function statusCodeFor(replyCode) {
+    const map = {
+      SAFE: "OK",
+      NEED_HELP: "NEED_HELP",
+      INJURED: "INJURED",
+      DISCOMFORT: "INJURED",
+      NEED_MEDICAL: "INJURED",
+      TRAPPED: "TRAPPED",
+      CANNOT_MOVE: "TRAPPED",
+      CANNOT_TALK: "NEED_HELP",
+      LOCATION_UNKNOWN: "NEED_HELP",
+      NO_RESPONSE: "NO_RESPONSE",
+    };
+    return map[replyCode] || "NEED_HELP";
+  }
+
+  function checksumFor(value) {
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    let hash = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      hash = (hash + text.charCodeAt(index) * (index + 1)) % 65535;
+    }
+    return hash.toString(16).padStart(4, "0");
+  }
+
   function routeForSignal(signalQuality) {
     const signal = Number(signalQuality || 0);
     if (signal >= 70) {
-      return { primaryRoute: "APP_PUSH", fallbackRoute: "LOW_DATA_TEXT" };
+      return { primaryRoute: "WIFI", fallbackRoute: "LTE" };
     }
     if (signal >= 40) {
-      return { primaryRoute: "LOW_DATA_TEXT", fallbackRoute: "SMS_SIMULATED" };
+      return { primaryRoute: "LTE", fallbackRoute: "SMS" };
     }
-    return { primaryRoute: "LOW_DATA_TEXT", fallbackRoute: "SMS_SIMULATED" };
+    return { primaryRoute: "SMS", fallbackRoute: "BLE_RELAY" };
+  }
+
+  function encodeLowDataPacket(target, replyCode, seq, nowMs = Date.now()) {
+    const payload = {
+      userId: target.id,
+      timestamp: nowMs,
+      gps: {
+        lat: target.location.lat,
+        lng: target.location.lng,
+        accuracy: target.location.confirmed ? target.location.accuracy : "unknown",
+      },
+      statusCode: statusCodeFor(replyCode),
+      batteryLevel: Math.round(Number(target.battery || 0)),
+      riskLevel: String(target.risk?.level || "GREEN").toUpperCase(),
+      packetSeq: seq,
+      retryCount: Number(target.communication?.retryCount || 0),
+    };
+
+    if (payload.gps.lat !== null && payload.gps.lng !== null && payload.gps.lat !== undefined && payload.gps.lng !== undefined) {
+      payload.gps.lat = Number(payload.gps.lat.toFixed(5));
+      payload.gps.lng = Number(payload.gps.lng.toFixed(5));
+    } else {
+      payload.gps.lat = null;
+      payload.gps.lng = null;
+    }
+    payload.checksum = checksumFor({ ...payload, checksum: undefined });
+    return payload;
   }
 
   function makePacket(target, replyCode, seq, nowMs = Date.now()) {
-    const payload = {
-      u: target.id,
-      seq,
-      r: replyCode,
-      acc: compactAccuracy(target.location.accuracy),
-      hr: target.medical.heartRate,
-      spo2: target.medical.spo2,
-      sig: Math.round(target.signalQuality),
-      bat: Math.round(target.battery),
-      t: Math.floor(nowMs / 1000),
+    const payload = encodeLowDataPacket(target, replyCode, seq, nowMs);
+    const compactPayload = {
+      u: payload.userId,
+      ts: Math.floor(payload.timestamp / 1000),
+      gps: payload.gps.lat === null ? "U" : `${payload.gps.lat},${payload.gps.lng},${compactAccuracy(payload.gps.accuracy)}`,
+      s: payload.statusCode,
+      b: payload.batteryLevel,
+      risk: payload.riskLevel,
+      seq: payload.packetSeq,
+      r: payload.retryCount,
+      c: payload.checksum,
     };
 
-    if (target.location.lat !== null && target.location.lng !== null) {
-      payload.lat = Number(target.location.lat.toFixed(3));
-      payload.lng = Number(target.location.lng.toFixed(3));
-    }
-
-    Object.keys(payload).forEach((key) => {
-      if (payload[key] === null || payload[key] === undefined || payload[key] === "") {
-        delete payload[key];
-      }
-    });
-
-    const body = JSON.stringify(payload);
+    const body = JSON.stringify(compactPayload);
     return {
       payload,
+      compactPayload,
       body,
       bytes: estimateBytes(body),
       preview: JSON.stringify(payload, null, 2),
@@ -91,6 +143,9 @@
     routeLabels,
     estimateBytes,
     compactAccuracy,
+    statusCodeFor,
+    checksumFor,
+    encodeLowDataPacket,
     routeForSignal,
     makePacket,
     makeAck,

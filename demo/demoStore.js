@@ -1,29 +1,34 @@
 (function (global) {
-  const APP_KIND = "xingye-mvp-demo";
-  const STORAGE_KEY = "xingye-mvp-state-v1";
+  const APP_KIND = "xingye-sea-ground-space-demo";
+  const STORAGE_KEY = "xingye-sea-ground-space-state-v2";
   const lowData = global.XY_LOW_DATA;
+  const communicationEngine = global.XY_COMMUNICATION;
 
   const actionLabels = {
-    MONITOR: "持續追蹤",
-    CALL_BACK: "人工回撥",
-    SEND_VOLUNTEER: "派守望隊確認",
-    SEND_MEDICAL: "通知醫療/救護並派守望隊確認",
+    MONITOR: "持續觀察",
+    CALL_BACK: "守望隊主動確認",
+    SEND_VOLUNTEER: "優先派遣守望隊",
+    UPGRADE_CHANNEL: "優先派遣並升級通訊通道",
   };
 
   const levelActions = {
-    LOW: "MONITOR",
-    MEDIUM: "CALL_BACK",
-    HIGH: "SEND_VOLUNTEER",
-    CRITICAL: "SEND_MEDICAL",
+    GREEN: "MONITOR",
+    YELLOW: "MONITOR",
+    ORANGE: "SEND_VOLUNTEER",
+    RED: "UPGRADE_CHANNEL",
   };
 
   const replyScores = {
-    SAFE: 0,
-    NEED_HELP: 30,
-    CANNOT_MOVE: 45,
-    DISCOMFORT: 35,
-    LOCATION_UNKNOWN: 20,
-    NO_RESPONSE: 50,
+    SAFE: -8,
+    NEED_HELP: 38,
+    INJURED: 42,
+    TRAPPED: 54,
+    NEED_MEDICAL: 50,
+    CANNOT_TALK: 34,
+    CANNOT_MOVE: 54,
+    DISCOMFORT: 42,
+    LOCATION_UNKNOWN: 22,
+    NO_RESPONSE: 26,
   };
 
   let state = normalizeState(loadLocalState() || createInitialState());
@@ -86,6 +91,7 @@
         lng: config.lng ?? null,
         accuracy: config.accuracy || "unknown",
         confirmed: Boolean(config.locationConfirmed),
+        staticMinutes: Number(config.staticMinutes || 0),
       },
       medical: {
         chronicNote: config.chronicNote || "無特殊",
@@ -94,6 +100,9 @@
         discomfort: Boolean(config.discomfort),
         injury: Boolean(config.injury),
         cannotMove: Boolean(config.cannotMove),
+        breathingDifficulty: Boolean(config.breathingDifficulty),
+        trapped: Boolean(config.trapped),
+        hypothermia: Boolean(config.hypothermia),
       },
       latestReply: config.replyCode
         ? {
@@ -111,8 +120,14 @@
         retryCount: config.retryCount || 0,
         lastAckAt: config.lastAckAt || null,
         ackPendingSince: config.ackPendingSince || null,
+        packetSuccessRate: config.packetSuccessRate ?? 0,
+        averageLatencyMs: config.averageLatencyMs ?? 0,
+        packetLossRate: config.packetLossRate ?? 0,
+        lowDataMode: Boolean(config.lowDataMode),
+        satelliteRecommended: Boolean(config.satelliteRecommended),
+        channelScores: [],
       },
-      risk: { score: 0, level: "LOW", reason: [], action: "MONITOR", items: [] },
+      risk: { score: 0, level: "GREEN", reason: [], action: "MONITOR", items: [] },
       lastUpdatedAt: config.lastUpdatedAt || null,
     };
   }
@@ -120,92 +135,104 @@
   function createInitialState() {
     const targets = [
       createTarget({
+        id: "U-001",
+        name: "阿明",
+        age: 28,
+        role: "general",
+        signalQuality: 82,
+        battery: 83,
+        chronicNote: "無特殊",
+        heartRate: 78,
+        spo2: 98,
+        replyCode: "SAFE",
+        replyAt: minutesAgo(1),
+        packetSeq: 2,
+        packetBytes: 112,
+        ackStatus: "received",
+        retryCount: 0,
+        lat: 25.034,
+        lng: 121.565,
+        accuracy: "high",
+        locationConfirmed: true,
+        lastAckAt: nowIso(minutesAgo(1)),
+        lastUpdatedAt: nowIso(minutesAgo(1)),
+      }),
+      createTarget({
         id: "U-013",
         name: "林奶奶",
         age: 82,
         role: "elder",
-        signalQuality: 28,
-        battery: 64,
+        signalQuality: 48,
+        battery: 52,
         chronicNote: "高齡",
-        heartRate: 86,
+        heartRate: 88,
         spo2: 95,
         replyCode: "NO_RESPONSE",
-        replyAt: minutesAgo(12),
+        replyAt: minutesAgo(4),
         packetSeq: 4,
         packetBytes: 118,
-        ackStatus: "failed",
-        retryCount: 3,
-        accuracy: "unknown",
-        locationConfirmed: false,
+        ackStatus: "retrying",
+        retryCount: 1,
+        lat: 25.037,
+        lng: 121.568,
+        accuracy: "medium",
+        locationConfirmed: true,
+        staticMinutes: 18,
+        lastAckAt: nowIso(minutesAgo(4)),
+        lastUpdatedAt: nowIso(minutesAgo(4)),
       }),
       createTarget({
         id: "U-021",
         name: "陳先生",
         age: 67,
         role: "patient",
-        signalQuality: 72,
-        battery: 58,
-        chronicNote: "行動不便",
-        heartRate: 92,
-        spo2: 96,
+        signalQuality: 24,
+        battery: 36,
+        chronicNote: "行動不便，疑似受困",
+        heartRate: 124,
+        spo2: 91,
+        breathingDifficulty: true,
+        trapped: true,
         replyCode: "NEED_HELP",
         replyAt: minutesAgo(0.5),
         packetSeq: 5,
         packetBytes: 124,
-        ackStatus: "received",
-        retryCount: 0,
-        lat: 22.999,
-        lng: 120.211,
-        accuracy: "high",
+        ackStatus: "failed",
+        retryCount: 4,
+        lat: 25.033,
+        lng: 121.558,
+        accuracy: "medium",
         locationConfirmed: true,
-        lastAckAt: nowIso(minutesAgo(2)),
+        staticMinutes: 8,
+        lastAckAt: nowIso(minutesAgo(11)),
+        lastUpdatedAt: nowIso(minutesAgo(0.5)),
       }),
       createTarget({
         id: "U-034",
-        name: "王伯伯",
-        age: 74,
-        role: "patient",
-        signalQuality: 76,
-        battery: 49,
-        chronicNote: "洗腎返家者",
-        heartRate: 104,
-        spo2: 94,
-        replyCode: "LOCATION_UNKNOWN",
-        replyAt: minutesAgo(0.5),
+        name: "王小姐",
+        age: 34,
+        role: "general",
+        signalQuality: 45,
+        battery: 14,
+        chronicNote: "無特殊",
+        heartRate: 92,
+        spo2: 97,
+        replyCode: "SAFE",
+        replyAt: minutesAgo(8),
         packetSeq: 6,
         packetBytes: 112,
         ackStatus: "received",
         retryCount: 0,
-        accuracy: "unknown",
-        locationConfirmed: false,
-        lastAckAt: nowIso(minutesAgo(1)),
-      }),
-      createTarget({
-        id: "U-052",
-        name: "張小姐",
-        age: 31,
-        role: "general",
-        signalQuality: 78,
-        battery: 81,
-        chronicNote: "無特殊",
-        heartRate: 118,
-        spo2: 94,
-        discomfort: true,
-        replyCode: "DISCOMFORT",
-        replyAt: minutesAgo(0.5),
-        packetSeq: 7,
-        packetBytes: 127,
-        ackStatus: "received",
-        retryCount: 0,
-        lat: 22.996,
-        lng: 120.214,
+        lat: 25.031,
+        lng: 121.562,
         accuracy: "high",
         locationConfirmed: true,
-        lastAckAt: nowIso(minutesAgo(1)),
+        lastAckAt: nowIso(minutesAgo(9)),
+        lastUpdatedAt: nowIso(minutesAgo(8)),
       }),
       createTarget({
         id: "U-DEMO",
-        name: "手機實機 DEMO",
+        name: "Demo 使用者",
         age: 35,
         role: "general",
         signalQuality: 78,
@@ -216,10 +243,11 @@
         packetSeq: 8,
         ackStatus: "pending",
         retryCount: 0,
-        lat: 22.997,
-        lng: 120.212,
+        lat: 25.035,
+        lng: 121.564,
         accuracy: "high",
         locationConfirmed: true,
+        lastUpdatedAt: nowIso(),
       }),
     ];
 
@@ -230,9 +258,19 @@
       activeTargetId: "U-DEMO",
       selectedTargetId: "U-DEMO",
       event: {
-        title: "災害安全確認事件",
+        title: "地震後海纜與地面骨幹不穩情境",
         status: "待建立",
         createdAt: null,
+        network: {
+          seaCableStatus: "degraded",
+          groundBackboneStatus: "unstable",
+          backboneLatencyMs: 1680,
+          backbonePacketLossPercent: 31,
+          groundCongestion: 86,
+          mobileAvailable: true,
+          satelliteAvailable: true,
+          disasterMode: true,
+        },
         script: {
           running: false,
           startedAt: null,
@@ -248,7 +286,7 @@
           targetId: "system",
           kind: "system",
           title: "星夜 MVP 已就緒",
-          detail: "手機端與守望隊工作台讀取同一份 DemoTarget 狀態。",
+          detail: "地震後海纜與地面骨幹不穩情境已載入，手機端與守望隊工作台讀取同一份 DemoTarget 狀態。",
           timestamp: nowIso(),
         },
       ],
@@ -263,6 +301,7 @@
     if (!next.activeTargetId) next.activeTargetId = "U-DEMO";
     if (!next.selectedTargetId) next.selectedTargetId = next.activeTargetId;
     if (!next.event) next.event = createInitialState().event;
+    if (!next.event.network) next.event.network = createInitialState().event.network;
     if (!next.event.script) {
       next.event.script = { running: false, startedAt: null, elapsedSeconds: 0, label: "尚未啟動展示模式" };
     }
@@ -270,7 +309,7 @@
       const route = lowData.routeForSignal(target.signalQuality);
       const normalized = {
         ...target,
-        location: { lat: null, lng: null, accuracy: "unknown", confirmed: false, ...(target.location || {}) },
+        location: { lat: null, lng: null, accuracy: "unknown", confirmed: false, staticMinutes: 0, ...(target.location || {}) },
         medical: {
           chronicNote: "無特殊",
           heartRate: null,
@@ -278,6 +317,9 @@
           discomfort: false,
           injury: false,
           cannotMove: false,
+          breathingDifficulty: false,
+          trapped: false,
+          hypothermia: false,
           ...(target.medical || {}),
         },
         communication: {
@@ -289,28 +331,56 @@
           retryCount: 0,
           lastAckAt: null,
           ackPendingSince: null,
+          packetSuccessRate: 0,
+          averageLatencyMs: 0,
+          packetLossRate: 0,
+          lowDataMode: false,
+          satelliteRecommended: false,
+          channelScores: [],
           ...(target.communication || {}),
-          primaryRoute: route.primaryRoute,
-          fallbackRoute: route.fallbackRoute,
         },
       };
       normalized.risk = calculateRisk(normalized);
+      applyCommunicationDecision(normalized, next.event.network);
       return normalized;
     });
     return next;
   }
 
   function riskLevel(score) {
-    if (score >= 80) return "CRITICAL";
-    if (score >= 50) return "HIGH";
-    if (score >= 25) return "MEDIUM";
-    return "LOW";
+    if (score >= 80) return "RED";
+    if (score >= 55) return "ORANGE";
+    if (score >= 25) return "YELLOW";
+    return "GREEN";
   }
 
   function addRisk(items, label, score, detail, visibleWhenZero = false) {
     if (score || visibleWhenZero) {
       items.push({ label, score, detail });
     }
+  }
+
+  function minutesSinceIso(value, nowMs) {
+    if (!value) return 999;
+    const time = new Date(value).getTime();
+    if (Number.isNaN(time)) return 999;
+    return Math.max(0, (nowMs - time) / 60000);
+  }
+
+  function applyCommunicationDecision(target, network) {
+    if (!communicationEngine) return target;
+    const decision = communicationEngine.decisionForTarget(target, target.risk, network);
+    const primary = decision.primary;
+    const fallback = decision.fallback;
+    target.communication.primaryRoute = primary?.id || target.communication.primaryRoute || "SMS";
+    target.communication.fallbackRoute = fallback?.id || "NONE";
+    target.communication.packetSuccessRate = primary?.packetSuccessRate || 0;
+    target.communication.averageLatencyMs = primary?.latencyMs || 0;
+    target.communication.packetLossRate = decision.packetLossRate;
+    target.communication.lowDataMode = decision.lowDataMode;
+    target.communication.satelliteRecommended = decision.satelliteRecommended;
+    target.communication.channelScores = decision.scores || [];
+    return target;
   }
 
   function calculateRisk(target, nowMs = Date.now()) {
@@ -320,15 +390,15 @@
     const replyScore = code ? replyScores[code] || 0 : 0;
     addRisk(items, "使用者回覆", replyScore, code ? `${latest.label} +${replyScore}` : "尚未回覆 +0", true);
 
-    const chronic = target.role === "elder" || (target.medical.chronicNote && target.medical.chronicNote !== "無特殊");
-    addRisk(items, "慢性病/高齡", chronic ? 10 : 0, chronic ? `${target.medical.chronicNote} +10` : "無特殊 +0");
+    addRisk(items, "是否按下求救", code === "NEED_HELP" ? 20 : 0, "使用者按下需要救援 +20");
 
     const heartRate = Number(target.medical.heartRate);
-    addRisk(items, "心率異常", heartRate > 120 || heartRate < 50 ? 20 : 0, `HR ${target.medical.heartRate ?? "-"} +20`);
-    addRisk(items, "血氧偏低", Number(target.medical.spo2) < 92 ? 25 : 0, `SpO2 ${target.medical.spo2 ?? "-"} +25`);
-    addRisk(items, "受傷", target.medical.injury ? 25 : 0, "injury +25");
-    addRisk(items, "身體不適", target.medical.discomfort ? 20 : 0, "身體不適 +20");
-    addRisk(items, "無法移動", target.medical.cannotMove || code === "CANNOT_MOVE" ? 30 : 0, "無法移動 +30");
+    addRisk(items, "心率異常", heartRate > 120 || heartRate < 50 ? 12 : 0, `HR ${target.medical.heartRate ?? "-"} +12`);
+    addRisk(items, "血氧偏低", Number(target.medical.spo2) < 92 ? 18 : 0, `SpO2 ${target.medical.spo2 ?? "-"} +18`);
+    addRisk(items, "受傷", target.medical.injury || code === "INJURED" || code === "NEED_MEDICAL" ? 24 : 0, "受傷或需要醫療 +24");
+    addRisk(items, "呼吸困難", target.medical.breathingDifficulty ? 28 : 0, "呼吸困難 +28");
+    addRisk(items, "被困/無法移動", target.medical.trapped || target.medical.cannotMove || code === "TRAPPED" || code === "CANNOT_MOVE" ? 28 : 0, "被困或無法移動 +28");
+    addRisk(items, "失溫", target.medical.hypothermia ? 24 : 0, "疑似失溫 +24");
 
     if (target.location.confirmed && target.location.accuracy === "high") {
       addRisk(items, "GPS", 0, "GPS 已確認 high +0", true);
@@ -338,25 +408,34 @@
       addRisk(items, "GPS 未確認", 25, "GPS unknown +25");
     }
     addRisk(items, "使用者表示位置不明", code === "LOCATION_UNKNOWN" ? 20 : 0, "位置不明 +20");
+    addRisk(items, "GPS 長時間靜止", Number(target.location.staticMinutes || 0) >= 10 ? 20 : 0, `GPS 靜止 ${target.location.staticMinutes || 0} 分鐘 +20`);
 
     const signal = Number(target.signalQuality || 0);
-    const signalScore = signal >= 70 ? 0 : signal >= 40 ? 10 : 25;
-    addRisk(items, "訊號品質", signalScore, signal >= 70 ? `signal ${signal}% +0` : signal >= 40 ? `signal ${signal}% +10` : `弱訊號 ${signal}% +25`, true);
+    const signalScore = signal >= 70 ? 0 : signal >= 40 ? 8 : 16;
+    addRisk(items, "訊號品質", signalScore, signal >= 70 ? `signal ${signal}% +0` : signal >= 40 ? `signal ${signal}% +8` : `弱訊號 ${signal}% +16`, true);
 
     const pendingSince = target.communication.ackPendingSince || latest?.timestamp || nowMs;
     const pendingSeconds = (nowMs - new Date(pendingSince).getTime()) / 1000;
     const ackPendingTooLong = ["pending", "retrying"].includes(target.communication.ackStatus) && pendingSeconds > 20;
-    addRisk(items, "ACK pending 超過 20 秒", ackPendingTooLong ? 15 : 0, "ACK pending +15");
-    addRisk(items, "retry 次數", Number(target.communication.retryCount || 0) >= 2 ? 10 : 0, `retry ${target.communication.retryCount || 0} +10`);
-    addRisk(items, "NO_RESPONSE 且 ACK failed", code === "NO_RESPONSE" && target.communication.ackStatus === "failed" ? 30 : 0, "NO_RESPONSE + failed +30");
+    const retryCount = Number(target.communication.retryCount || 0);
+    addRisk(items, "ACK pending 超過 20 秒", ackPendingTooLong ? 10 : 0, "ACK pending +10");
+    addRisk(items, "封包連續失敗", target.communication.ackStatus === "failed" || retryCount >= 3 ? 24 : retryCount >= 2 ? 12 : 0, `retry ${retryCount} / ${target.communication.ackStatus} +${target.communication.ackStatus === "failed" || retryCount >= 3 ? 24 : retryCount >= 2 ? 12 : 0}`);
+    addRisk(items, "NO_RESPONSE 且 ACK failed", code === "NO_RESPONSE" && target.communication.ackStatus === "failed" ? 20 : 0, "NO_RESPONSE + failed +20");
+
+    const battery = Number(target.battery || 0);
+    const batteryScore = battery < 10 ? 24 : battery < 20 ? 16 : battery < 30 ? 8 : 0;
+    addRisk(items, "手機電量", batteryScore, `battery ${battery}% +${batteryScore}`, true);
 
     if (latest?.timestamp) {
       const minutes = (nowMs - Number(latest.timestamp)) / 60000;
-      const timeScore = minutes > 10 ? 35 : minutes >= 5 ? 20 : minutes >= 3 ? 10 : 0;
+      const timeScore = minutes > 15 ? 22 : minutes >= 10 ? 16 : minutes >= 5 ? 8 : 0;
       addRisk(items, "最後回覆時間", timeScore, `${Math.max(0, Math.round(minutes))} 分鐘前 +${timeScore}`);
     }
+    const syncMinutes = minutesSinceIso(target.communication.lastAckAt || target.lastUpdatedAt, nowMs);
+    const syncScore = syncMinutes > 15 ? 20 : syncMinutes >= 8 ? 10 : 0;
+    addRisk(items, "最後成功同步時間", syncScore, `${Math.round(syncMinutes)} 分鐘前 +${syncScore}`, true);
 
-    const score = Math.min(100, items.reduce((sum, item) => sum + Number(item.score || 0), 0));
+    const score = Math.max(0, Math.min(100, items.reduce((sum, item) => sum + Number(item.score || 0), 0)));
     const level = riskLevel(score);
     const action = levelActions[level];
     return {
@@ -538,9 +617,9 @@
     commit((draft) => {
       const target = updateActiveTarget(draft, (item) => {
         if (kind === "confirmed") {
-          item.location = { lat: 22.997, lng: 120.212, accuracy: "high", confirmed: true };
+          item.location = { lat: 25.035, lng: 121.564, accuracy: "high", confirmed: true, staticMinutes: 0 };
         } else {
-          item.location = { lat: null, lng: null, accuracy: "unknown", confirmed: false };
+          item.location = { lat: null, lng: null, accuracy: "unknown", confirmed: false, staticMinutes: 0 };
         }
       });
       addEvent(draft, target.id, kind === "confirmed" ? "位置已確認" : "位置待確認", kind === "confirmed" ? "GPS high，守望隊可使用定位輔助排序。" : "使用者無法提供位置，風險矩陣加入 GPS unknown。", "location");
@@ -557,6 +636,7 @@
         }
         if (flag === "cannotMove" && value) {
           item.medical.heartRate = Math.max(Number(item.medical.heartRate || 96), 106);
+          item.medical.trapped = true;
         }
         if (!item.medical.discomfort && !item.medical.cannotMove) {
           item.medical.heartRate = 82;
@@ -578,20 +658,29 @@
           item.medical.discomfort = false;
           item.medical.injury = false;
           item.medical.cannotMove = false;
+          item.medical.breathingDifficulty = false;
+          item.medical.trapped = false;
+          item.medical.hypothermia = false;
           item.medical.heartRate = 82;
           item.medical.spo2 = 98;
         }
-        if (code === "CANNOT_MOVE") {
+        if (code === "CANNOT_MOVE" || code === "TRAPPED") {
           item.medical.cannotMove = true;
+          item.medical.trapped = true;
           item.medical.heartRate = Math.max(Number(item.medical.heartRate || 106), 106);
         }
-        if (code === "DISCOMFORT") {
+        if (code === "DISCOMFORT" || code === "INJURED" || code === "NEED_MEDICAL") {
           item.medical.discomfort = true;
+          item.medical.injury = true;
           item.medical.heartRate = 118;
           item.medical.spo2 = 94;
         }
+        if (code === "CANNOT_TALK") {
+          item.medical.breathingDifficulty = true;
+          item.medical.heartRate = Math.max(Number(item.medical.heartRate || 110), 110);
+        }
         if (code === "LOCATION_UNKNOWN") {
-          item.location = { lat: null, lng: null, accuracy: "unknown", confirmed: false };
+          item.location = { lat: null, lng: null, accuracy: "unknown", confirmed: false, staticMinutes: 0 };
         }
         item.latestReply = {
           code,
@@ -604,6 +693,8 @@
         item.communication.ackPendingSince = nowMs;
         item.communication.lastAckAt = Number(item.signalQuality || 0) < 40 ? null : nowIso(nowMs);
       });
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
       const packet = lowData.makePacket(target, code, seq, nowMs);
       target.communication.packetBytes = packet.bytes;
       weak = Number(target.signalQuality || 0) < 40;
@@ -614,7 +705,7 @@
         replyCode: code,
         replyLabel: lowData.replyLabels[code],
         bytes: packet.bytes,
-        packet: packet.body,
+        packet: packet.preview,
         ack: weak ? null : lowData.makeAck(target.id, seq, nowMs),
         status: weak ? "pending" : "received",
         dedupe: "accepted",
@@ -645,6 +736,8 @@
       if (target.communication.packetSeq !== seq || target.communication.ackStatus === "received") return;
       target.communication.retryCount = retryCount;
       target.communication.ackStatus = "retrying";
+      target.risk = calculateRisk(target);
+      applyCommunicationDecision(target, draft.event.network);
       const packet = lowData.makePacket(target, target.latestReply.code, seq);
       addPacketLog(draft, {
         targetId: target.id,
@@ -653,7 +746,7 @@
         replyCode: target.latestReply.code,
         replyLabel: target.latestReply.label,
         bytes: packet.bytes,
-        packet: packet.body,
+        packet: packet.preview,
         ack: null,
         status: "retrying",
         dedupe: "same seq retry",
@@ -699,15 +792,20 @@
     commit((draft) => {
       const fresh = createInitialState();
       fresh.revision = Number(draft.revision || 0);
-      fresh.event.status = "災害事件已建立";
+      fresh.event.status = "災害模式啟動";
       fresh.event.createdAt = nowIso();
+      fresh.event.network.disasterMode = true;
+      fresh.event.network.seaCableStatus = "degraded";
+      fresh.event.network.groundBackboneStatus = "unstable";
+      fresh.event.network.backboneLatencyMs = 1880;
+      fresh.event.network.backbonePacketLossPercent = 36;
       fresh.event.script = {
         running: true,
         startedAt: Date.now(),
         elapsedSeconds: 0,
-        label: "0-10 秒：建立災害事件，5 位目標進入待確認。",
+        label: "0-10 秒：災害模式啟動，海纜與地面骨幹延遲升高，5 位目標進入待確認。",
       };
-      addEvent(fresh, "system", "建立災害事件", "5 位目標進入待確認，U-DEMO 保留給手機實機操作。", "script");
+      addEvent(fresh, "system", "災害模式啟動", "地震後海纜與地面骨幹不穩，系統切換低資料量封包並重新評估通訊路徑。", "script");
       return fresh;
     }, "script-start");
   }
@@ -730,31 +828,39 @@
         target.communication.retryCount = Number(target.signalQuality || 0) < 40 ? 1 : 0;
         target.communication.lastAckAt = target.communication.ackStatus === "received" ? nowIso() : target.communication.lastAckAt;
       });
-      addEvent(draft, "system", "發送安全確認", "系統向 5 位目標送出低資料安全確認，後台顯示 seq 與 ACK。", "script");
+      addEvent(draft, "system", "發送低資料安全確認", "系統只送 GPS、求救等級、生命狀態與按鍵回覆，降低海纜/骨幹異常時的丟包風險。", "script");
     }, "script-checkin");
   }
 
   function applyScriptReplies() {
     const presets = [
-      ["U-013", "SAFE", { signalQuality: 70, location: { lat: 22.998, lng: 120.213, accuracy: "high", confirmed: true } }],
-      ["U-021", "NEED_HELP", {}],
-      ["U-034", "LOCATION_UNKNOWN", {}],
-      ["U-052", "DISCOMFORT", { medical: { discomfort: true, heartRate: 118, spo2: 94 } }],
+      ["U-001", "SAFE", { signalQuality: 82, location: { lat: 25.034, lng: 121.565, accuracy: "high", confirmed: true, staticMinutes: 0 } }],
+      ["U-013", "NO_RESPONSE", { signalQuality: 48, location: { lat: 25.037, lng: 121.568, accuracy: "medium", confirmed: true, staticMinutes: 18 }, communication: { ackStatus: "retrying", retryCount: 1, lastAckAt: nowIso(minutesAgo(4)) } }],
+      ["U-021", "NEED_HELP", { signalQuality: 24, communication: { ackStatus: "failed", retryCount: 4 }, medical: { trapped: true, breathingDifficulty: true, heartRate: 124, spo2: 91 } }],
+      ["U-034", "SAFE", { battery: 14, signalQuality: 45, communication: { ackStatus: "received", retryCount: 0, lastAckAt: nowIso(minutesAgo(9)) } }],
     ];
     commit((draft) => {
       presets.forEach(([id, code, patch]) => {
         const target = draft.targets.find((item) => item.id === id);
         if (!target) return;
+        const previousLocation = target.location;
+        const previousMedical = target.medical;
+        const previousCommunication = target.communication;
         Object.assign(target, patch);
-        if (patch.location) target.location = patch.location;
-        if (patch.medical) target.medical = { ...target.medical, ...patch.medical };
+        if (patch.location) target.location = { ...previousLocation, ...patch.location };
+        if (patch.medical) target.medical = { ...previousMedical, ...patch.medical };
+        if (patch.communication) target.communication = { ...previousCommunication, ...patch.communication };
         target.latestReply = { code, label: lowData.replyLabels[code], timestamp: Date.now() };
         target.communication.packetSeq = Number(target.communication.packetSeq || 0) + 1;
+        target.risk = calculateRisk(target);
+        applyCommunicationDecision(target, draft.event.network);
         const packet = lowData.makePacket(target, code, target.communication.packetSeq);
         target.communication.packetBytes = packet.bytes;
-        target.communication.ackStatus = "received";
-        target.communication.lastAckAt = nowIso();
-        target.communication.retryCount = 0;
+        if (target.communication.ackStatus !== "failed" && target.communication.ackStatus !== "retrying") {
+          target.communication.ackStatus = "received";
+          target.communication.lastAckAt = nowIso();
+          target.communication.retryCount = 0;
+        }
         addPacketLog(draft, {
           targetId: target.id,
           seq: target.communication.packetSeq,
@@ -762,14 +868,14 @@
           replyCode: code,
           replyLabel: lowData.replyLabels[code],
           bytes: packet.bytes,
-          packet: packet.body,
+          packet: packet.preview,
           ack: lowData.makeAck(target.id, target.communication.packetSeq),
           status: "received",
           dedupe: "accepted",
           route: target.communication.primaryRoute,
         });
       });
-      addEvent(draft, "system", "收到 4 位目標回覆", "安全、需要協助、位置不明、身體不適已進入風險排序；U-DEMO 等待手機端操作。", "script");
+      addEvent(draft, "system", "收到 4 位目標狀態", "阿明安全、林奶奶未回覆且 GPS 靜止、陳先生求救且封包多次失敗、王小姐低電量；U-DEMO 等待手機端操作。", "script");
     }, "script-replies");
   }
 
@@ -778,8 +884,9 @@
       draft.event.status = "建議調度已產生";
       draft.targets.forEach((target) => {
         target.risk = calculateRisk(target);
+        applyCommunicationDecision(target, draft.event.network);
       });
-      addEvent(draft, "system", "建議調度", "LOW 持續追蹤；MEDIUM 人工回撥；HIGH 派守望隊；CRITICAL 派守望隊 + 醫療救護。", "dispatch");
+      addEvent(draft, "system", "建議調度", "Green/Yellow 優先 Wi-Fi、5G 或 SMS；Orange 啟用低資料量與主動確認；Red 優先 GPS/求救/生命狀態並建議衛星或高優先備援。", "dispatch");
     }, "script-dispatch");
   }
 
@@ -787,6 +894,7 @@
     commit((draft) => {
       draft.targets.forEach((target) => {
         target.risk = calculateRisk(target);
+        applyCommunicationDecision(target, draft.event.network);
       });
       if (draft.event.script.running && draft.event.script.startedAt) {
         draft.event.script.elapsedSeconds = Math.min(180, Math.floor((Date.now() - draft.event.script.startedAt) / 1000));
