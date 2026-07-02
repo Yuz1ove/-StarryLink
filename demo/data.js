@@ -96,9 +96,72 @@
   const responseLabels = {
     safe: "我平安",
     help: "需要協助",
-    no_call: "無法通話",
+    no_call: "無法移動",
     medical: "需要醫療",
     location: "位置異常",
+  };
+
+  const actionDefinitions = {
+    SAFE_OK: {
+      responseKey: "safe",
+      responseCode: "S",
+      label: "我平安",
+      severity: 1,
+      status: "已回報平安",
+      needsTriage: false,
+      preferredChannel: "SSE / SMS",
+      routeHint: "記錄 ACK，不進入高優先待處理。",
+      reassurance: "已回報平安，守望隊已收到。",
+      shortHint: "後台已收到",
+    },
+    NEED_HELP: {
+      responseKey: "help",
+      responseCode: "H",
+      label: "需要協助",
+      severity: 3,
+      status: "需要協助",
+      needsTriage: true,
+      preferredChannel: "SMS",
+      routeHint: "SMS 主通道，若無 ACK 則升級人工追蹤。",
+      reassurance: "需要協助已送出。守望隊已收到，請留在安全位置等待確認。",
+      shortHint: "留在安全位置",
+    },
+    CANNOT_TALK: {
+      responseKey: "no_call",
+      responseCode: "N",
+      label: "無法移動",
+      severity: 4,
+      status: "無法移動已送出",
+      needsTriage: true,
+      preferredChannel: "SMS / Low Data Text",
+      routeHint: "守望隊提高追蹤優先序，優先使用短文字與人工確認。",
+      reassurance: "守望隊已收到，請先留在安全位置，不要勉強移動。",
+      shortHint: "守望隊協助",
+    },
+    NEED_MEDICAL: {
+      responseKey: "medical",
+      responseCode: "M",
+      label: "需要醫療",
+      severity: 5,
+      status: "需要醫療協助已送出",
+      needsTriage: true,
+      preferredChannel: "SMS + Manual Call + Guardian Notify",
+      routeHint: "最高優先級，建議守望隊人工追蹤與守護者模擬通知。",
+      reassurance: "守望隊已收到。請先確認周圍安全，保持手機在身邊。若身邊有人，請請他協助留意並等待聯繫。",
+      shortHint: "保持手機在身邊",
+    },
+    LOCATION_ANOMALY: {
+      responseKey: "location",
+      responseCode: "L",
+      label: "無法確認位置",
+      severity: 4,
+      status: "位置待確認已送出",
+      needsTriage: true,
+      preferredChannel: "SMS + Location Check",
+      routeHint: "位置確認與後台追蹤，顯示同網路推測定位但不宣稱 GPS。",
+      reassurance: "守望隊會協助確認位置，請留在安全處並保持手機在身邊。",
+      shortHint: "位置確認中",
+    },
   };
 
   const scenarios = [
@@ -194,7 +257,7 @@
         recipient("m-patient", "慢性病患者", "elder", 1, ["ivr", "sms"], "weak", { smartphone: false, featurePhone: true, fixedLine: true }),
         recipient("m-family", "家屬", "parent", 2, ["sms", "line"], "normal", { smartphone: true, featurePhone: true, fixedLine: false }),
         recipient("m-nurse", "護理站", "responder", 1, ["ivr", "manual"], "normal", { smartphone: true, featurePhone: true, fixedLine: true }),
-        recipient("m-ems", "救護窗口", "responder", 1, ["sms", "manual"], "normal", { smartphone: true, featurePhone: true, fixedLine: true }),
+        recipient("m-ems", "照護窗口", "responder", 1, ["sms", "manual"], "normal", { smartphone: true, featurePhone: true, fixedLine: true }),
       ],
     },
     {
@@ -263,28 +326,77 @@
   ];
 
   function recipient(id, name, role, priority, preferredChannels, lastKnownSignal, deviceProfile) {
+    const profileDevice = Object.assign(
+      {
+        smartphone: true,
+        featurePhone: true,
+        fixedLine: false,
+        lineUser: true,
+        emailReachable: true,
+        satelliteBeacon: false,
+      },
+      deviceProfile
+    );
+    const profile = communicationProfileFor(id, name, role, preferredChannels, profileDevice);
     return {
       id,
       name,
       role,
+      displayName: profile.displayName,
+      preferredLanguage: profile.preferredLanguage,
+      elderFriendly: profile.elderFriendly,
+      canUseVoice: profile.canUseVoice,
+      canUseText: profile.canUseText,
+      phoneMasked: profile.phoneMasked,
+      guardianName: profile.guardianName,
+      guardianPhoneMasked: profile.guardianPhoneMasked,
+      communityHelperName: profile.communityHelperName,
+      communityHelperDistanceKm: profile.communityHelperDistanceKm,
+      emergencyNote: profile.emergencyNote,
+      lastKnownLocation: profile.lastKnownLocation,
+      communicationProfileComplete: profile.communicationProfileComplete,
+      communicationProfileUpdatedAt: profile.communicationProfileUpdatedAt,
       priority,
-      deviceProfile: Object.assign(
-        {
-          smartphone: true,
-          featurePhone: true,
-          fixedLine: false,
-          lineUser: true,
-          emailReachable: true,
-          satelliteBeacon: false,
-        },
-        deviceProfile
-      ),
+      deviceProfile: profileDevice,
       preferredChannels,
       lastKnownSignal,
       ackStatus: "pending",
       response: null,
       lastChannel: null,
       fallbackAttempts: 0,
+    };
+  }
+
+  function communicationProfileFor(id, name, role, preferredChannels, deviceProfile) {
+    const suffixMap = {
+      elder: "186",
+      parent: "238",
+      child: "512",
+      neighbor: "705",
+      community_guardian: "119",
+      responder: "767",
+      admin: "550",
+    };
+    const suffix = suffixMap[role] || String(id).replace(/\D/g, "").slice(-3).padStart(3, "0");
+    const guardianSuffix = String((Number(suffix) + 17) % 1000).padStart(3, "0");
+    const canUseVoice = Boolean(deviceProfile.featurePhone || deviceProfile.fixedLine);
+    const canUseText = Boolean(deviceProfile.featurePhone || deviceProfile.smartphone);
+    const guardianMissing = id.includes("m-patient") || id.includes("d-2");
+    return {
+      displayName: role === "elder" ? `${name}（長者）` : name,
+      preferredLanguage: "zh-Hant",
+      elderFriendly: role === "elder",
+      canUseVoice,
+      canUseText,
+      phoneMasked: `09xx-xxx-${suffix}`,
+      guardianName: guardianMissing ? "" : role === "elder" ? "指定守護者" : "家庭聯絡人",
+      guardianPhoneMasked: guardianMissing ? "" : `09xx-xxx-${guardianSuffix}`,
+      communityHelperName: role === "community_guardian" ? name : "社區守望者",
+      communityHelperDistanceKm: role === "elder" ? 1.2 : 2.4,
+      emergencyNote: role === "elder" ? "優先低資料文字與大按鈕確認；此 demo 未連接真實外部通報。" : "demo profile，通訊資料需於正式服務中另行驗證。",
+      lastKnownLocation: role === "elder" ? "新北市板橋區某社區 A 棟 5 樓" : "demo 聯絡地址待確認",
+      communicationProfileComplete: Boolean(preferredChannels.length && canUseText && !guardianMissing),
+      communicationProfileUpdatedAt: "2026-06-29T20:00:00+08:00",
     };
   }
 
@@ -344,6 +456,7 @@
     channelCatalog,
     scenarios,
     responseLabels,
+    actionDefinitions,
     demoScript,
   };
 })(typeof window !== "undefined" ? window : globalThis);
