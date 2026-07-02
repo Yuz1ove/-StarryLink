@@ -5,707 +5,626 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>星夜 StarryLink｜海纜・地網・衛星多路徑災害韌性通訊助理</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23167c80'/%3E%3Cpath d='M32 8l5.5 17.4H56L41 36.2 46.5 56 32 44 17.5 56 23 36.2 8 25.4h18.5L32 8z' fill='white'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=starrylink-sea-ground-space-20260702b" />
+    <link rel="stylesheet" href="./styles.css?v=starrylink-paged-20260702c" />
   </head>
   <body>
-    <header class="hero desktop-context" id="intro">
-      <nav class="topbar" aria-label="星夜導覽">
-        <a class="brand" href="#intro" aria-label="星夜首頁">
+    <div class="app-shell">
+      <header class="topbar" aria-label="星夜展示導覽">
+        <button class="brand brand-block" type="button" data-page-target="intro" aria-label="回到作品介紹">
           <span class="brand-mark" aria-hidden="true">✦</span>
           <span>
-            <strong>星夜</strong>
+            <strong>星夜 StarryLink</strong>
             <small>海纜・地網・衛星多路徑災害韌性通訊助理</small>
           </span>
-        </a>
-        <div class="top-actions">
-          <a class="text-link" href="#intro">作品介紹</a>
-          <a class="text-link" href="#architecture">海地星空通訊架構</a>
-          <a class="text-link" href="#demo">Demo 展示</a>
-          <a class="text-link" href="#matrix">決策矩陣</a>
-          <a class="text-link" href="#runtime">程式運行</a>
-        </div>
-      </nav>
+        </button>
 
-      <section class="hero-copy">
-        <p class="eyebrow">StarryLink</p>
-        <h1>星夜 StarryLink</h1>
-        <h2 class="hero-subtitle">海纜・地網・衛星多路徑災害韌性通訊助理</h2>
-        <p>
-          星夜是一套面向災害弱網環境的韌性通訊系統。當地震、颱風或海纜／地面骨幹網路異常造成封包遺失、延遲升高或通訊中斷時，系統會將使用者狀態壓縮成低資料量封包，優先傳送 GPS、求救等級、生命狀態與按鍵回覆，並依照通訊品質自動選擇 Wi-Fi、5G、簡訊、BLE 中繼或衛星備援路徑，協助守望隊快速判斷誰需要優先救援。
-        </p>
-        <div class="intro-actions" aria-label="主要操作">
-          <a class="button primary" href="#demo">進入 Demo 展示</a>
-          <button id="startDemoTop" class="button" type="button">啟動三分鐘 Demo</button>
-        </div>
+        <nav class="nav-tabs" aria-label="展示分頁">
+          <button class="nav-tab active" type="button" data-nav-page="intro">作品介紹</button>
+          <button class="nav-tab" type="button" data-nav-page="architecture">海地星空通訊架構</button>
+          <button class="nav-tab" type="button" data-nav-page="demo">Demo 展示</button>
+          <button class="nav-tab" type="button" data-nav-page="matrix">決策矩陣</button>
+          <button class="nav-tab" type="button" data-nav-page="runtime">程式運行</button>
+        </nav>
+      </header>
 
-        <div class="intro-brief" aria-label="星夜介紹重點">
-          <article class="intro-lead">
-            <p class="eyebrow">Competition Brief</p>
-            <h2>海、地、星空三層路徑下，先讓最小必要訊息送達</h2>
-            <p>
-              這裡的「海」指的是海纜、國際骨幹與跨區網路連線，不是海上救援。星夜把受困者端操作壓到最少，並把後台需要判斷的風險與通訊路徑整理成可追蹤、可重送、可解釋的事件資料。
-            </p>
-          </article>
-
-          <div class="concept-grid">
-            <article class="concept-card">
-              <span class="concept-marker">海</span>
-              <h3>海纜與骨幹網路異常偵測</h3>
-              <p>當跨區連線、骨幹延遲或封包遺失率異常時，系統會判定外部網路不穩，降低資料量並啟用備援策略。</p>
-              <ul>
-                <li>監測海纜、國際骨幹、區域閘道與外部 API 可用性。</li>
-                <li>海纜/骨幹異常時暫停非必要 UI 同步。</li>
-                <li>優先傳送最低可行求救封包。</li>
-              </ul>
-            </article>
-
-            <article class="concept-card">
-              <span class="concept-marker">地</span>
-              <h3>地面弱網通訊與守望隊調度</h3>
-              <p>以 Wi-Fi、5G、基地台、BLE 中繼與本地節點作為主要通訊層，負責手機端狀態回報、GPS 定位與守望隊後台監測。</p>
-              <ul>
-                <li>手機端只需大按鈕回覆安全、受傷、被困或需要救援。</li>
-                <li>後台依風險分數排序並建議主動聯繫或派遣。</li>
-              </ul>
-            </article>
-
-            <article class="concept-card">
-              <span class="concept-marker">星</span>
-              <h3>衛星與高風險備援通道</h3>
-              <p>當地面網路失效或高風險個案無法回傳狀態時，系統會將衛星或其他高成本通道保留給真正需要優先救援的個案。</p>
-              <ul>
-                <li>Red 風險會優先傳送 GPS、求救狀態與生命狀態。</li>
-                <li>衛星通道在一般狀況保持低權重，高風險或地面失效時升權。</li>
-              </ul>
-            </article>
-          </div>
-        </div>
-      </section>
-    </header>
-
-    <main class="page-shell">
-      <section class="page-section architecture-section desktop-context" id="architecture" aria-labelledby="architectureTitle">
-        <div class="section-heading">
-          <p class="eyebrow">Sea・Ground・Space</p>
-          <h2 id="architectureTitle">海地星空通訊架構</h2>
-          <p>星夜不是單一路徑通報系統，而是根據災害環境自動切換通訊路徑的韌性調度系統。</p>
-        </div>
-
-        <div class="architecture-stack" aria-label="海地星空三層通訊架構">
-          <article class="layer-card sea-layer">
-            <span class="layer-badge">A</span>
-            <div>
-              <p class="eyebrow">Sea Layer</p>
-              <h3>海 Sea Layer</h3>
-              <p>負責判斷跨區連線是否異常，例如延遲升高、封包遺失率上升、外部 API 無法連線。當此層異常時，星夜會降低資料負載，減少非必要同步，改送最低可行求救封包。</p>
-            </div>
-            <ul class="node-list">
-              <li>Submarine Cable / 海纜</li>
-              <li>International Backbone / 國際骨幹</li>
-              <li>Regional Gateway / 區域閘道</li>
-              <li>Backbone Health Monitor / 骨幹健康監測</li>
-            </ul>
-          </article>
-
-          <article class="layer-card ground-layer">
-            <span class="layer-badge">B</span>
-            <div>
-              <p class="eyebrow">Ground Layer</p>
-              <h3>地 Ground Layer</h3>
-              <p>這是星夜主要運作層。手機端會透過地面網路傳送低資料量狀態包，守望隊後台根據封包成功率、GPS、使用者回覆與風險分數進行調度。</p>
-            </div>
-            <ul class="node-list">
-              <li>5G / LTE</li>
-              <li>Wi-Fi</li>
-              <li>Local Mesh / BLE Relay</li>
-              <li>SMS Fallback</li>
-              <li>Rescue Console / 守望隊工作台</li>
-              <li>GPS Status Packet</li>
-            </ul>
-          </article>
-
-          <article class="layer-card space-layer">
-            <span class="layer-badge">C</span>
-            <div>
-              <p class="eyebrow">Space Layer</p>
-              <h3>星空 Space Layer</h3>
-              <p>當地面網路不穩且個案風險分數過高時，星夜會將高成本備援通道保留給高風險使用者，例如無回覆、GPS 靜止、健康狀態異常、封包多次失敗者。</p>
-            </div>
-            <ul class="node-list">
-              <li>Satellite Backup</li>
-              <li>Emergency Uplink</li>
-              <li>High-Risk Priority Channel</li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section class="page-section demo-showcase" id="demo" aria-labelledby="demoSectionTitle">
-        <div class="section-heading desktop-context">
-          <p class="eyebrow">Demo 展示</p>
-          <h2 id="demoSectionTitle">地震後海纜與地面骨幹不穩情境</h2>
-          <p>地震後，區域地面基地台壅塞，部分海纜或骨幹網路延遲升高，使用者手機無法穩定傳送完整訊息。星夜會自動改用低資料量封包，只傳送 GPS、求救狀態、生命狀態與按鍵回覆，並在守望隊後台即時顯示受困者風險分數與建議通訊路徑。</p>
-        </div>
-
-        <section class="demo-toolbar" aria-label="三分鐘展示控制">
-          <div>
-            <p class="eyebrow">MVP Demo</p>
-            <h2 id="demoTitle">災害安全確認事件</h2>
-            <p id="syncStatus" class="muted">Local single source of truth</p>
-            <p id="networkStatus" class="muted">海纜異常 / 地面骨幹不穩 / 丟包 31%</p>
-          </div>
-          <div class="toolbar-actions">
-            <button id="startDemo" class="button primary" type="button">三分鐘展示模式</button>
-            <button id="resetDemo" class="button" type="button">重置 Demo</button>
-            <button id="enableAlarm" class="button quiet" type="button">啟用警報音</button>
-            <button id="copyMobileLink" class="button quiet" type="button">複製手機連結</button>
-            <label class="switch-control">
-              <input id="weakSignalToggle" type="checkbox" />
-              <span>弱訊號模擬</span>
-            </label>
-          </div>
-        </section>
-
-        <section id="disasterBanner" class="disaster-banner desktop-context" aria-live="polite">
-          <div>
-            <strong>平時監測待命</strong>
-            <span>Demo 啟動後會顯示災害模式、海纜/骨幹異常與低資料量封包策略。</span>
-          </div>
-          <small id="alertSoundStatus">若瀏覽器擋住自動播放，請點啟用警報音。</small>
-        </section>
-
-        <section class="script-status desktop-context" aria-label="展示模式狀態">
-          <div>
-            <strong id="scriptStatus">尚未啟動展示模式</strong>
-            <span id="scriptTimer">00:00 / 03:00</span>
-          </div>
-          <div class="progress-track" aria-hidden="true"><span id="scriptProgress"></span></div>
-        </section>
-
-        <section class="demo-grid" aria-label="星夜 Demo 工作區">
-          <section class="phone-panel" aria-label="受困者手機端">
-            <div class="phone-shell">
-              <div class="phone-top">
+      <main class="page-stage" aria-live="polite">
+        <section class="page-panel intro-panel active" data-page="intro" aria-labelledby="introTitle">
+          <div class="intro-layout">
+            <div class="intro-copy">
+              <p class="eyebrow">StarryLink</p>
+              <h1 id="introTitle">星夜 StarryLink</h1>
+              <h2>海纜・地網・衛星多路徑災害韌性通訊助理</h2>
+              <p>
+                面向地震、颱風與海纜／地面骨幹異常的弱網情境，星夜把手機端狀態壓縮成低資料量封包，讓 GPS、求救、生命狀態與按鍵回覆先抵達守望隊工作台。
+              </p>
+              <div class="intro-signal-grid" aria-label="作品定位">
                 <div>
-                  <strong>星夜</strong>
-                  <span id="phoneRoute">目前通訊：App</span>
-                  <span id="phoneNetworkMode">低資料量封包待命</span>
+                  <strong>災害弱網環境</strong>
+                  <span>延遲、丟包、骨幹壅塞時仍保留關鍵回報能力。</span>
                 </div>
                 <div>
-                  <strong id="phoneAckTop">等待確認</strong>
-                  <span id="phoneSignal">連線狀態：良好</span>
-                  <span id="phoneBattery">電量：--%</span>
+                  <strong>自動封包壓縮</strong>
+                  <span>只送必要欄位，降低傳輸量與重送成本。</span>
+                </div>
+                <div>
+                  <strong>GPS / SOS / Health first</strong>
+                  <span>位置、求救與生命狀態優先於一般同步資料。</span>
+                </div>
+                <div>
+                  <strong>多路徑自動切換</strong>
+                  <span>Wi-Fi / 5G / SMS / BLE Relay / Satellite Backup 依風險升級。</span>
                 </div>
               </div>
+              <div class="intro-actions" aria-label="展示操作">
+                <button class="button primary" type="button" data-page-target="architecture">開始展示</button>
+                <button id="startDemoTop" class="button" type="button">啟動三分鐘 Demo</button>
+              </div>
+            </div>
 
-              <article id="phoneAlert" class="phone-alert">
-                <h2 id="phoneAlertTitle">守望隊正在確認您的安全</h2>
-                <p id="phoneAlertCopy">請點選下方最符合您目前狀態的按鈕。</p>
-                <div class="phone-alert-actions">
-                  <button id="enablePhoneAlarm" class="button quiet" type="button">啟用警報音</button>
-                  <small id="phoneAlarmStatus">瀏覽器可能需要點擊後才允許播放提示音。</small>
+            <div class="core-card-grid mission-stack" aria-label="海地星空任務模組">
+              <article class="info-card concept-card mission-card sea-mission">
+                <div class="mission-card-head">
+                  <span class="mission-icon" aria-hidden="true">海</span>
+                  <div>
+                    <p class="eyebrow">SEA MODULE</p>
+                    <h3>海纜與骨幹異常偵測</h3>
+                  </div>
+                </div>
+                <p>持續監測海纜、國際骨幹與區域閘道健康度。延遲與丟包升高時，立即觸發低資料策略。</p>
+                <span class="mission-status">監測中</span>
+              </article>
+              <article class="info-card concept-card mission-card ground-mission">
+                <div class="mission-card-head">
+                  <span class="mission-icon" aria-hidden="true">地</span>
+                  <div>
+                    <p class="eyebrow">GROUND MODULE</p>
+                    <h3>弱網封包與守望隊調度</h3>
+                  </div>
+                </div>
+                <p>手機端以大按鈕回覆，後台依 GPS、電量、ACK、成功率與風險分數排序調度。</p>
+                <span class="mission-status">可切換</span>
+              </article>
+              <article class="info-card concept-card mission-card space-mission">
+                <div class="mission-card-head">
+                  <span class="mission-icon" aria-hidden="true">星</span>
+                  <div>
+                    <p class="eyebrow">SPACE MODULE</p>
+                    <h3>衛星與高風險備援通道</h3>
+                  </div>
+                </div>
+                <p>衛星保留給 Red 風險、地面網路失效與高優先求救封包，避免一般同步佔用。</p>
+                <span class="mission-status">備援待命</span>
+              </article>
+            </div>
+
+            <div class="intro-flow-strip" aria-label="系統流向摘要">
+              <span class="flow-pill">使用者手機</span>
+              <i aria-hidden="true"></i>
+              <span class="flow-pill">低資料封包</span>
+              <i aria-hidden="true"></i>
+              <span class="flow-pill">風險評分矩陣</span>
+              <i aria-hidden="true"></i>
+              <span class="flow-pill">守望隊工作台</span>
+              <i aria-hidden="true"></i>
+              <span class="flow-pill flow-pill-alert">高風險升級 119 / 衛星備援</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="page-panel architecture-panel" data-page="architecture" aria-labelledby="architectureTitle">
+          <div class="page-header">
+            <div>
+              <p class="eyebrow">Sea・Ground・Space</p>
+              <h2 id="architectureTitle">海地星空通訊架構</h2>
+            </div>
+            <p>三層通訊邏輯分工：海纜與骨幹監測、地面弱網與守望隊調度、衛星高風險備援。</p>
+          </div>
+
+          <div class="architecture-grid">
+            <section class="architecture-map" aria-label="三層通訊架構圖">
+              <div class="architecture-flow-rail" aria-hidden="true">
+                <span class="rail-label rail-top">高風險升級</span>
+                <span class="rail-label rail-bottom">健康監測</span>
+              </div>
+
+              <article class="layer-card arch-layer space-layer">
+                <div class="layer-heading">
+                  <span class="layer-badge">星</span>
+                  <div>
+                    <p class="eyebrow">SPACE LAYER / 星空</p>
+                    <h3>高風險衛星備援</h3>
+                    <p>地面通道失效或 Red 風險時，將 GPS、SOS 與生命狀態升級到衛星備援。</p>
+                  </div>
+                </div>
+                <div class="arch-node-grid space-nodes">
+                  <article class="arch-node primary">
+                    <strong>Satellite Backup</strong>
+                    <span>災害備援主通道</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>Emergency Uplink</strong>
+                    <span>SOS escalation</span>
+                  </article>
+                  <article class="arch-node wide">
+                    <strong>High-Risk Priority Channel</strong>
+                    <span>Red risk packet only</span>
+                  </article>
                 </div>
               </article>
 
-              <div class="phone-actions" aria-label="受困者狀態回覆">
-                <button type="button" data-reply="SAFE">我安全</button>
-                <button type="button" data-reply="INJURED">我受傷</button>
-                <button type="button" data-reply="TRAPPED">我被困住</button>
-                <button type="button" data-reply="NEED_MEDICAL">我需要醫療</button>
-                <button type="button" data-reply="CANNOT_TALK">無法說話</button>
-                <button type="button" data-reply="NEED_HELP">需要救援</button>
+              <div class="signal-route" aria-hidden="true">
+                <span class="packet-dot dot-wifi"></span>
+                <span class="packet-dot dot-sms"></span>
+                <span class="packet-dot dot-satellite"></span>
               </div>
 
-              <section class="phone-section" aria-label="位置確認">
-                <div class="section-line">
-                  <span>位置確認</span>
-                  <strong id="phoneLocationStatus">位置已確認</strong>
+              <article class="layer-card arch-layer ground-layer">
+                <div class="layer-heading">
+                  <span class="layer-badge">地</span>
+                  <div>
+                    <p class="eyebrow">GROUND LAYER / 地</p>
+                    <h3>弱網封包與守望隊工作台</h3>
+                    <p>手機端封包先嘗試地面通道，再依 ACK、丟包率與風險矩陣切換備援。</p>
+                  </div>
                 </div>
-                <div class="two-actions">
-                  <button id="refreshLocation" type="button">重新取得位置</button>
-                  <button id="dropLocation" type="button">無法提供位置</button>
+                <div class="arch-node-grid ground-nodes">
+                  <article class="arch-node primary">
+                    <strong>Rescue Console</strong>
+                    <span>守望隊調度</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>5G / LTE</strong>
+                    <span>primary ground</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>Wi-Fi</strong>
+                    <span>local access</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>SMS</strong>
+                    <span>low bandwidth</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>BLE Relay</strong>
+                    <span>nearby relay</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>Local Mesh</strong>
+                    <span>community hop</span>
+                  </article>
+                  <article class="arch-node wide">
+                    <strong>GPS Status Packet</strong>
+                    <span>GPS + SOS + Health Status</span>
+                  </article>
                 </div>
-              </section>
+              </article>
 
-              <section class="phone-section" aria-label="醫療與身體狀態">
-                <div class="section-line">
-                  <span>醫療 / 身體狀態</span>
-                  <strong id="phoneVitals">HR -- / SpO2 --</strong>
+              <article class="layer-card arch-layer sea-layer">
+                <div class="layer-heading">
+                  <span class="layer-badge">海</span>
+                  <div>
+                    <p class="eyebrow">SEA LAYER / 海</p>
+                    <h3>海纜與骨幹健康監測</h3>
+                    <p>這裡的海代表海纜、國際骨幹與跨區閘道，負責判斷底層通訊健康度。</p>
+                  </div>
                 </div>
-                <label class="check-row">
-                  <input id="discomfortToggle" type="checkbox" />
-                  <span>是否身體不適</span>
-                </label>
-                <label class="check-row">
-                  <input id="immobileToggle" type="checkbox" />
-                  <span>是否無法移動</span>
-                </label>
-                <p class="fineprint">生命徵象為 Demo 模擬資料，僅作為風險排序輔助，不作為醫療診斷。</p>
-              </section>
+                <div class="arch-node-grid sea-nodes">
+                  <article class="arch-node primary">
+                    <strong>Backbone Health Monitor</strong>
+                    <span>latency / loss watch</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>Submarine Cable</strong>
+                    <span>海纜狀態</span>
+                  </article>
+                  <article class="arch-node">
+                    <strong>International Backbone</strong>
+                    <span>國際骨幹</span>
+                  </article>
+                  <article class="arch-node wide">
+                    <strong>Regional Gateway</strong>
+                    <span>跨區閘道健康度</span>
+                  </article>
+                </div>
+              </article>
+            </section>
 
-              <section class="phone-section" aria-label="傳送狀態">
-                <div class="section-line">
-                  <span>傳送狀態</span>
-                  <strong id="phoneSendStatus">尚未送出</strong>
+            <aside class="status-panel architecture-status-panel" aria-label="目前通訊狀態">
+              <div class="active-route-card">
+                <span>Active Route</span>
+                <strong id="archActiveRoute">Satellite Backup</strong>
+                <small><span>矩陣即時通道：</span><b id="archSelectedChannel">SMS</b><span id="archRouteDetail">；高風險封包保留衛星備援。</span></small>
+              </div>
+
+              <div class="route-health" aria-label="三層狀態條">
+                <div class="route-health-row sea-health">
+                  <div>
+                    <span><b></b>Sea</span>
+                    <strong id="archSeaStatus">異常 / 延遲升高</strong>
+                  </div>
+                  <small id="archSeaMetric">31% loss</small>
+                  <div class="health-track"><span id="archSeaHealthBar"></span></div>
                 </div>
-                <dl class="phone-meta">
-                  <div><dt>seq</dt><dd id="phoneSeq">-</dd></div>
-                  <div><dt>bytes</dt><dd id="phoneBytes">-</dd></div>
-                  <div><dt>retry</dt><dd id="phoneRetry">0</dd></div>
-                </dl>
-              </section>
+                <div class="route-health-row ground-health">
+                  <div>
+                    <span><b></b>Ground</span>
+                    <strong id="archGroundStatus">壅塞 / 丟包率上升</strong>
+                  </div>
+                  <small id="archGroundMetric">ACK retry</small>
+                  <div class="health-track"><span id="archGroundHealthBar"></span></div>
+                </div>
+                <div class="route-health-row space-health">
+                  <div>
+                    <span><b></b>Space</span>
+                    <strong id="archSatelliteStatus">待命</strong>
+                  </div>
+                  <small id="archSpaceMetric">backup ready</small>
+                  <div class="health-track"><span id="archSpaceHealthBar"></span></div>
+                </div>
+              </div>
+
+              <dl class="packet-strategy-list">
+                <div><dt>Priority</dt><dd>GPS + SOS + Health Status</dd></div>
+                <div><dt>Loss Control</dt><dd>ACK + Retry + Fallback</dd></div>
+                <div><dt>Sync Mode</dt><dd>Store-and-forward</dd></div>
+                <div><dt>Strategy</dt><dd id="archStrategy">啟用低資料量封包</dd></div>
+              </dl>
+              <p id="archPacketHint" class="panel-note">手機端封包先嘗試 Wi-Fi / 5G；地面通道丟包時切換 SMS / BLE Relay，高風險才升級 Satellite Backup。</p>
+            </aside>
+          </div>
+        </section>
+
+        <section class="page-panel demo-panel" data-page="demo" aria-labelledby="demoSectionTitle">
+          <div class="demo-toolbar" aria-label="Demo 控制列">
+            <div>
+              <p class="eyebrow">Demo 展示</p>
+              <h2 id="demoSectionTitle">實際模擬展示</h2>
+              <p id="demoTitle" class="muted">地震後海纜與地面骨幹不穩情境</p>
+              <p id="syncStatus" class="muted">Local single source of truth</p>
+              <p id="networkStatus" class="muted">海纜異常 / 地面骨幹不穩 / 丟包 31%</p>
             </div>
+            <div class="toolbar-actions">
+              <button id="startDemo" class="button primary" type="button">啟動災害模式</button>
+              <button id="pauseDemo" class="button" type="button">暫停模擬</button>
+              <button id="resetDemo" class="button" type="button">重置 Demo</button>
+              <button id="simulatePacketLoss" class="button quiet" type="button">模擬丟包</button>
+              <button id="simulateGroundDown" class="button quiet" type="button">模擬地面網路失效</button>
+              <button id="enableSatelliteFallback" class="button quiet" type="button">切換高風險衛星備援</button>
+              <button id="enableAlarm" class="button quiet" type="button">啟用警報音</button>
+              <button id="copyMobileLink" class="button quiet" type="button">複製手機連結</button>
+              <label class="switch-control">
+                <input id="weakSignalToggle" type="checkbox" />
+                <span>弱訊號模擬</span>
+              </label>
+            </div>
+          </div>
+
+          <section id="disasterBanner" class="disaster-banner" aria-live="polite">
+            <div>
+              <strong>平時監測待命</strong>
+              <span>Demo 啟動後會顯示災害模式、海纜/骨幹異常與低資料量封包策略。</span>
+            </div>
+            <small id="alertSoundStatus">若瀏覽器擋住自動播放，請點啟用警報音。</small>
           </section>
 
-          <section class="watch-workbench desktop-context" aria-label="守望隊工作台">
-            <div class="workbench-title">
-              <div>
-                <p class="eyebrow">守望隊工作台</p>
-                <h2>列表、詳情、風險矩陣、通訊調度</h2>
-              </div>
-              <p>風險分數不只決定救援優先順序，也會影響系統選擇哪一條通訊路徑。</p>
+          <section class="script-status" aria-label="展示模式狀態">
+            <div>
+              <strong id="scriptStatus">尚未啟動展示模式</strong>
+              <span id="scriptTimer">00:00 / 03:00</span>
             </div>
+            <div class="progress-track" aria-hidden="true"><span id="scriptProgress"></span></div>
+          </section>
 
-            <div class="watch-columns">
-              <aside class="target-column" aria-label="受困者列表">
+          <section class="demo-grid" aria-label="星夜 Demo 三欄工作區">
+            <section class="phone-panel" aria-label="手機端 Demo">
+              <div class="phone-shell">
+                <div class="phone-top">
+                  <div>
+                    <strong>星夜</strong>
+                    <span id="phoneRoute">目前通訊：App</span>
+                    <span id="phoneNetworkMode">低資料量封包待命</span>
+                  </div>
+                  <div>
+                    <strong id="phoneAckTop">等待確認</strong>
+                    <span id="phoneSignal">連線狀態：良好</span>
+                    <span id="phoneBattery">電量：--%</span>
+                  </div>
+                </div>
+
+                <article id="phoneAlert" class="phone-alert">
+                  <h2 id="phoneAlertTitle">守望隊正在確認您的安全</h2>
+                  <p id="phoneAlertCopy">請點選下方最符合您目前狀態的按鈕。</p>
+                  <div class="phone-alert-actions">
+                    <button id="enablePhoneAlarm" class="button quiet" type="button">啟用警報音</button>
+                    <small id="phoneAlarmStatus">瀏覽器可能需要點擊後才允許播放提示音。</small>
+                  </div>
+                </article>
+
+                <button class="sos-button" type="button" data-reply="NEED_HELP">大型求救按鈕</button>
+
+                <div class="phone-actions" aria-label="快速回覆按鈕">
+                  <button type="button" data-reply="SAFE">我安全</button>
+                  <button type="button" data-reply="INJURED">我受傷</button>
+                  <button type="button" data-reply="TRAPPED">我被困住</button>
+                  <button type="button" data-reply="NEED_MEDICAL">我需要醫療</button>
+                  <button type="button" data-reply="CANNOT_TALK">無法說話</button>
+                  <button type="button" data-reply="NEED_HELP">需要救援</button>
+                </div>
+                <p id="phoneSymptomScore" class="phone-score-hint">症狀分數 0 / 風險 Stable</p>
+
+                <section class="phone-section" aria-label="位置確認">
+                  <div class="section-line">
+                    <span>GPS 狀態</span>
+                    <strong id="phoneLocationStatus">位置已確認</strong>
+                  </div>
+                  <dl class="phone-meta phone-gps-meta" aria-label="GPS 座標">
+                    <div><dt>lat</dt><dd id="phoneGpsLat">--</dd></div>
+                    <div><dt>lng</dt><dd id="phoneGpsLng">--</dd></div>
+                    <div><dt>accuracy</dt><dd id="phoneGpsAccuracy">unknown</dd></div>
+                  </dl>
+                  <div class="two-actions">
+                    <button id="refreshLocation" type="button">重新取得位置</button>
+                    <button id="dropLocation" type="button">無法提供位置</button>
+                  </div>
+                </section>
+
+                <section class="phone-section" aria-label="醫療與身體狀態">
+                  <div class="section-line">
+                    <span>醫療 / 身體狀態</span>
+                    <strong id="phoneVitals">HR -- / SpO2 --</strong>
+                  </div>
+                  <label class="check-row">
+                    <input id="discomfortToggle" type="checkbox" />
+                    <span>身體不適</span>
+                  </label>
+                  <label class="check-row">
+                    <input id="immobileToggle" type="checkbox" />
+                    <span>無法移動</span>
+                  </label>
+                </section>
+
+                <section class="phone-section" aria-label="傳送狀態">
+                  <div class="section-line">
+                    <span>傳送狀態</span>
+                    <strong id="phoneSendStatus">尚未送出</strong>
+                  </div>
+                  <dl class="phone-meta">
+                    <div><dt>seq</dt><dd id="phoneSeq">-</dd></div>
+                    <div><dt>bytes</dt><dd id="phoneBytes">-</dd></div>
+                    <div><dt>retry</dt><dd id="phoneRetry">0</dd></div>
+                  </dl>
+                </section>
+              </div>
+            </section>
+
+            <section class="packet-panel" aria-label="封包與通訊路徑流動">
+              <div class="section-line">
+                <span>封包 / 通訊路徑流動</span>
+                <strong id="packetFlowStatus">待命</strong>
+              </div>
+              <div id="packetAnimation" class="packet-animation" aria-hidden="true">
+                <span>手機端</span>
+                <i></i>
+                <span id="packetChannelLive">Wi-Fi</span>
+                <i></i>
+                <span>守望隊</span>
+              </div>
+              <dl class="packet-kpis">
+                <div><dt>packetSeq</dt><dd id="packetSeqLive">-</dd></div>
+                <div><dt>retryCount</dt><dd id="packetRetryLive">0</dd></div>
+                <div><dt>checksum</dt><dd id="packetChecksumLive">----</dd></div>
+                <div><dt>selectedChannel</dt><dd id="commBest">-</dd></div>
+                <div><dt>packetSuccessRate</dt><dd id="commSuccess">-</dd></div>
+                <div><dt>latency</dt><dd id="commLatency">-</dd></div>
+                <div><dt>packet loss simulation</dt><dd id="commLoss">-</dd></div>
+                <div><dt>fallbackChannel</dt><dd id="commFallback">-</dd></div>
+                <div><dt>lowDataMode</dt><dd id="commLowData">-</dd></div>
+                <div><dt>satellite</dt><dd id="commSatellite">-</dd></div>
+              </dl>
+
+              <article class="detail-block">
                 <div class="section-line">
-                  <span>受困者列表</span>
-                  <strong id="targetCount">5 位</strong>
+                  <span>目前封包格式</span>
+                  <strong id="packetSize">0 bytes</strong>
                 </div>
-                <div id="targetFilters" class="filter-row" aria-label="風險篩選">
-                  <button class="active" type="button" data-filter="all">全部</button>
-                  <button type="button" data-filter="red">Red</button>
-                  <button type="button" data-filter="orange">Orange</button>
-                  <button type="button" data-filter="yellow">Yellow</button>
-                  <button type="button" data-filter="green">Green</button>
-                  <button type="button" data-filter="noResponse">未回覆</button>
-                  <button type="button" data-filter="medical">需要醫療</button>
-                  <button type="button" data-filter="gpsStatic">GPS 靜止</button>
-                </div>
-                <div id="targetList" class="target-list"></div>
-              </aside>
+                <pre id="packetPreview" class="packet-preview">尚未收到 U-DEMO 封包</pre>
+              </article>
 
-              <section class="detail-column" aria-label="目前選取對象詳情">
+              <article class="detail-block">
+                <div class="section-line">
+                  <span>封包 / Runtime Log</span>
+                  <strong id="eventCount">0 筆</strong>
+                </div>
+                <div id="eventLog" class="event-log"></div>
+              </article>
+            </section>
+
+            <section class="console-panel" aria-label="守望隊工作台">
+              <div class="workbench-title">
+                <div>
+                  <p class="eyebrow">守望隊工作台</p>
+                  <h2>5 位使用者狀態</h2>
+                </div>
+                <strong id="targetCount">5 位</strong>
+              </div>
+              <div id="targetFilters" class="filter-row" aria-label="風險篩選">
+                <button class="active" type="button" data-filter="all">全部</button>
+                <button type="button" data-filter="red">Red</button>
+                <button type="button" data-filter="orange">Orange</button>
+                <button type="button" data-filter="yellow">Yellow</button>
+                <button type="button" data-filter="green">Green</button>
+                <button type="button" data-filter="noResponse">未回覆</button>
+                <button type="button" data-filter="medical">需要醫療</button>
+                <button type="button" data-filter="gpsStatic">GPS 靜止</button>
+              </div>
+              <div id="targetList" class="target-list"></div>
+
+              <article class="detail-block">
                 <div class="section-line">
                   <span>目前選取對象</span>
                   <strong id="selectedRisk">GREEN</strong>
                 </div>
                 <div id="targetDetail" class="detail-grid"></div>
-
-                <article class="detail-block">
-                  <div class="section-line">
-                    <span>低資料量封包內容</span>
-                    <strong id="packetSize">0 bytes</strong>
-                  </div>
-                  <pre id="packetPreview" class="packet-preview">尚未收到 U-DEMO 封包</pre>
-                </article>
-
-                <article class="detail-block communication-summary">
-                  <div class="section-line">
-                    <span>通訊路徑決策</span>
-                    <strong id="commBest">-</strong>
-                  </div>
-                  <dl class="comm-kpis">
-                    <div><dt>備援路徑</dt><dd id="commFallback">-</dd></div>
-                    <div><dt>封包成功率</dt><dd id="commSuccess">-</dd></div>
-                    <div><dt>平均延遲</dt><dd id="commLatency">-</dd></div>
-                    <div><dt>丟包率</dt><dd id="commLoss">-</dd></div>
-                    <div><dt>低資料量封包</dt><dd id="commLowData">-</dd></div>
-                    <div><dt>衛星備援</dt><dd id="commSatellite">-</dd></div>
-                  </dl>
-                </article>
-
-                <article class="detail-block">
-                  <div class="section-line">
-                    <span>守望隊事件紀錄</span>
-                    <strong id="eventCount">0 筆</strong>
-                  </div>
-                  <div id="eventLog" class="event-log"></div>
-                </article>
-              </section>
-
-              <aside class="risk-column" id="demoRiskMatrix" aria-label="風險評估矩陣">
-                <div class="section-line">
-                  <span>風險評估矩陣</span>
-                  <strong id="riskSummary">0 / GREEN</strong>
-                </div>
-                <div class="risk-total">
-                  <span id="riskScore">0</span>
-                  <div>
-                    <strong id="riskLevel">GREEN</strong>
-                    <p id="riskAction">持續追蹤</p>
-                  </div>
-                </div>
-                <div id="riskReasons" class="risk-reasons"></div>
-                <div id="riskMatrix" class="risk-matrix"></div>
-              </aside>
-            </div>
+              </article>
+            </section>
           </section>
         </section>
-      </section>
 
-      <section class="page-section matrix-section desktop-context" id="matrix" aria-labelledby="matrixPageTitle">
-        <div class="section-heading">
-          <p class="eyebrow">Decision Matrix</p>
-          <h2 id="matrixPageTitle">風險評估與通訊決策矩陣</h2>
-          <p>多路徑通訊決策矩陣與受困者風險矩陣分開計算，但會互相影響：風險越高，低資料量封包、重送頻率與衛星/高優先備援通道的權重越高。</p>
-        </div>
-
-        <div class="matrix-layout">
-          <article class="matrix-card" aria-labelledby="commMatrixTitle">
-            <div class="section-heading compact">
-              <p class="eyebrow">Communication Matrix</p>
-              <h3 id="commMatrixTitle">多路徑通訊決策矩陣</h3>
-              <p id="selectedMatrixTarget">Demo 使用者 / GREEN 0</p>
+        <section class="page-panel matrix-panel" data-page="matrix" aria-labelledby="matrixPageTitle">
+          <div class="page-header">
+            <div>
+              <p class="eyebrow">Decision Matrix</p>
+              <h2 id="matrixPageTitle">風險評估與通訊決策矩陣</h2>
             </div>
-            <pre class="inline-code"><code>channelScore =
+            <p id="selectedMatrixTarget">Demo 使用者 / GREEN 0</p>
+          </div>
+
+          <div class="matrix-grid">
+            <article class="matrix-card" aria-labelledby="riskMatrixTitle">
+              <div class="section-line">
+                <span id="riskMatrixTitle">受困者風險評估矩陣</span>
+                <strong id="riskSummary">0 / GREEN</strong>
+              </div>
+              <div class="risk-total">
+                <span id="riskScore">0</span>
+                <div>
+                  <strong id="riskLevel">GREEN</strong>
+                  <p id="riskAction">持續追蹤</p>
+                </div>
+              </div>
+              <div id="riskReasons" class="risk-reasons"></div>
+              <div id="riskMatrix" class="risk-matrix"></div>
+            </article>
+
+            <article class="matrix-card" aria-labelledby="commMatrixTitle">
+              <div class="section-line">
+                <span id="commMatrixTitle">多路徑通訊決策矩陣</span>
+                <strong>channelScore</strong>
+              </div>
+              <pre class="inline-code"><code>channelScore =
 packetSuccessRate * 0.35 +
 latencyScore * 0.20 +
 signalStrength * 0.15 +
 gpsAvailability * 0.15 +
 channelCost * 0.10 +
 batteryImpact * 0.05</code></pre>
-            <div class="table-wrap">
-              <table class="matrix-table comm-score-table">
-                <thead>
-                  <tr>
-                    <th>通訊路徑</th>
-                    <th>總分</th>
-                    <th>封包成功率</th>
-                    <th>延遲分數</th>
-                    <th>訊號強度</th>
-                    <th>GPS 可用性</th>
-                    <th>通道成本</th>
-                    <th>電量影響</th>
-                  </tr>
-                </thead>
-                <tbody id="commScoreRows"></tbody>
-              </table>
-            </div>
-            <p class="matrix-note">channelCost 分數越高代表越適合使用；低成本通道在一般狀況下分數高，衛星通道只有在 Red 風險或地面失效時提高優先級。</p>
-          </article>
-
-          <article class="matrix-card" aria-labelledby="riskMatrixTitle">
-            <div class="section-heading compact">
-              <p class="eyebrow">Risk Matrix</p>
-              <h3 id="riskMatrixTitle">受困者風險評估矩陣</h3>
-              <p>風險分數不只決定救援優先順序，也會影響系統選擇哪一條通訊路徑。</p>
-            </div>
-            <div class="table-wrap">
-              <table class="matrix-table">
-                <thead>
-                  <tr>
-                    <th>判斷因子</th>
-                    <th>條件</th>
-                    <th>加分</th>
-                    <th>通訊調度影響</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>使用者是否回覆</td>
-                    <td>未回覆或超過 SLA</td>
-                    <td>+26 起</td>
-                    <td>增加重送頻率，列入主動確認</td>
-                  </tr>
-                  <tr>
-                    <td>是否按下求救</td>
-                    <td>需要救援</td>
-                    <td>+38 + 求救加權</td>
-                    <td>優先傳送 GPS、求救狀態與生命狀態</td>
-                  </tr>
-                  <tr>
-                    <td>GPS 是否長時間靜止</td>
-                    <td>靜止超過 10 分鐘</td>
-                    <td>+20</td>
-                    <td>提高守望隊主動確認優先序</td>
-                  </tr>
-                  <tr>
-                    <td>封包是否連續失敗</td>
-                    <td>ACK failed 或 retry 3 次以上</td>
-                    <td>+24</td>
-                    <td>啟用低資料量封包與備援路徑</td>
-                  </tr>
-                  <tr>
-                    <td>手機電量是否過低</td>
-                    <td>低於 20%</td>
-                    <td>+16 起</td>
-                    <td>偏好 SMS / BLE 等低耗電通道</td>
-                  </tr>
-                  <tr>
-                    <td>生命狀態</td>
-                    <td>受傷、呼吸困難、被困、失溫</td>
-                    <td>+24 至 +28</td>
-                    <td>Orange/Red 時提高衛星或高優先備援權重</td>
-                  </tr>
-                  <tr>
-                    <td>最後成功同步時間</td>
-                    <td>8 分鐘以上未同步</td>
-                    <td>+10 起</td>
-                    <td>降低非必要同步，保留最小求救封包</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="priority-grid risk-level-grid" aria-label="風險等級">
-              <span class="priority green">Green：安全或低風險</span>
-              <span class="priority yellow">Yellow：需持續觀察</span>
-              <span class="priority orange">Orange：需要守望隊主動確認</span>
-              <span class="priority red">Red：高風險，需優先派遣或升級通訊通道</span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="page-section logic-section desktop-context" id="engine" aria-labelledby="engineTitle">
-        <div class="section-heading">
-          <p class="eyebrow">決策引擎</p>
-          <h2 id="engineTitle">背後程式運行邏輯</h2>
-          <p>從手機端按鈕到守望隊排序，星夜把每一步都拆成可觀察的低資料量封包、通訊矩陣、ACK、retry、去重與風險加權。</p>
-        </div>
-
-        <div class="logic-flow" aria-label="系統整體流程">
-          <article class="flow-step">
-            <span class="flow-index">1</span>
-            <h3>手機端產生狀態</h3>
-            <p>受困者在手機端按下最少量的狀態按鈕。</p>
-            <ul class="chip-list">
-              <li>我安全</li>
-              <li>我受傷</li>
-              <li>我被困住</li>
-              <li>我需要醫療</li>
-              <li>無法說話</li>
-              <li>需要救援</li>
-            </ul>
-          </article>
-
-          <article class="flow-step">
-            <span class="flow-index">2</span>
-            <h3>低資料量封包產生</h3>
-            <p>手機端把狀態壓縮為最小必要欄位。</p>
-            <pre class="inline-code"><code>{
-  userId: "U-DEMO",
-  timestamp: 1780000000000,
-  gps: { lat: 25.035, lng: 121.564, accuracy: "high" },
-  statusCode: "NEED_HELP",
-  batteryLevel: 72,
-  riskLevel: "ORANGE",
-  packetSeq: 1842,
-  retryCount: 1,
-  checksum: "7a31"
-}</code></pre>
-          </article>
-
-          <article class="flow-step">
-            <span class="flow-index">3</span>
-            <h3>根據通訊矩陣選擇通道</h3>
-            <p>系統依封包成功率、延遲、訊號、GPS、成本與電量影響計算通道分數。</p>
-            <ol class="flow-list">
-              <li>Green / Yellow：Wi-Fi、5G 或 SMS 優先</li>
-              <li>Orange：低資料量封包與重送頻率提高</li>
-              <li>Red：必要時啟用衛星或高優先備援通道</li>
-            </ol>
-          </article>
-
-          <article class="flow-step">
-            <span class="flow-index">4</span>
-            <h3>守望隊後台接收</h3>
-            <p>封包傳送至守望隊工作台後，同步更新受困者清單與事件細節。</p>
-            <ul>
-              <li>最新回覆</li>
-              <li>最後同步時間</li>
-              <li>GPS 狀態</li>
-              <li>封包成功率與建議通訊路徑</li>
-              <li>是否需要人工確認</li>
-            </ul>
-          </article>
-
-          <article class="flow-step">
-            <span class="flow-index">5</span>
-            <h3>風險評估引擎</h3>
-            <p>依據矩陣加權，形成可解釋的風險分數。</p>
-            <ul>
-              <li>使用者是否回覆、是否按下求救</li>
-              <li>GPS 靜止、封包連續失敗、電量過低</li>
-              <li>受傷、呼吸困難、被困、失溫與最後同步時間</li>
-            </ul>
-          </article>
-
-          <article class="flow-step">
-            <span class="flow-index">6</span>
-            <h3>升級通訊路徑或救援優先級</h3>
-            <p>最後輸出風險等級並決定後續處理方式。</p>
-            <div class="priority-grid" aria-label="風險輸出等級">
-              <span class="priority red">RED</span>
-              <span class="priority orange">ORANGE</span>
-              <span class="priority yellow">YELLOW</span>
-              <span class="priority green">GREEN</span>
-            </div>
-            <ul>
-              <li>Red：優先派遣或升級衛星備援</li>
-              <li>Orange：守望隊主動確認</li>
-              <li>Yellow：持續觀察與低成本通道</li>
-              <li>Green：維持平時監測</li>
-            </ul>
-          </article>
-        </div>
-
-        <article class="matrix-card" aria-labelledby="packetLossTitle">
-          <div class="section-heading compact">
-            <p class="eyebrow">Low Data Packet</p>
-            <h3 id="packetLossTitle">低資料量封包與降低丟包率邏輯</h3>
-            <p>星夜不是把完整文字硬送出去，而是把狀態壓縮成短碼與必要欄位，並用 seq、retry 與 checksum 提高弱網環境下的可追蹤性。</p>
+              <p class="matrix-note">channelCost 分數越高代表越適合使用，不是越昂貴。一般狀態 Wi-Fi / 5G / SMS 優先；Red 高風險且地面網路失敗時，Satellite Backup 才提高優先級。</p>
+              <div class="table-wrap">
+                <table class="matrix-table comm-score-table">
+                  <thead>
+                    <tr>
+                      <th>通訊路徑</th>
+                      <th>總分</th>
+                      <th>packetSuccessRate</th>
+                      <th>latencyScore</th>
+                      <th>signalStrength</th>
+                      <th>gpsAvailability</th>
+                      <th>channelCost</th>
+                      <th>batteryImpact</th>
+                    </tr>
+                  </thead>
+                  <tbody id="commScoreRows"></tbody>
+                </table>
+              </div>
+            </article>
           </div>
-          <div class="table-wrap">
-            <table class="matrix-table">
-              <thead>
-                <tr>
-                  <th>策略</th>
-                  <th>做法</th>
-                  <th>降低丟包/錯誤的原因</th>
-                  <th>說明</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>狀態碼</td>
-                  <td>完整文字改成 OK / NEED_HELP / INJURED / TRAPPED / NO_RESPONSE</td>
-                  <td>payload 變小，弱網下較容易送達</td>
-                  <td>手機端只需要按大按鈕</td>
-                </tr>
-                <tr>
-                  <td>最小必要資訊</td>
-                  <td>優先送 GPS、求救狀態、生命狀態、電量與時間</td>
-                  <td>網路差時暫停非必要 UI 同步</td>
-                  <td>後台仍可排序與派遣</td>
-                </tr>
-                <tr>
-                  <td>packetSeq</td>
-                  <td>每包都有連續序號</td>
-                  <td>可追蹤順序並去重</td>
-                  <td>重送同一 seq 不會被誤判成多次求救</td>
-                </tr>
-                <tr>
-                  <td>retryCount</td>
-                  <td>ACK pending 時增加重送次數</td>
-                  <td>封包連續失敗會回饋到風險分數</td>
-                  <td>高風險時提高重送優先級</td>
-                </tr>
-                <tr>
-                  <td>checksum</td>
-                  <td>簡化驗證避免錯誤資料</td>
-                  <td>後台能辨識資料是否被破壞</td>
-                  <td>Demo 使用輕量 checksum，不宣稱正式加密</td>
-                </tr>
-                <tr>
-                  <td>通訊矩陣</td>
-                  <td>依成功率最高且符合風險的通道送出</td>
-                  <td>地網失效時改用 SMS、BLE 或衛星備援</td>
-                  <td>衛星只留給高風險或地面失效者</td>
-                </tr>
-              </tbody>
-            </table>
+
+          <div class="matrix-relation">
+            <strong>風險分數不只決定救援優先順序，也會影響通訊路徑選擇。</strong>
+            <span>Green / Yellow：使用 Wi-Fi、5G、SMS。</span>
+            <span>Orange：啟用低資料量封包，增加重送頻率。</span>
+            <span>Red：優先傳送 GPS、求救狀態、生命狀態，必要時升級衛星備援。</span>
           </div>
-        </article>
-      </section>
+        </section>
 
-      <section class="page-section runtime-section desktop-context" id="runtime" aria-labelledby="runtimeTitle">
-        <div class="section-heading">
-          <p class="eyebrow">程式運行</p>
-          <h2 id="runtimeTitle">可讀的程式邏輯展示區</h2>
-          <p>這裡不打開原始碼檔案，而是把 Demo 背後的判讀方式整理成評審可快速閱讀的 TypeScript-like 邏輯。</p>
-        </div>
-
-        <div class="runtime-grid">
-          <article class="code-card">
-            <div class="code-card-title">
-              <span>A</span>
-              <h3>低資料量封包範例</h3>
+        <section class="page-panel runtime-panel" data-page="runtime" aria-labelledby="runtimeTitle">
+          <div class="page-header">
+            <div>
+              <p class="eyebrow">Runtime</p>
+              <h2 id="runtimeTitle">程式運行邏輯</h2>
             </div>
-            <pre class="code-block"><code>type RescuePacket = {
-  userId: string
-  timestamp: number
-  gps: { lat: number | null; lng: number | null; accuracy: string }
-  statusCode: "OK" | "NEED_HELP" | "INJURED" | "TRAPPED" | "NO_RESPONSE"
-  batteryLevel: number
-  riskLevel: "GREEN" | "YELLOW" | "ORANGE" | "RED"
-  packetSeq: number
-  retryCount: number
-  checksum: string
-}
+            <p>流程圖、即時 log 與 pseudo code 共用 Demo 狀態，不會和手機端操作對不上。</p>
+          </div>
 
-function encodeLowDataPacket(userState) {
-  return {
-    userId: userState.id,
-    timestamp: Date.now(),
-    gps: userState.gps,
-    statusCode: mapStatus(userState.reply),
-    batteryLevel: userState.battery,
-    riskLevel: userState.riskLevel,
-    packetSeq: nextSeq(),
-    retryCount: userState.retryCount,
-    checksum: checksum(...)
-  }
-}</code></pre>
-          </article>
+          <div class="runtime-grid">
+            <article class="runtime-flow" aria-label="程式流程圖">
+              <div class="flow-node">手機端產生狀態</div>
+              <div class="flow-node">壓縮成低資料量封包</div>
+              <div class="flow-node">通訊矩陣選擇路徑</div>
+              <div class="flow-node">傳送至守望隊後台</div>
+              <div class="flow-node">風險評估引擎更新分數</div>
+              <div class="flow-node">升級救援優先級或通訊路徑</div>
+            </article>
 
-          <article class="code-card">
-            <div class="code-card-title">
-              <span>B</span>
-              <h3>通訊路徑評分</h3>
-            </div>
-            <pre class="code-block"><code>function calculateChannelScore(channel, userRisk) {
-  let score =
-    channel.packetSuccessRate * 0.35 +
-    channel.latencyScore * 0.20 +
-    channel.signalStrength * 0.15 +
-    channel.gpsAvailability * 0.15 +
-    channel.channelCost * 0.10 +
-    channel.batteryImpact * 0.05
+            <article class="runtime-log-card">
+              <div class="section-line">
+                <span>即時 log</span>
+                <strong>最近 12 筆</strong>
+              </div>
+              <div id="runtimeLog" class="event-log"></div>
+            </article>
 
-  if (channel.id === "SATELLITE" &amp;&amp; userRisk === "RED") score += 18
-  if (channel.id === "SATELLITE" &amp;&amp; userRisk === "GREEN") score -= 16
-
+            <article class="code-card">
+              <div class="code-card-title">
+                <span>{ }</span>
+                <h3>Pseudo Code</h3>
+              </div>
+              <pre class="code-block"><code>function calculateRiskScore(userState) {
+  score = reply + gps + retry + battery + medical + lastSync
   return clamp(score, 0, 100)
-}</code></pre>
-          </article>
-
-          <article class="code-card">
-            <div class="code-card-title">
-              <span>C</span>
-              <h3>風險分數矩陣</h3>
-            </div>
-            <pre class="code-block"><code>function calculateRiskScore(user) {
-  let score = 0
-
-  if (!user.replied) score += 26
-  if (user.statusCode === "NEED_HELP") score += 38
-  if (user.statusCode === "INJURED") score += 42
-  if (user.statusCode === "TRAPPED") score += 54
-
-  if (user.gpsStaticMinutes &gt;= 10) score += 20
-  if (user.retryCount &gt;= 3 || user.ackStatus === "failed") score += 24
-  if (user.batteryLevel &lt; 20) score += 16
-  if (user.breathingDifficulty) score += 28
-  if (user.minutesSinceLastSync &gt;= 8) score += 10
-
-  return Math.min(score, 100)
 }
 
-function riskLevel(score) {
+function getRiskLevel(score) {
   if (score &gt;= 80) return "RED"
   if (score &gt;= 55) return "ORANGE"
   if (score &gt;= 25) return "YELLOW"
   return "GREEN"
-}</code></pre>
-          </article>
-        </div>
-      </section>
-    </main>
+}
 
-    <script src="./communicationEngine.js?v=starrylink-sea-ground-space-20260702b"></script>
-    <script src="./lowDataPacket.js?v=starrylink-sea-ground-space-20260702b"></script>
-    <script src="./demoStore.js?v=starrylink-sea-ground-space-20260702b"></script>
-    <script src="./app.js?v=starrylink-sea-ground-space-20260702b"></script>
+function calculateChannelScore(channelState, userRisk) {
+  return weightedScore(channelState) + riskAdjustment(userRisk)
+}
+
+function selectBestChannel(channels, userRisk) {
+  return channels.sort(byScoreDesc)[0]
+}
+
+function encodeLowDataPacket(userState) {
+  return { userId, gps, statusCode, batteryLevel, packetSeq, retryCount, checksum }
+}
+
+function simulatePacketLoss(networkCondition) {
+  return Math.random() &lt; networkCondition.packetLossRate
+}
+
+function runDisasterScenario() {
+  clearExistingTimer()
+  startDisasterMode()
+  schedulePacketEventEvery1500To3000ms()
+}
+
+function updateUserStateFromMobileAction(action) {
+  updateDemoUser(action)
+  encodeLowDataPacket()
+  selectBestChannel()
+  appendLog()
+  updateRescueConsole()
+}</code></pre>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="page-controls" aria-label="分頁控制">
+        <button id="prevPage" class="button quiet" type="button">上一頁</button>
+        <span id="pageProgress">1 / 5</span>
+        <button id="nextPage" class="button primary" type="button">下一頁</button>
+      </footer>
+    </div>
+
+    <script src="./communicationEngine.js?v=starrylink-paged-20260702c"></script>
+    <script src="./lowDataPacket.js?v=starrylink-paged-20260702c"></script>
+    <script src="./demoStore.js?v=starrylink-paged-20260702c"></script>
+    <script src="./app.js?v=starrylink-paged-20260702c"></script>
   </body>
 </html>

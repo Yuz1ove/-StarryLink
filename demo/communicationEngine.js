@@ -108,6 +108,7 @@
     return Boolean(
       network.disasterMode ||
         network.seaCableStatus === "degraded" ||
+        network.groundBackboneStatus === "down" ||
         network.groundBackboneStatus === "unstable" ||
         Number(network.backboneLatencyMs || 0) >= 1200 ||
         Number(network.backbonePacketLossPercent || 0) >= 20
@@ -119,9 +120,10 @@
     const gpsOk = target.location?.confirmed ? 100 : target.location?.accuracy === "medium" ? 70 : 36;
     const battery = Number(target.battery || 0);
     const backboneUnstable = isBackboneUnstable(network);
+    const groundDown = network.groundBackboneStatus === "down" || network.mobileAvailable === false;
     const packetLoss = Number(network.backbonePacketLossPercent || 0);
     const mobileCongestion = Number(network.groundCongestion || 0);
-    const groundPenalty = backboneUnstable ? 14 : 0;
+    const groundPenalty = groundDown ? 32 : backboneUnstable ? 14 : 0;
     const signalPenalty = signal < 40 ? 18 : signal < 70 ? 7 : 0;
     const batteryPenalty = battery < 15 ? 14 : battery < 25 ? 7 : 0;
 
@@ -129,27 +131,28 @@
       const channel = clone(template);
       if (channel.id === "WIFI") {
         channel.packetSuccessRate -= groundPenalty + signalPenalty + packetLoss * 0.28;
-        channel.latencyMs += backboneUnstable ? 920 : 0;
+        channel.latencyMs += groundDown ? 1600 : backboneUnstable ? 920 : 0;
         channel.signalStrength = Math.min(channel.signalStrength, signal + 8);
       }
       if (channel.id === "LTE") {
         channel.packetSuccessRate -= groundPenalty + signalPenalty + mobileCongestion * 0.12 + packetLoss * 0.22;
-        channel.latencyMs += backboneUnstable ? 720 : 0;
+        channel.latencyMs += groundDown ? 1500 : backboneUnstable ? 720 : 0;
         channel.signalStrength = Math.min(channel.signalStrength, signal + 4);
       }
       if (channel.id === "SMS") {
         channel.packetSuccessRate -= signal < 28 ? 16 : signal < 45 ? 6 : 0;
-        channel.latencyMs += mobileCongestion > 80 ? 850 : backboneUnstable ? 280 : 0;
+        channel.packetSuccessRate += groundDown ? 4 : 0;
+        channel.latencyMs += groundDown ? 980 : mobileCongestion > 80 ? 850 : backboneUnstable ? 280 : 0;
         channel.signalStrength = Math.max(44, Math.min(86, signal + 12));
       }
       if (channel.id === "BLE_RELAY") {
-        channel.packetSuccessRate += backboneUnstable ? 12 : 0;
+        channel.packetSuccessRate += groundDown ? 18 : backboneUnstable ? 12 : 0;
         channel.latencyMs += signal < 35 ? 600 : 0;
         channel.signalStrength = Math.max(46, Math.min(80, signal + 18));
       }
       if (channel.id === "SATELLITE") {
-        channel.packetSuccessRate += backboneUnstable ? 16 : 0;
-        channel.channelCost += backboneUnstable ? 18 : 0;
+        channel.packetSuccessRate += groundDown ? 22 : backboneUnstable ? 16 : 0;
+        channel.channelCost += groundDown ? 28 : backboneUnstable ? 18 : 0;
         channel.latencyMs += 0;
       }
       channel.gpsAvailability = Math.round((channel.gpsAvailability + gpsOk) / 2);
@@ -178,6 +181,7 @@
       if (riskLevel === "RED") adjustment += 18;
       if (riskLevel === "ORANGE") adjustment += 8;
       if (backboneUnstable) adjustment += 10;
+      if (network.groundBackboneStatus === "down" || network.mobileAvailable === false) adjustment += 16;
       if (riskLevel === "GREEN" || riskLevel === "YELLOW") adjustment -= 16;
     }
     if (["WIFI", "LTE"].includes(channelState.id) && backboneUnstable) adjustment -= 8;

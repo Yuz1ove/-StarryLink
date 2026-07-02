@@ -31,6 +31,17 @@
     NO_RESPONSE: 26,
   };
 
+  const symptomOptions = {
+    NEED_HELP: { label: "需要救援", score: 58, status: "sos" },
+    INJURED: { label: "我受傷", score: 66, status: "injured" },
+    TRAPPED: { label: "我被困住", score: 82, status: "trapped" },
+    NEED_MEDICAL: { label: "需要醫療", score: 74, status: "medical_risk" },
+    CANNOT_TALK: { label: "無法說話", score: 62, status: "medical_risk" },
+    DISCOMFORT: { label: "身體不適", score: 42, status: "medical_risk" },
+  };
+
+  const symptomPriority = ["NEED_HELP", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "INJURED", "DISCOMFORT"];
+
   let state = normalizeState(loadLocalState() || createInitialState());
   let saveTimer = null;
   let pollTimer = null;
@@ -76,6 +87,110 @@
     return Date.now() - minutes * 60000;
   }
 
+  function roundCoordinate(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    return Math.round(number * 10000) / 10000;
+  }
+
+  function accuracyMeters(value) {
+    if (value === "high") return 30;
+    if (value === "medium") return 120;
+    if (value === "low") return 300;
+    const number = Number(String(value || "").match(/[\d.]+/)?.[0]);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function accuracyText(value) {
+    if (value === "high" || value === "medium" || value === "low") return value;
+    const meters = accuracyMeters(value);
+    if (Number.isFinite(meters)) return `${Math.round(meters)}m`;
+    return value || "unknown";
+  }
+
+  function normalizeSymptoms(symptoms = []) {
+    const input = Array.isArray(symptoms) ? symptoms : [];
+    const unique = new Set(input.filter((code) => symptomOptions[code]));
+    return symptomPriority.filter((code) => unique.has(code));
+  }
+
+  function inferSymptomsFromConfig(config = {}) {
+    const symptoms = new Set();
+    if (symptomOptions[config.replyCode]) symptoms.add(config.replyCode);
+    if (config.trapped || config.cannotMove) symptoms.add("TRAPPED");
+    if (config.breathingDifficulty) symptoms.add("CANNOT_TALK");
+    if (config.injury || config.replyCode === "INJURED") symptoms.add("INJURED");
+    if (config.replyCode === "NEED_MEDICAL") symptoms.add("NEED_MEDICAL");
+    if (config.discomfort && !symptoms.has("INJURED") && !symptoms.has("NEED_MEDICAL")) symptoms.add("DISCOMFORT");
+    return normalizeSymptoms([...symptoms]);
+  }
+
+  function inferSymptomsFromTarget(target = {}) {
+    const symptoms = new Set();
+    const code = target.latestReply?.code;
+    if (symptomOptions[code]) symptoms.add(code);
+    if (target.medical?.trapped || target.medical?.cannotMove) symptoms.add("TRAPPED");
+    if (target.medical?.breathingDifficulty) symptoms.add("CANNOT_TALK");
+    if (target.medical?.injury || code === "INJURED") symptoms.add("INJURED");
+    if (code === "NEED_MEDICAL") symptoms.add("NEED_MEDICAL");
+    if (target.medical?.discomfort && !symptoms.has("INJURED") && !symptoms.has("NEED_MEDICAL")) symptoms.add("DISCOMFORT");
+    return normalizeSymptoms([...symptoms]);
+  }
+
+  function calculateSymptomScore(symptoms = []) {
+    const scores = normalizeSymptoms(symptoms)
+      .map((code) => symptomOptions[code]?.score || 0)
+      .sort((a, b) => b - a);
+    if (!scores.length) return 0;
+    const [highest, ...rest] = scores;
+    const extra = rest.reduce((sum, score) => sum + Math.round(score * 0.35), 0);
+    return Math.max(0, Math.min(90, highest + extra));
+  }
+
+  function primaryReplyFromSymptoms(symptoms = []) {
+    const normalized = normalizeSymptoms(symptoms);
+    return symptomPriority.find((code) => normalized.includes(code)) || "SAFE";
+  }
+
+  function symptomLabels(symptoms = []) {
+    return normalizeSymptoms(symptoms).map((code) => symptomOptions[code]?.label || lowData.replyLabels[code] || code);
+  }
+
+  function replyLabel(code) {
+    return symptomOptions[code]?.label || lowData.replyLabels[code] || code;
+  }
+
+  function syncMedicalFromSymptoms(target) {
+    const symptoms = normalizeSymptoms(target.selectedSymptoms);
+    const hasAny = symptoms.length > 0;
+    const injured = symptoms.includes("INJURED") || symptoms.includes("NEED_MEDICAL");
+    const discomfort = injured || symptoms.includes("DISCOMFORT");
+    const trapped = symptoms.includes("TRAPPED");
+    const breathingDifficulty = symptoms.includes("CANNOT_TALK") || symptoms.includes("NEED_MEDICAL");
+
+    target.medical.discomfort = discomfort;
+    target.medical.injury = injured;
+    target.medical.cannotMove = trapped;
+    target.medical.trapped = trapped;
+    target.medical.breathingDifficulty = breathingDifficulty;
+    target.medical.hypothermia = Boolean(target.medical.hypothermia && hasAny);
+
+    if (!hasAny) {
+      target.medical.heartRate = 82;
+      target.medical.spo2 = 98;
+      return;
+    }
+    if (trapped) target.medical.heartRate = Math.max(Number(target.medical.heartRate || 106), 106);
+    if (discomfort || injured) {
+      target.medical.heartRate = Math.max(Number(target.medical.heartRate || 112), 112);
+      target.medical.spo2 = Math.min(Number(target.medical.spo2 || 95), 95);
+    }
+    if (breathingDifficulty) {
+      target.medical.heartRate = Math.max(Number(target.medical.heartRate || 118), 118);
+      target.medical.spo2 = Math.min(Number(target.medical.spo2 || 92), 92);
+    }
+  }
+
   function createTarget(config) {
     const route = lowData.routeForSignal(config.signalQuality);
     return {
@@ -86,12 +201,15 @@
       phoneOnline: config.phoneOnline ?? true,
       signalQuality: config.signalQuality,
       battery: config.battery,
+      selectedSymptoms: inferSymptomsFromConfig(config),
       location: {
         lat: config.lat ?? null,
         lng: config.lng ?? null,
         accuracy: config.accuracy || "unknown",
         confirmed: Boolean(config.locationConfirmed),
         staticMinutes: Number(config.staticMinutes || 0),
+        source: config.locationSource || (config.locationConfirmed ? "GPS" : "UNKNOWN"),
+        updatedAt: config.locationUpdatedAt || null,
       },
       medical: {
         chronicNote: config.chronicNote || "無特殊",
@@ -309,7 +427,17 @@
       const route = lowData.routeForSignal(target.signalQuality);
       const normalized = {
         ...target,
-        location: { lat: null, lng: null, accuracy: "unknown", confirmed: false, staticMinutes: 0, ...(target.location || {}) },
+        selectedSymptoms: Array.isArray(target.selectedSymptoms) ? normalizeSymptoms(target.selectedSymptoms) : [],
+        location: {
+          lat: null,
+          lng: null,
+          accuracy: "unknown",
+          confirmed: false,
+          staticMinutes: 0,
+          source: null,
+          updatedAt: null,
+          ...(target.location || {}),
+        },
         medical: {
           chronicNote: "無特殊",
           heartRate: null,
@@ -340,11 +468,107 @@
           ...(target.communication || {}),
         },
       };
+      if (!normalized.location.source) normalized.location.source = normalized.location.confirmed ? "GPS" : "UNKNOWN";
+      if (!Array.isArray(target.selectedSymptoms)) normalized.selectedSymptoms = inferSymptomsFromTarget(normalized);
       normalized.risk = calculateRisk(normalized);
       applyCommunicationDecision(normalized, next.event.network);
       return normalized;
     });
+    next.starryState = buildStarryState(next);
+    global.starryState = next.starryState;
     return next;
+  }
+
+  function publicRiskLevel(level) {
+    const map = { GREEN: "stable", YELLOW: "watch", ORANGE: "danger", RED: "critical" };
+    return map[String(level || "GREEN").toUpperCase()] || "stable";
+  }
+
+  function publicGroundNetwork(network = {}) {
+    if (network.groundBackboneStatus === "down" || network.mobileAvailable === false) return "failed";
+    if (
+      network.groundBackboneStatus === "unstable" ||
+      network.seaCableStatus === "degraded" ||
+      Number(network.backbonePacketLossPercent || 0) >= 20
+    ) {
+      return "weak";
+    }
+    return "normal";
+  }
+
+  function publicAckStatus(status) {
+    if (status === "received") return "ok";
+    if (status === "failed") return "lost";
+    return "retry";
+  }
+
+  function publicGpsStatus(location = {}) {
+    if (!location.confirmed) return "last_known";
+    const meters = accuracyMeters(location.accuracy);
+    if (location.staticMinutes >= 10 || location.accuracy === "medium" || (Number.isFinite(meters) && meters > 50)) return "drifting";
+    return "locked";
+  }
+
+  function publicVictimStatus(target = {}, symptoms = []) {
+    const latest = target.latestReply?.code;
+    const selected = new Set(normalizeSymptoms(symptoms));
+    if (selected.has("NEED_HELP") || latest === "NEED_HELP") return "sos";
+    if (selected.has("TRAPPED") || target.medical?.trapped || target.medical?.cannotMove) return "trapped";
+    if (selected.has("NEED_MEDICAL") || selected.has("CANNOT_TALK") || target.medical?.breathingDifficulty) return "medical_risk";
+    if (selected.has("INJURED") || target.medical?.injury) return "injured";
+    if (latest === "NO_RESPONSE") return "delayed";
+    if (target.communication?.ackStatus === "failed") return "no_ack";
+    return "safe";
+  }
+
+  function publicActiveRoute(target = {}, starry = {}) {
+    const primary = target.communication?.primaryRoute;
+    if (starry.victimStatus === "sos") return "sos_escalation";
+    if (primary === "SATELLITE" || target.communication?.satelliteRecommended) return "satellite_backup";
+    if (starry.gpsStatus !== "locked" || target.latestReply?.code === "LOCATION_UPDATE") return "gps_packet";
+    if (primary === "BLE_RELAY" || primary === "SMS") return "ground_mesh";
+    return "ground_primary";
+  }
+
+  function publicActiveLayer(activeRoute, groundNetwork) {
+    if (activeRoute === "satellite_backup" || activeRoute === "sos_escalation") return "SPACE";
+    if (groundNetwork !== "normal") return "SEA";
+    return "GROUND";
+  }
+
+  function buildStarryState(draft) {
+    const target = getActiveTarget(draft) || draft.targets?.[0] || {};
+    const network = draft.event?.network || {};
+    const symptoms = normalizeSymptoms(target.selectedSymptoms);
+    const riskLevel = publicRiskLevel(target.risk?.level);
+    const groundNetwork = publicGroundNetwork(network);
+    const ackStatus = publicAckStatus(target.communication?.ackStatus);
+    const gpsStatus = publicGpsStatus(target.location);
+    const victimStatus = publicVictimStatus(target, symptoms);
+    const packetLoss = Math.round(Number(target.communication?.packetLossRate ?? network.backbonePacketLossPercent ?? 0));
+    const base = {
+      targetId: target.id || null,
+      targetName: target.name || "",
+      selectedSymptoms: symptoms,
+      symptomScore: calculateSymptomScore(symptoms),
+      riskScore: Number(target.risk?.score || 0),
+      riskLevel,
+      victimStatus,
+      groundNetwork,
+      packetLoss,
+      ackStatus,
+      gpsStatus,
+      activeRoute: "ground_primary",
+      activeLayer: "GROUND",
+      alertTriggered: riskLevel === "critical" || victimStatus === "sos" || ackStatus === "lost",
+      lowDataMode: Boolean(target.communication?.lowDataMode),
+      fallbackChannel: lowData.routeLabel(target.communication?.fallbackRoute || "NONE"),
+      selectedChannel: lowData.routeLabel(target.communication?.primaryRoute || "NONE"),
+      recoveryCounter: Number(target.communication?.retryCount || 0),
+    };
+    base.activeRoute = publicActiveRoute(target, base);
+    base.activeLayer = publicActiveLayer(base.activeRoute, groundNetwork);
+    return base;
   }
 
   function riskLevel(score) {
@@ -387,23 +611,49 @@
     const items = [];
     const latest = target.latestReply;
     const code = latest?.code || null;
-    const replyScore = code ? replyScores[code] || 0 : 0;
+    const selectedSymptoms = normalizeSymptoms(target.selectedSymptoms);
+    const selectedSet = new Set(selectedSymptoms);
+    const symptomScore = calculateSymptomScore(selectedSymptoms);
+    const replyScore = selectedSymptoms.length && code !== "SAFE" ? 0 : code ? replyScores[code] || 0 : 0;
     addRisk(items, "使用者回覆", replyScore, code ? `${latest.label} +${replyScore}` : "尚未回覆 +0", true);
 
-    addRisk(items, "是否按下求救", code === "NEED_HELP" ? 20 : 0, "使用者按下需要救援 +20");
+    addRisk(
+      items,
+      "受困者按鍵區",
+      symptomScore,
+      symptomScore ? `${symptomLabels(selectedSymptoms).join("、")} +${symptomScore}` : "尚未選擇受困症狀 +0",
+      true
+    );
+    addRisk(items, "是否按下求救", !selectedSet.has("NEED_HELP") && code === "NEED_HELP" ? 20 : 0, "使用者按下需要救援 +20");
 
     const heartRate = Number(target.medical.heartRate);
     addRisk(items, "心率異常", heartRate > 120 || heartRate < 50 ? 12 : 0, `HR ${target.medical.heartRate ?? "-"} +12`);
     addRisk(items, "血氧偏低", Number(target.medical.spo2) < 92 ? 18 : 0, `SpO2 ${target.medical.spo2 ?? "-"} +18`);
-    addRisk(items, "受傷", target.medical.injury || code === "INJURED" || code === "NEED_MEDICAL" ? 24 : 0, "受傷或需要醫療 +24");
-    addRisk(items, "呼吸困難", target.medical.breathingDifficulty ? 28 : 0, "呼吸困難 +28");
-    addRisk(items, "被困/無法移動", target.medical.trapped || target.medical.cannotMove || code === "TRAPPED" || code === "CANNOT_MOVE" ? 28 : 0, "被困或無法移動 +28");
+    addRisk(
+      items,
+      "受傷",
+      (target.medical.injury || code === "INJURED" || code === "NEED_MEDICAL") && !selectedSet.has("INJURED") && !selectedSet.has("NEED_MEDICAL")
+        ? 24
+        : 0,
+      "受傷或需要醫療 +24"
+    );
+    addRisk(items, "呼吸困難", target.medical.breathingDifficulty && !selectedSet.has("CANNOT_TALK") && !selectedSet.has("NEED_MEDICAL") ? 28 : 0, "呼吸困難 +28");
+    addRisk(
+      items,
+      "被困/無法移動",
+      (target.medical.trapped || target.medical.cannotMove || code === "TRAPPED" || code === "CANNOT_MOVE") && !selectedSet.has("TRAPPED") ? 28 : 0,
+      "被困或無法移動 +28"
+    );
     addRisk(items, "失溫", target.medical.hypothermia ? 24 : 0, "疑似失溫 +24");
 
-    if (target.location.confirmed && target.location.accuracy === "high") {
-      addRisk(items, "GPS", 0, "GPS 已確認 high +0", true);
-    } else if (target.location.confirmed && ["medium", "low"].includes(target.location.accuracy)) {
-      addRisk(items, "GPS 精準度", 10, `GPS accuracy ${target.location.accuracy} +10`);
+    const gpsMeters = accuracyMeters(target.location.accuracy);
+    const hasGpsMeters = Number.isFinite(gpsMeters);
+    if (target.location.confirmed && (target.location.accuracy === "high" || (hasGpsMeters && gpsMeters <= 50))) {
+      addRisk(items, "GPS", -5, `GPS 已確認 ${accuracyText(target.location.accuracy)} -5`, true);
+    } else if (target.location.confirmed && (target.location.accuracy === "medium" || (hasGpsMeters && gpsMeters <= 150))) {
+      addRisk(items, "GPS 精準度", 6, `GPS accuracy ${accuracyText(target.location.accuracy)} +6`);
+    } else if (target.location.confirmed) {
+      addRisk(items, "GPS 精準度", 12, `GPS accuracy ${accuracyText(target.location.accuracy)} +12`);
     } else {
       addRisk(items, "GPS 未確認", 25, "GPS unknown +25");
     }
@@ -457,6 +707,10 @@
 
   function getSelectedTarget(draft = state) {
     return draft.targets.find((target) => target.id === draft.selectedTargetId) || getActiveTarget(draft);
+  }
+
+  function getStarryState() {
+    return state.starryState || buildStarryState(state);
   }
 
   function subscribe(listener) {
@@ -609,26 +863,100 @@
         item.signalQuality = enabled ? 32 : 78;
         item.phoneOnline = true;
       });
+      draft.selectedTargetId = target.id;
       addEvent(draft, target.id, enabled ? "切換弱訊號模擬" : "恢復良好訊號", `U-DEMO signalQuality = ${target.signalQuality}%`, "communication");
     }, "weak-signal");
   }
 
-  function setLocation(kind) {
+  function setLocation(kind, options = {}) {
+    const nowMs = Date.now();
     commit((draft) => {
+      let seq = 0;
       const target = updateActiveTarget(draft, (item) => {
         if (kind === "confirmed") {
-          item.location = { lat: 25.035, lng: 121.564, accuracy: "high", confirmed: true, staticMinutes: 0 };
+          item.location = {
+            lat: roundCoordinate(options.lat ?? 25.035),
+            lng: roundCoordinate(options.lng ?? 121.564),
+            accuracy: accuracyText(options.accuracy ?? options.accuracyMeters ?? 18),
+            confirmed: true,
+            staticMinutes: 0,
+            source: options.source || "GPS",
+            updatedAt: nowIso(nowMs),
+          };
+          if (!item.latestReply || item.latestReply.code === "LOCATION_UNKNOWN") {
+            item.latestReply = {
+              code: "LOCATION_UPDATE",
+              label: lowData.replyLabels.LOCATION_UPDATE,
+              timestamp: nowMs,
+            };
+          }
         } else {
-          item.location = { lat: null, lng: null, accuracy: "unknown", confirmed: false, staticMinutes: 0 };
+          item.location = {
+            lat: null,
+            lng: null,
+            accuracy: "unknown",
+            confirmed: false,
+            staticMinutes: 0,
+            source: options.source || "UNAVAILABLE",
+            updatedAt: nowIso(nowMs),
+          };
+          if (options.updateReply) {
+            item.latestReply = {
+              code: "LOCATION_UNKNOWN",
+              label: lowData.replyLabels.LOCATION_UNKNOWN,
+              timestamp: nowMs,
+            };
+          }
         }
+        seq = Number(item.communication.packetSeq || 0) + 1;
+        item.communication.packetSeq = seq;
+        item.communication.ackStatus = "received";
+        item.communication.retryCount = 0;
+        item.communication.ackPendingSince = null;
+        item.communication.lastAckAt = nowIso(nowMs);
       });
-      addEvent(draft, target.id, kind === "confirmed" ? "位置已確認" : "位置待確認", kind === "confirmed" ? "GPS high，守望隊可使用定位輔助排序。" : "使用者無法提供位置，風險矩陣加入 GPS unknown。", "location");
+      draft.selectedTargetId = target.id;
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
+      const replyCode = kind === "confirmed" ? "LOCATION_UPDATE" : "LOCATION_UNKNOWN";
+      const packet = lowData.makePacket(target, replyCode, seq, nowMs);
+      target.communication.packetBytes = packet.bytes;
+      addPacketLog(draft, {
+        targetId: target.id,
+        seq,
+        attempt: 1,
+        replyCode,
+        replyLabel: lowData.replyLabels[replyCode],
+        bytes: packet.bytes,
+        packet: packet.preview,
+        ack: lowData.makeAck(target.id, seq, nowMs),
+        status: "received",
+        dedupe: "accepted",
+        route: target.communication.primaryRoute,
+      });
+      addEvent(
+        draft,
+        target.id,
+        kind === "confirmed" ? "位置已確認" : "無法定位",
+        kind === "confirmed"
+          ? `GPS ${target.location.lat}, ${target.location.lng} / ${target.location.accuracy}，守望隊可使用定位輔助排序。`
+          : "使用者無法提供位置，封包 GPS 改為 null / unknown，風險矩陣加入 GPS unknown。",
+        "location",
+        seq
+      );
     }, "location");
   }
 
   function updateMedicalFlag(flag, value) {
     commit((draft) => {
       const target = updateActiveTarget(draft, (item) => {
+        const symptomCode = flag === "discomfort" ? "DISCOMFORT" : flag === "cannotMove" ? "TRAPPED" : null;
+        if (symptomCode) {
+          const symptoms = new Set(normalizeSymptoms(item.selectedSymptoms));
+          if (value) symptoms.add(symptomCode);
+          else symptoms.delete(symptomCode);
+          item.selectedSymptoms = normalizeSymptoms([...symptoms]);
+        }
         item.medical[flag] = Boolean(value);
         if (flag === "discomfort" && value) {
           item.medical.heartRate = 118;
@@ -638,12 +966,27 @@
           item.medical.heartRate = Math.max(Number(item.medical.heartRate || 96), 106);
           item.medical.trapped = true;
         }
+        if (flag === "cannotMove" && !value) {
+          item.medical.trapped = false;
+        }
+        syncMedicalFromSymptoms(item);
+        const primary = primaryReplyFromSymptoms(item.selectedSymptoms);
+        if (primary === "SAFE" && item.latestReply && symptomOptions[item.latestReply.code]) {
+          item.latestReply = null;
+        } else if (primary !== "SAFE") {
+          item.latestReply = {
+            code: primary,
+            label: replyLabel(primary),
+            timestamp: Date.now(),
+          };
+        }
         if (!item.medical.discomfort && !item.medical.cannotMove) {
           item.medical.heartRate = 82;
           item.medical.spo2 = 98;
         }
       });
-      addEvent(draft, target.id, "更新身體狀態", `${flag} = ${Boolean(value)}`, "medical");
+      draft.selectedTargetId = target.id;
+      addEvent(draft, target.id, "更新身體狀態", `${flag} = ${Boolean(value)}；症狀分數 ${calculateSymptomScore(target.selectedSymptoms)}`, "medical");
     }, "medical");
   }
 
@@ -651,40 +994,36 @@
     const nowMs = Date.now();
     let seq = 0;
     let weak = false;
+    let replyCode = code;
     commit((draft) => {
       const target = updateActiveTarget(draft, (item) => {
         seq = Number(item.communication.packetSeq || 0) + 1;
         if (code === "SAFE") {
-          item.medical.discomfort = false;
-          item.medical.injury = false;
-          item.medical.cannotMove = false;
-          item.medical.breathingDifficulty = false;
-          item.medical.trapped = false;
-          item.medical.hypothermia = false;
-          item.medical.heartRate = 82;
-          item.medical.spo2 = 98;
+          item.selectedSymptoms = [];
+          syncMedicalFromSymptoms(item);
         }
-        if (code === "CANNOT_MOVE" || code === "TRAPPED") {
-          item.medical.cannotMove = true;
-          item.medical.trapped = true;
-          item.medical.heartRate = Math.max(Number(item.medical.heartRate || 106), 106);
-        }
-        if (code === "DISCOMFORT" || code === "INJURED" || code === "NEED_MEDICAL") {
-          item.medical.discomfort = true;
-          item.medical.injury = true;
-          item.medical.heartRate = 118;
-          item.medical.spo2 = 94;
-        }
-        if (code === "CANNOT_TALK") {
-          item.medical.breathingDifficulty = true;
-          item.medical.heartRate = Math.max(Number(item.medical.heartRate || 110), 110);
+        if (symptomOptions[code]) {
+          const symptoms = new Set(normalizeSymptoms(item.selectedSymptoms));
+          if (symptoms.has(code)) symptoms.delete(code);
+          else symptoms.add(code);
+          item.selectedSymptoms = normalizeSymptoms([...symptoms]);
+          syncMedicalFromSymptoms(item);
+          replyCode = primaryReplyFromSymptoms(item.selectedSymptoms);
         }
         if (code === "LOCATION_UNKNOWN") {
-          item.location = { lat: null, lng: null, accuracy: "unknown", confirmed: false, staticMinutes: 0 };
+          item.location = {
+            lat: null,
+            lng: null,
+            accuracy: "unknown",
+            confirmed: false,
+            staticMinutes: 0,
+            source: "UNAVAILABLE",
+            updatedAt: nowIso(nowMs),
+          };
         }
         item.latestReply = {
-          code,
-          label: lowData.replyLabels[code],
+          code: replyCode,
+          label: replyLabel(replyCode),
           timestamp: nowMs,
         };
         item.communication.packetSeq = seq;
@@ -693,17 +1032,18 @@
         item.communication.ackPendingSince = nowMs;
         item.communication.lastAckAt = Number(item.signalQuality || 0) < 40 ? null : nowIso(nowMs);
       });
+      draft.selectedTargetId = target.id;
       target.risk = calculateRisk(target, nowMs);
       applyCommunicationDecision(target, draft.event.network);
-      const packet = lowData.makePacket(target, code, seq, nowMs);
+      const packet = lowData.makePacket(target, replyCode, seq, nowMs);
       target.communication.packetBytes = packet.bytes;
       weak = Number(target.signalQuality || 0) < 40;
       addPacketLog(draft, {
         targetId: target.id,
         seq,
         attempt: 1,
-        replyCode: code,
-        replyLabel: lowData.replyLabels[code],
+        replyCode,
+        replyLabel: replyLabel(replyCode),
         bytes: packet.bytes,
         packet: packet.preview,
         ack: weak ? null : lowData.makeAck(target.id, seq, nowMs),
@@ -715,7 +1055,7 @@
         draft,
         target.id,
         "收到手機端回覆",
-        `${target.name} 回覆「${lowData.replyLabels[code]}」，seq ${seq}，${packet.bytes} bytes。${weak ? "等待 ACK。" : "server ACK 已收到。"}`,
+        `${target.name} 回覆「${replyLabel(replyCode)}」，症狀分數 ${calculateSymptomScore(target.selectedSymptoms)}，seq ${seq}，${packet.bytes} bytes。${weak ? "等待 ACK。" : "server ACK 已收到。"}`,
         "mobile",
         seq
       );
@@ -784,6 +1124,171 @@
     }, "ack");
   }
 
+  function riskRank(level) {
+    return { RED: 4, ORANGE: 3, YELLOW: 2, GREEN: 1 }[String(level || "GREEN").toUpperCase()] || 0;
+  }
+
+  function pickSimulationTarget(draft) {
+    const active = getActiveTarget(draft);
+    if (Math.random() < 0.44) return active;
+    return draft.targets
+      .slice()
+      .sort((a, b) => riskRank(b.risk.level) - riskRank(a.risk.level) || b.risk.score - a.risk.score)[0];
+  }
+
+  function simulatePacketEvent(options = {}) {
+    commit((draft) => {
+      const network = draft.event.network || {};
+      const target = options.targetId
+        ? draft.targets.find((item) => item.id === options.targetId) || pickSimulationTarget(draft)
+        : pickSimulationTarget(draft);
+      const nowMs = Date.now();
+      const seq = Number(target.communication.packetSeq || 0) + 1;
+      const replyCode = target.latestReply?.code || "NO_RESPONSE";
+
+      if (!target.latestReply) {
+        target.latestReply = { code: "NO_RESPONSE", label: lowData.replyLabels.NO_RESPONSE, timestamp: nowMs };
+      }
+
+      target.communication.packetSeq = seq;
+      target.communication.ackPendingSince = nowMs;
+      target.lastUpdatedAt = nowIso(nowMs);
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, network);
+
+      const baseSuccess = Number(target.communication.packetSuccessRate || 70);
+      const networkLoss = Number(network.backbonePacketLossPercent || 0);
+      const forceLoss = Boolean(options.forceLoss);
+      const success = !forceLoss && Math.random() * 100 < Math.max(8, baseSuccess - networkLoss * 0.22);
+      const packet = lowData.makePacket(target, replyCode, seq, nowMs);
+      target.communication.packetBytes = packet.bytes;
+
+      addPacketLog(draft, {
+        targetId: target.id,
+        seq,
+        attempt: Number(target.communication.retryCount || 0) + 1,
+        replyCode,
+        replyLabel: lowData.replyLabels[replyCode],
+        bytes: packet.bytes,
+        packet: packet.preview,
+        ack: success ? lowData.makeAck(target.id, seq, nowMs) : null,
+        status: success ? "received" : "retrying",
+        dedupe: success ? "accepted" : "awaiting retry",
+        route: target.communication.primaryRoute,
+      });
+      addEvent(draft, target.id, `packetSeq #${seq} encoded`, `${target.name} 封包 ${packet.bytes} bytes，selectedChannel ${target.communication.primaryRoute}。`, "packet", seq);
+
+      if (success) {
+        target.communication.ackStatus = "received";
+        target.communication.retryCount = 0;
+        target.communication.lastAckAt = nowIso(nowMs);
+        target.communication.ackPendingSince = null;
+        addEvent(draft, target.id, "packet delivered", `${lowData.routeLabel(target.communication.primaryRoute)} 傳送成功，latency ${target.communication.averageLatencyMs}ms。`, "ack", seq);
+      } else {
+        target.communication.retryCount = Number(target.communication.retryCount || 0) + 1;
+        target.communication.ackStatus = target.communication.retryCount >= 3 ? "failed" : "retrying";
+        target.signalQuality = Math.max(16, Number(target.signalQuality || 40) - 6);
+        target.risk = calculateRisk(target, nowMs);
+        applyCommunicationDecision(target, network);
+        addEvent(
+          draft,
+          target.id,
+          `${lowData.routeLabel(target.communication.primaryRoute)} packet failed`,
+          `retryCount ${target.communication.retryCount}；切換/保留 fallback ${lowData.routeLabel(target.communication.fallbackRoute)}。`,
+          "retry",
+          seq
+        );
+        if (target.communication.ackStatus === "failed") {
+          addEvent(draft, target.id, "switched to fallback channel", `${target.name} 連續失敗，守望隊提高重送頻率並升級通訊路徑。`, "fallback", seq);
+        }
+      }
+
+      draft.targets.forEach((item) => {
+        item.risk = calculateRisk(item, nowMs);
+        applyCommunicationDecision(item, network);
+      });
+    }, options.forceLoss ? "packet-loss" : "packet-event");
+  }
+
+  function simulatePacketLoss() {
+    simulatePacketEvent({ forceLoss: true, targetId: state.activeTargetId });
+  }
+
+  function simulateGroundNetworkDown() {
+    commit((draft) => {
+      const nowMs = Date.now();
+      draft.event.status = "地面網路失效";
+      draft.event.network.groundBackboneStatus = "down";
+      draft.event.network.backboneLatencyMs = 2600;
+      draft.event.network.backbonePacketLossPercent = 64;
+      draft.event.network.groundCongestion = 98;
+      draft.event.network.mobileAvailable = false;
+      draft.targets.forEach((target) => {
+        target.signalQuality = Math.min(Number(target.signalQuality || 0), target.id === "U-DEMO" ? 28 : 38);
+        target.risk = calculateRisk(target, nowMs);
+        applyCommunicationDecision(target, draft.event.network);
+      });
+      const target = getActiveTarget(draft);
+      draft.selectedTargetId = target.id;
+      const seq = Number(target.communication.packetSeq || 0) + 1;
+      const replyCode = target.latestReply?.code || "NO_RESPONSE";
+      target.communication.packetSeq = seq;
+      target.communication.ackStatus = "retrying";
+      target.communication.retryCount = Math.max(1, Number(target.communication.retryCount || 0));
+      target.communication.ackPendingSince = nowMs;
+      target.lastUpdatedAt = nowIso(nowMs);
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
+      const packet = lowData.makePacket(target, replyCode, seq, nowMs);
+      target.communication.packetBytes = packet.bytes;
+      addPacketLog(draft, {
+        targetId: target.id,
+        seq,
+        attempt: target.communication.retryCount + 1,
+        replyCode,
+        replyLabel: lowData.replyLabels[replyCode],
+        bytes: packet.bytes,
+        packet: packet.preview,
+        ack: null,
+        status: "retrying",
+        dedupe: "awaiting retry",
+        route: target.communication.primaryRoute,
+      });
+      addEvent(
+        draft,
+        "system",
+        "模擬地面網路失效",
+        `5G / LTE 與 Wi-Fi 權重下降，${target.name} 封包 seq ${seq} 進入 retry，selectedChannel ${lowData.routeLabel(target.communication.primaryRoute)}。`,
+        "network",
+        seq
+      );
+    }, "ground-network-down");
+  }
+
+  function enableSatelliteFallback() {
+    commit((draft) => {
+      draft.event.status = "高風險衛星備援啟用";
+      draft.event.network.satelliteAvailable = true;
+      draft.event.network.disasterMode = true;
+      draft.event.network.groundBackboneStatus = "down";
+      draft.event.network.backbonePacketLossPercent = Math.max(Number(draft.event.network.backbonePacketLossPercent || 0), 58);
+      const target = getActiveTarget(draft);
+      const nowMs = Date.now();
+      target.latestReply = { code: "NEED_HELP", label: lowData.replyLabels.NEED_HELP, timestamp: nowMs };
+      target.selectedSymptoms = normalizeSymptoms(["NEED_HELP", "TRAPPED", "CANNOT_TALK"]);
+      target.signalQuality = 18;
+      target.medical.trapped = true;
+      target.medical.breathingDifficulty = true;
+      target.communication.ackStatus = "failed";
+      target.communication.retryCount = Math.max(4, Number(target.communication.retryCount || 0));
+      target.communication.lastAckAt = nowIso(minutesAgo(12));
+      target.lastUpdatedAt = nowIso(nowMs);
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
+      addEvent(draft, target.id, "切換高風險衛星備援", `${target.name} 進入 ${target.risk.level}，Satellite Backup 提高優先級。`, "satellite");
+    }, "satellite-fallback");
+  }
+
   function resetDemo() {
     commit(() => createInitialState(), "reset");
   }
@@ -808,6 +1313,14 @@
       addEvent(fresh, "system", "災害模式啟動", "地震後海纜與地面骨幹不穩，系統切換低資料量封包並重新評估通訊路徑。", "script");
       return fresh;
     }, "script-start");
+  }
+
+  function pauseScript() {
+    commit((draft) => {
+      draft.event.script.running = false;
+      draft.event.script.label = "模擬已暫停：可繼續操作手機端，或重新啟動災害模式。";
+      addEvent(draft, "system", "暫停模擬", "背景封包事件已停止，手機端操作仍會同步到守望隊工作台。", "script");
+    }, "script-pause");
   }
 
   function setScriptPhase(elapsedSeconds, label) {
@@ -851,6 +1364,7 @@
         if (patch.medical) target.medical = { ...previousMedical, ...patch.medical };
         if (patch.communication) target.communication = { ...previousCommunication, ...patch.communication };
         target.latestReply = { code, label: lowData.replyLabels[code], timestamp: Date.now() };
+        target.selectedSymptoms = inferSymptomsFromTarget(target);
         target.communication.packetSeq = Number(target.communication.packetSeq || 0) + 1;
         target.risk = calculateRisk(target);
         applyCommunicationDecision(target, draft.event.network);
@@ -907,6 +1421,8 @@
     getState,
     getActiveTarget,
     getSelectedTarget,
+    getStarryState,
+    symptomOptions,
     subscribe,
     startSync,
     loadServerState,
@@ -918,10 +1434,15 @@
       sendReply,
       resetDemo,
       startScript,
+      pauseScript,
       setScriptPhase,
       sendSafetyCheckins,
       applyScriptReplies,
       finalizeDispatch,
+      simulatePacketEvent,
+      simulatePacketLoss,
+      simulateGroundNetworkDown,
+      enableSatelliteFallback,
       refreshRiskTick,
     },
   };

@@ -8,6 +8,7 @@
     CANNOT_TALK: "無法說話",
     CANNOT_MOVE: "我被困住",
     DISCOMFORT: "我受傷",
+    LOCATION_UPDATE: "GPS 更新",
     LOCATION_UNKNOWN: "我不知道位置",
     NO_RESPONSE: "無法回覆",
   };
@@ -35,6 +36,12 @@
     if (accuracy === "high") return "H";
     if (accuracy === "medium") return "M";
     if (accuracy === "low") return "L";
+    const meters = Number(String(accuracy || "").match(/[\d.]+/)?.[0]);
+    if (Number.isFinite(meters)) {
+      if (meters <= 50) return "H";
+      if (meters <= 150) return "M";
+      return "L";
+    }
     return "U";
   }
 
@@ -48,6 +55,7 @@
       TRAPPED: "TRAPPED",
       CANNOT_MOVE: "TRAPPED",
       CANNOT_TALK: "NEED_HELP",
+      LOCATION_UPDATE: "LOCATION_UPDATE",
       LOCATION_UNKNOWN: "NEED_HELP",
       NO_RESPONSE: "NO_RESPONSE",
     };
