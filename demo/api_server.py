@@ -2332,7 +2332,7 @@ class Handler(SimpleHTTPRequestHandler):
             port = self.server.server_port
             lan_host = local_ip()
             query = parse_qs(parsed.query)
-            recipient = query.get("recipient", ["r-elder"])[0]
+            recipient = query.get("recipient", ["U-DEMO"])[0]
             self.json(
                 {
                     "adminUrl": f"http://{host}:{port}/",
@@ -2586,7 +2586,7 @@ def main():
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     ip = local_ip()
     print(f"星夜 demo admin: http://127.0.0.1:{port}/")
-    print(f"同 Wi-Fi 手機: http://{ip}:{port}/?view=mobile&recipient=r-elder")
+    print(f"同 Wi-Fi 手機: http://{ip}:{port}/?view=mobile&recipient=U-DEMO")
     print(f"Route API: POST http://127.0.0.1:{port}/api/route/plan")
     server.serve_forever()
 

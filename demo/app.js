@@ -115,6 +115,11 @@ function starryAckLabel(status) {
   return map[status] || "ACK retry";
 }
 
+function starryLayerLabel(layer) {
+  const map = { GROUND: "Ground", SEA: "Sea", SPACE: "Space" };
+  return map[layer] || "Ground";
+}
+
 function gpsStatusLabel(status) {
   const map = { locked: "GPS locked", drifting: "GPS drifting", last_known: "last known" };
   return map[status] || "last known";
@@ -128,6 +133,17 @@ function coordinateText(value) {
   if (value === null || value === undefined || value === "") return "--";
   const number = Number(value);
   return Number.isFinite(number) ? number.toFixed(4) : "--";
+}
+
+function riskDisplayText(risk = {}) {
+  const display = Number(risk.displayRiskScore ?? risk.score ?? 0);
+  const raw = Number(risk.rawRiskScore ?? display);
+  return raw > display ? `${display} (raw ${raw})` : String(display);
+}
+
+function signedScoreText(value) {
+  const score = Number(value || 0);
+  return `${score > 0 ? "+" : ""}${score}`;
 }
 
 function accuracyText(location = {}) {
@@ -203,12 +219,18 @@ function render() {
 function renderToolbar(state, active) {
   $("demoTitle").textContent = state.event.title;
   const transport = window.__lastTransport || {};
+  const liveMode = String(transport.liveMode || "").toUpperCase();
   const sync = transport.serverAvailable
-    ? `Server sync / clients ${transport.connectedClients || 0}`
-    : isMobileView
-      ? "Mobile local mode；啟動本機 server 可同步後台"
-      : "Local single source of truth";
+    ? `Server sync ${liveMode ? `(${liveMode})` : ""} / clients ${transport.connectedClients || 0}`
+    : location.protocol === "file:"
+      ? "file:// 僅可預覽；跨裝置同步請用 python3 demo/api_server.py"
+      : isMobileView
+        ? "尚未同步；等待本機 server"
+        : "Local single source of truth";
   $("syncStatus").textContent = sync;
+  if ($("desktopSyncTelemetry")) {
+    $("desktopSyncTelemetry").textContent = `手機端最後回報時間 ${timeText(active.lastUpdatedAt || active.communication.lastAckAt)} / ACK 狀態 ${ackLabel(active.communication.ackStatus)} / 封包序號 ${active.communication.packetSeq || "-"}`;
+  }
   $("weakSignalToggle").checked = active.signalQuality < 40;
   $("scriptStatus").textContent = state.event.script.label;
   $("scriptTimer").textContent = `${durationText(state.event.script.elapsedSeconds)} / 03:00`;
@@ -237,28 +259,32 @@ function renderDisasterBanner(state) {
 }
 
 function renderArchitecture(state, active, starry = starrySnapshot(state)) {
-  const network = state.event.network || {};
   if ($("archSeaStatus")) {
-    $("archSeaStatus").textContent =
-      network.seaCableStatus === "degraded" ? "異常 / 延遲升高" : "正常監測";
+    $("archSeaStatus").textContent = starry.groundNetwork === "normal" ? "正常監測" : "異常 / 延遲升高";
   }
   if ($("archGroundStatus")) {
-    const groundDown = network.groundBackboneStatus === "down";
-    $("archGroundStatus").textContent = groundDown
-      ? "失效 / 切換地面備援"
-      : network.groundBackboneStatus === "unstable"
-        ? "壅塞 / 丟包率上升"
-        : "可用";
+    const groundStatus = {
+      failed: "失效 / 切換地面備援",
+      weak: "壅塞 / 丟包率上升",
+      normal: "可用",
+    };
+    $("archGroundStatus").textContent = groundStatus[starry.groundNetwork] || groundStatus.normal;
   }
   if ($("archSatelliteStatus")) {
     $("archSatelliteStatus").textContent =
-      active.communication.satelliteRecommended || active.communication.primaryRoute === "SATELLITE" || starry.activeLayer === "SPACE"
+      starry.activeLayer === "SPACE" || starry.activeRoute === "satellite_backup" || starry.activeRoute === "sos_escalation"
         ? "高風險備援啟用"
         : "待命";
   }
   if ($("archStrategy")) {
     $("archStrategy").textContent = starry.lowDataMode ? "啟用低資料量封包" : "一般低流量同步";
   }
+  if ($("archLastReport")) $("archLastReport").textContent = timeText(active.lastUpdatedAt || active.communication.lastAckAt);
+  if ($("archAckLive")) $("archAckLive").textContent = ackLabel(active.communication.ackStatus);
+  if ($("archSeqLive")) $("archSeqLive").textContent = active.communication.packetSeq || "-";
+  if ($("archGpsLive")) $("archGpsLive").textContent = gpsStatusLabel(starry.gpsStatus);
+  if ($("archRiskLive")) $("archRiskLive").textContent = `${starryRiskLabel(starry.riskLevel)} / ${starry.displayRiskScore ?? starry.riskScore ?? 0}`;
+  if ($("archRawRiskLive")) $("archRawRiskLive").textContent = String(starry.rawRiskScore ?? active.risk?.rawRiskScore ?? active.risk?.score ?? 0);
   if ($("archActiveRoute")) {
     $("archActiveRoute").textContent = activeRouteLabel(starry.activeRoute);
   }
@@ -269,16 +295,17 @@ function renderArchitecture(state, active, starry = starrySnapshot(state)) {
     $("archRouteDetail").textContent = `；${victimStatusLabel(starry.victimStatus)} / ${starryRiskLabel(starry.riskLevel)} / ${gpsStatusLabel(starry.gpsStatus)}。`;
   }
   if ($("archSeaMetric")) {
-    $("archSeaMetric").textContent = `${network.backbonePacketLossPercent || 0}% loss`;
+    $("archSeaMetric").textContent = `${starry.packetLoss || 0}% loss`;
   }
   if ($("archGroundMetric")) {
     $("archGroundMetric").textContent = starryAckLabel(starry.ackStatus);
   }
   if ($("archSpaceMetric")) {
-    $("archSpaceMetric").textContent = starry.activeLayer === "SPACE" ? "uplink active" : "backup ready";
+    $("archSpaceMetric").textContent =
+      starry.activeRoute === "sos_escalation" ? "sos uplink" : starry.activeLayer === "SPACE" ? "uplink active" : "backup ready";
   }
   if ($("archSeaHealthBar")) {
-    $("archSeaHealthBar").style.width = clampPercent(100 - Number(network.backbonePacketLossPercent || 0));
+    $("archSeaHealthBar").style.width = clampPercent(100 - Number(starry.packetLoss || 0));
   }
   if ($("archGroundHealthBar")) {
     const value = starry.groundNetwork === "failed" ? 18 : starry.groundNetwork === "weak" ? 48 : 86;
@@ -292,16 +319,31 @@ function renderArchitecture(state, active, starry = starrySnapshot(state)) {
   }
   const map = document.querySelector(".architecture-map");
   if (map) {
-    map.classList.toggle("satellite-active", active.communication.primaryRoute === "SATELLITE" || active.communication.satelliteRecommended || starry.activeLayer === "SPACE");
-    map.classList.toggle("ground-down", network.groundBackboneStatus === "down");
+    map.classList.toggle("satellite-active", starry.activeLayer === "SPACE");
+    map.classList.toggle("ground-down", starry.groundNetwork === "failed");
     map.classList.toggle("layer-ground-active", starry.activeLayer === "GROUND");
     map.classList.toggle("layer-sea-active", starry.activeLayer === "SEA");
     map.classList.toggle("layer-space-active", starry.activeLayer === "SPACE");
     map.classList.toggle("sos-active", starry.activeRoute === "sos_escalation");
     map.dataset.activeRoute = starry.activeRoute || "ground_primary";
   }
+  syncArchitectureNodes(starry);
   document.querySelectorAll(".route-health-row").forEach((row) => row.classList.remove("active"));
   document.querySelector(`.${String(starry.activeLayer || "GROUND").toLowerCase()}-health`)?.classList.add("active");
+}
+
+function syncArchitectureNodes(starry = {}) {
+  const selectedChannel = String(starry.selectedChannel || "");
+  const fallbackChannel = String(starry.fallbackChannel || "");
+  document.querySelectorAll("[data-arch-route], [data-arch-channel]").forEach((node) => {
+    const routes = String(node.dataset.archRoute || "").split(/\s+/).filter(Boolean);
+    const channel = String(node.dataset.archChannel || "");
+    const routeActive = routes.includes(starry.activeRoute);
+    const channelSelected = Boolean(channel && channel === selectedChannel);
+    const channelFallback = Boolean(channel && channel === fallbackChannel && !channelSelected);
+    node.classList.toggle("active", routeActive || channelSelected);
+    node.classList.toggle("fallback", channelFallback);
+  });
 }
 
 function renderPhone(target, state, starry = starrySnapshot(state)) {
@@ -332,6 +374,8 @@ function renderPhone(target, state, starry = starrySnapshot(state)) {
     $("phoneAlertCopy").textContent = "請點選下方最符合您目前狀態的按鈕。";
   } else if (target.risk.level === "RED" || target.risk.level === "ORANGE") {
     $("phoneAlertCopy").textContent = "請不要勉強移動。系統已優先傳送 GPS、求救狀態與生命狀態，並提高通訊通道優先級。";
+  } else if (target.latestReply.code === "STATUS_CLEAR") {
+    $("phoneAlertCopy").textContent = "按鍵狀態已清除。若您目前安全，請按「我安全」完成平安回報。";
   } else {
     $("phoneAlertCopy").textContent = "守望隊已收到，請留在安全位置，等待進一步確認。";
   }
@@ -339,15 +383,18 @@ function renderPhone(target, state, starry = starrySnapshot(state)) {
   const selectedSymptoms = new Set(starry.selectedSymptoms || target.selectedSymptoms || []);
   document.querySelectorAll("[data-reply]").forEach((button) => {
     const code = button.dataset.reply;
-    const active = code === "SAFE" ? selectedSymptoms.size === 0 && target.latestReply?.code === "SAFE" : selectedSymptoms.has(code);
+    const active = selectedSymptoms.has(code);
+    const optionScore = store.symptomOptions?.[code]?.score;
+    const score = Number.isFinite(Number(optionScore)) ? signedScoreText(optionScore) : "";
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", active ? "true" : "false");
+    button.dataset.score = score;
   });
   if ($("phoneSymptomScore")) {
     const labels = [...selectedSymptoms].map((code) => store.symptomOptions?.[code]?.label || lowData.replyLabels[code] || code);
     $("phoneSymptomScore").textContent = labels.length
-      ? `症狀分數 ${starry.symptomScore} / 風險 ${starryRiskLabel(starry.riskLevel)}：${labels.join("、")}`
-      : `症狀分數 0 / 風險 ${starryRiskLabel(starry.riskLevel)}`;
+      ? `按鍵 raw ${starry.symptomScore} / 顯示 ${starry.displayRiskScore ?? starry.riskScore ?? 0} / ${starryRiskLabel(starry.riskLevel)}：${labels.join("、")}`
+      : `按鍵 raw 0 / 顯示 ${starry.displayRiskScore ?? starry.riskScore ?? 0} / ${starryRiskLabel(starry.riskLevel)}`;
   }
 
   $("phoneLocationStatus").textContent = locationStatusText(target.location);
@@ -378,6 +425,14 @@ function renderPacketFlow(state, active, starry = starrySnapshot(state)) {
     $("packetRetryLive").textContent = String(retry || starry.recoveryCounter || 0);
   }
   if ($("packetChannelLive")) $("packetChannelLive").textContent = starry.selectedChannel || routeName(communication.primaryRoute || latestPacket?.route);
+  if ($("starryActiveRouteLive")) $("starryActiveRouteLive").textContent = activeRouteLabel(starry.activeRoute);
+  if ($("starryActiveLayerLive")) $("starryActiveLayerLive").textContent = starryLayerLabel(starry.activeLayer);
+  if ($("starryVictimStatusLive")) $("starryVictimStatusLive").textContent = victimStatusLabel(starry.victimStatus);
+  if ($("starryRiskLive")) {
+    const raw = Number(starry.rawRiskScore ?? starry.riskScore ?? 0);
+    const display = Number(starry.displayRiskScore ?? starry.riskScore ?? 0);
+    $("starryRiskLive").textContent = raw > display ? `${starryRiskLabel(starry.riskLevel)} / ${display} raw ${raw}` : `${starryRiskLabel(starry.riskLevel)} / ${display}`;
+  }
   if ($("packetChecksumLive")) $("packetChecksumLive").textContent = packetChecksum(latestPacket);
   const animation = $("packetAnimation");
   if (animation) {
@@ -419,19 +474,17 @@ function renderRuntime(state) {
 }
 
 function phoneSendStatus(target) {
-  if (!target.latestReply && target.communication.ackStatus === "received" && target.communication.packetBytes) return "守望隊已收到";
-  if (!target.latestReply && target.communication.ackStatus === "retrying") return "正在以低資料模式重送";
-  if (!target.latestReply) return "尚未送出";
-  if (target.communication.ackStatus === "received") return "守望隊已收到";
-  if (target.communication.ackStatus === "retrying") return "正在以低資料模式重送";
-  if (target.communication.ackStatus === "failed") return "ACK 失敗，等待重送";
-  return "封包已送出，等待 ACK";
+  if (!target.latestReply) return "尚未同步";
+  if (target.communication.ackStatus === "received") return "已同步至守望隊";
+  if (["pending", "retrying"].includes(target.communication.ackStatus)) return "等待 ACK";
+  return "尚未同步";
 }
 
 function renderTargets(state, selected) {
+  const starry = starrySnapshot(state);
   const sortedTargets = state.targets
     .slice()
-    .sort((a, b) => riskRank(b.risk.level) - riskRank(a.risk.level) || b.risk.score - a.risk.score || a.name.localeCompare(b.name));
+    .sort((a, b) => riskRank(b.risk.level) - riskRank(a.risk.level) || (b.risk.displayRiskScore ?? b.risk.score) - (a.risk.displayRiskScore ?? a.risk.score) || a.name.localeCompare(b.name));
   const visibleTargets = sortedTargets.filter(targetMatchesFilter);
   $("targetCount").textContent = `${visibleTargets.length} / ${state.targets.length} 位`;
   if ($("targetFilters")) {
@@ -442,20 +495,21 @@ function renderTargets(state, selected) {
   $("targetList").innerHTML = visibleTargets
     .map((target) => {
       const active = target.id === selected.id ? "active" : "";
+      const linked = target.id === state.activeTargetId;
       const gps = gpsCardLabel(target.location);
       const needsContact = ["ORANGE", "RED"].includes(target.risk.level) || target.latestReply?.code === "NO_RESPONSE";
       const dispatch = target.risk.level === "RED" ? "優先派遣" : target.risk.level === "ORANGE" ? "主動確認" : "持續觀察";
       return `
-        <button class="target-item ${active}" type="button" data-target-id="${escapeHtml(target.id)}">
+        <button class="target-item ${active} ${linked ? "linked" : ""}" type="button" data-target-id="${escapeHtml(target.id)}">
           <span>
             <strong>${escapeHtml(target.name)}</strong>
-            <small>${escapeHtml(target.id)} / ${roleLabel(target.role)}</small>
+            <small>${escapeHtml(target.id)} / ${roleLabel(target.role)}${linked ? " / 手機同步" : ""}</small>
           </span>
           <span class="target-meta">
-            <b class="${levelClass(target.risk.level)}">${target.risk.level} / ${target.risk.score}</b>
+            <b class="${levelClass(target.risk.level)}">${target.risk.level} / ${riskDisplayText(target.risk)}</b>
             <small>${escapeHtml(target.latestReply?.label || "尚未回覆")}</small>
             <small>${ackLabel(target.communication.ackStatus)} / ${gps} / ${timeText(target.lastUpdatedAt || target.communication.lastAckAt)}</small>
-            <small>${routeName(target.communication.primaryRoute)} / 成功率 ${target.communication.packetSuccessRate || 0}%</small>
+            <small>${linked ? activeRouteLabel(starry.activeRoute) : routeName(target.communication.primaryRoute)} / 成功率 ${target.communication.packetSuccessRate || 0}%</small>
             <small>${needsContact ? "需要主動聯繫" : "持續觀察"} / ${dispatch} / ${actionText(target.risk.action)}</small>
           </span>
         </button>
@@ -487,12 +541,13 @@ function renderDetail(state, target) {
     ? symptoms.map((code) => store.symptomOptions?.[code]?.label || lowData.replyLabels[code] || code).join("、")
     : "未選擇";
   const symptomScore = state.starryState?.targetId === target.id ? state.starryState.symptomScore : target.risk.items.find((item) => item.label === "受困者按鍵區")?.score || 0;
-  $("selectedRisk").textContent = `${target.risk.level} / ${target.risk.score}`;
+  $("selectedRisk").textContent = `${target.risk.level} / ${riskDisplayText(target.risk)}`;
   $("selectedRisk").className = levelClass(target.risk.level);
   $("targetDetail").innerHTML = `
     ${detailRow("基本資料", `${target.name} / ${target.id} / ${target.age} 歲 / ${roleLabel(target.role)}`)}
     ${detailRow("最新回覆", target.latestReply ? `${target.latestReply.label}（${timeText(target.latestReply.timestamp)}）` : "尚未回覆")}
-    ${detailRow("受困者按鍵區", `${symptomText}｜症狀分數 ${symptomScore}`)}
+    ${detailRow("受困者按鍵區", `${symptomText}｜按鍵 raw ${symptomScore}`)}
+    ${detailRow("風險分數", `display ${target.risk.displayRiskScore ?? target.risk.score}｜raw ${target.risk.rawRiskScore ?? target.risk.score}`)}
     ${detailRow("GPS 狀態", target.location.confirmed ? `${accuracyText(target.location)} / lat ${coordinateText(target.location.lat)}, lng ${coordinateText(target.location.lng)} / 靜止 ${target.location.staticMinutes || 0} 分` : `GPS unknown / ${locationStatusText(target.location)}`)}
     ${detailRow("醫療/生命狀態", `HR ${target.medical.heartRate ?? "-"}｜SpO2 ${target.medical.spo2 ?? "-"}｜受傷 ${yesNo(target.medical.injury)}｜呼吸困難 ${yesNo(target.medical.breathingDifficulty)}｜被困 ${yesNo(target.medical.trapped || target.medical.cannotMove)}`)}
     ${detailRow("通訊狀態", `${routeName(target.communication.primaryRoute)} → ${routeName(target.communication.fallbackRoute)}｜signal ${target.signalQuality}%｜battery ${target.battery}%｜低資料 ${yesNo(target.communication.lowDataMode)}`)}
@@ -541,8 +596,8 @@ function formatPacket(packet) {
 }
 
 function renderRisk(target) {
-  $("riskSummary").textContent = `${target.risk.score} / ${target.risk.level}`;
-  $("riskScore").textContent = target.risk.score;
+  $("riskSummary").textContent = `${target.risk.level} / ${riskDisplayText(target.risk)}`;
+  $("riskScore").textContent = target.risk.displayRiskScore ?? target.risk.score;
   $("riskLevel").textContent = target.risk.level;
   $("riskLevel").className = levelClass(target.risk.level);
   $("riskAction").textContent = actionText(target.risk.action);
@@ -554,9 +609,9 @@ function renderRisk(target) {
   $("riskMatrix").innerHTML = target.risk.items
     .map(
       (item) => `
-        <div class="risk-row ${item.score > 0 ? "adds-risk" : ""}">
+        <div class="risk-row ${item.score > 0 ? "adds-risk" : item.score < 0 ? "reduces-risk" : ""}">
           <span>${escapeHtml(item.label)}</span>
-          <strong>${item.score > 0 ? "+" : ""}${item.score}</strong>
+          <strong>${signedScoreText(item.score)}</strong>
           <small>${escapeHtml(item.detail)}</small>
         </div>
       `
@@ -595,7 +650,7 @@ function renderCommunication(target) {
 
 function renderMatrixOverview(target) {
   if (!$("selectedMatrixTarget")) return;
-  $("selectedMatrixTarget").textContent = `${target.name} / ${target.risk.level} ${target.risk.score}`;
+  $("selectedMatrixTarget").textContent = `${target.name} / ${target.risk.level} ${riskDisplayText(target.risk)}`;
 }
 
 function requestCurrentLocation() {
@@ -671,7 +726,7 @@ function bindEvents() {
     const selected = store.getSelectedTarget(state);
     const visible = state.targets
       .slice()
-      .sort((a, b) => riskRank(b.risk.level) - riskRank(a.risk.level) || b.risk.score - a.risk.score || a.name.localeCompare(b.name))
+      .sort((a, b) => riskRank(b.risk.level) - riskRank(a.risk.level) || (b.risk.displayRiskScore ?? b.risk.score) - (a.risk.displayRiskScore ?? a.risk.score) || a.name.localeCompare(b.name))
       .filter(targetMatchesFilter);
     if (visible.length && !visible.some((target) => target.id === selected.id)) {
       store.actions.selectTarget(visible[0].id);
@@ -823,6 +878,10 @@ function startPacketLoop() {
 }
 
 async function copyMobileLink() {
+  if (location.protocol === "file:") {
+    $("syncStatus").textContent = "請先執行 python3 demo/api_server.py，再用同一個區網網址開啟電腦端與手機端。";
+    return;
+  }
   let url = `${location.origin}${location.pathname}?view=mobile&recipient=U-DEMO`;
   try {
     const response = await fetch("/api/demo-link?recipient=U-DEMO", { cache: "no-store" });

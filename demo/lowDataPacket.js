@@ -1,6 +1,8 @@
 (function (global) {
   const replyLabels = {
     SAFE: "我安全",
+    STATUS_CLEAR: "清除按鍵選擇",
+    SOS_BUTTON: "大型求救按鈕",
     NEED_HELP: "需要救援",
     INJURED: "我受傷",
     TRAPPED: "我被困住",
@@ -48,6 +50,8 @@
   function statusCodeFor(replyCode) {
     const map = {
       SAFE: "OK",
+      STATUS_CLEAR: "CLEAR",
+      SOS_BUTTON: "NEED_HELP",
       NEED_HELP: "NEED_HELP",
       INJURED: "INJURED",
       DISCOMFORT: "INJURED",

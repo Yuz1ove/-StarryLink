@@ -625,10 +625,30 @@ dd {
 
 .phone-actions button {
   min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 0 16px;
   text-align: left;
   font-size: 20px;
   background: var(--surface);
+}
+
+.phone-actions button::after,
+.sos-button::after {
+  content: attr(data-score);
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid rgba(56, 210, 188, 0.32);
+  border-radius: 8px;
+  background: rgba(19, 51, 47, 0.76);
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 950;
 }
 
 .phone-actions button.active,
@@ -982,6 +1002,10 @@ dd {
 
 .risk-row.adds-risk strong {
   color: var(--red);
+}
+
+.risk-row.reduces-risk strong {
+  color: var(--teal);
 }
 
 .logic-flow {
@@ -1865,6 +1889,19 @@ body {
     rgba(8, 20, 18, 0.94);
 }
 
+.arch-node.active {
+  border-color: rgba(56, 210, 188, 0.78);
+  background:
+    linear-gradient(135deg, rgba(56, 210, 188, 0.2), rgba(126, 177, 255, 0.08) 62%),
+    rgba(8, 20, 18, 0.94);
+  box-shadow: inset 0 0 20px rgba(56, 210, 188, 0.12);
+}
+
+.arch-node.fallback {
+  border-style: dashed;
+  border-color: rgba(241, 184, 77, 0.76);
+}
+
 .architecture-flow-rail {
   position: absolute;
   top: 9%;
@@ -2057,6 +2094,31 @@ body {
   color: var(--teal);
 }
 
+.architecture-jump {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.architecture-live-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.architecture-live-grid div {
+  min-height: 58px;
+  padding: 9px;
+  border: 1px solid rgba(47, 70, 64, 0.88);
+  border-radius: 8px;
+  background: rgba(24, 39, 36, 0.78);
+}
+
+.architecture-live-grid dd {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 13px;
+}
+
 .route-health {
   display: grid;
   gap: 9px;
@@ -2213,13 +2275,37 @@ body {
 .sos-button {
   width: 100%;
   min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-top: 14px;
+  padding: 0 16px;
   border: 1px solid rgba(255, 107, 107, 0.78);
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(255, 107, 107, 0.28), rgba(255, 107, 107, 0.14));
   color: var(--ink);
   font-size: 20px;
   font-weight: 950;
+}
+
+.sos-button::after {
+  border-color: rgba(255, 107, 107, 0.36);
+  background: rgba(255, 107, 107, 0.15);
+  color: #ffd0d0;
+}
+
+.sos-button.active {
+  border-color: rgba(255, 107, 107, 0.95);
+  background: linear-gradient(180deg, rgba(255, 107, 107, 0.38), rgba(255, 107, 107, 0.18));
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.14);
+}
+
+.phone-actions button:not([data-score])::after,
+.phone-actions button[data-score=""]::after,
+.sos-button:not([data-score])::after,
+.sos-button[data-score=""]::after {
+  display: none;
 }
 
 .packet-animation {
@@ -2312,6 +2398,11 @@ body {
 
 .console-panel .target-item {
   min-height: 92px;
+}
+
+.target-item.linked {
+  border-left-color: var(--teal);
+  box-shadow: inset 3px 0 0 rgba(56, 210, 188, 0.86);
 }
 
 .matrix-grid,

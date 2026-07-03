@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>星夜 StarryLink｜海纜・地網・衛星多路徑災害韌性通訊助理</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23167c80'/%3E%3Cpath d='M32 8l5.5 17.4H56L41 36.2 46.5 56 32 44 17.5 56 23 36.2 8 25.4h18.5L32 8z' fill='white'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=starrylink-paged-20260702c" />
+    <link rel="stylesheet" href="./styles.css?v=starrylink-paged-20260703a" />
   </head>
   <body>
     <div class="app-shell">
@@ -137,15 +137,15 @@
                   </div>
                 </div>
                 <div class="arch-node-grid space-nodes">
-                  <article class="arch-node primary">
+                  <article class="arch-node primary" data-arch-route="satellite_backup" data-arch-channel="Satellite Backup">
                     <strong>Satellite Backup</strong>
                     <span>災害備援主通道</span>
                   </article>
-                  <article class="arch-node">
+                  <article class="arch-node" data-arch-route="sos_escalation">
                     <strong>Emergency Uplink</strong>
                     <span>SOS escalation</span>
                   </article>
-                  <article class="arch-node wide">
+                  <article class="arch-node wide" data-arch-route="satellite_backup sos_escalation">
                     <strong>High-Risk Priority Channel</strong>
                     <span>Red risk packet only</span>
                   </article>
@@ -168,31 +168,31 @@
                   </div>
                 </div>
                 <div class="arch-node-grid ground-nodes">
-                  <article class="arch-node primary">
+                  <article class="arch-node primary" data-arch-route="ground_primary ground_mesh gps_packet sos_escalation">
                     <strong>Rescue Console</strong>
                     <span>守望隊調度</span>
                   </article>
-                  <article class="arch-node">
+                  <article class="arch-node" data-arch-route="ground_primary" data-arch-channel="5G / LTE">
                     <strong>5G / LTE</strong>
                     <span>primary ground</span>
                   </article>
-                  <article class="arch-node">
+                  <article class="arch-node" data-arch-route="ground_primary" data-arch-channel="Wi-Fi">
                     <strong>Wi-Fi</strong>
                     <span>local access</span>
                   </article>
-                  <article class="arch-node">
+                  <article class="arch-node" data-arch-route="ground_mesh" data-arch-channel="SMS">
                     <strong>SMS</strong>
                     <span>low bandwidth</span>
                   </article>
-                  <article class="arch-node">
+                  <article class="arch-node" data-arch-route="ground_mesh" data-arch-channel="BLE Relay">
                     <strong>BLE Relay</strong>
                     <span>nearby relay</span>
                   </article>
-                  <article class="arch-node">
+                  <article class="arch-node" data-arch-route="ground_mesh">
                     <strong>Local Mesh</strong>
                     <span>community hop</span>
                   </article>
-                  <article class="arch-node wide">
+                  <article class="arch-node wide" data-arch-route="gps_packet">
                     <strong>GPS Status Packet</strong>
                     <span>GPS + SOS + Health Status</span>
                   </article>
@@ -209,7 +209,7 @@
                   </div>
                 </div>
                 <div class="arch-node-grid sea-nodes">
-                  <article class="arch-node primary">
+                  <article class="arch-node primary" data-arch-route="ground_primary ground_mesh gps_packet">
                     <strong>Backbone Health Monitor</strong>
                     <span>latency / loss watch</span>
                   </article>
@@ -234,6 +234,7 @@
                 <span>Active Route</span>
                 <strong id="archActiveRoute">Satellite Backup</strong>
                 <small><span>矩陣即時通道：</span><b id="archSelectedChannel">SMS</b><span id="archRouteDetail">；高風險封包保留衛星備援。</span></small>
+                <button class="button quiet architecture-jump" type="button" data-page-target="demo">查看 Demo 狀態</button>
               </div>
 
               <div class="route-health" aria-label="三層狀態條">
@@ -269,6 +270,14 @@
                 <div><dt>Sync Mode</dt><dd>Store-and-forward</dd></div>
                 <div><dt>Strategy</dt><dd id="archStrategy">啟用低資料量封包</dd></div>
               </dl>
+              <dl class="architecture-live-grid" aria-label="Demo 即時狀態">
+                <div><dt>Last Report</dt><dd id="archLastReport">-</dd></div>
+                <div><dt>ACK</dt><dd id="archAckLive">-</dd></div>
+                <div><dt>packetSeq</dt><dd id="archSeqLive">-</dd></div>
+                <div><dt>GPS</dt><dd id="archGpsLive">-</dd></div>
+                <div><dt>Risk</dt><dd id="archRiskLive">-</dd></div>
+                <div><dt>Raw</dt><dd id="archRawRiskLive">-</dd></div>
+              </dl>
               <p id="archPacketHint" class="panel-note">手機端封包先嘗試 Wi-Fi / 5G；地面通道丟包時切換 SMS / BLE Relay，高風險才升級 Satellite Backup。</p>
             </aside>
           </div>
@@ -281,6 +290,7 @@
               <h2 id="demoSectionTitle">實際模擬展示</h2>
               <p id="demoTitle" class="muted">地震後海纜與地面骨幹不穩情境</p>
               <p id="syncStatus" class="muted">Local single source of truth</p>
+              <p id="desktopSyncTelemetry" class="muted">手機端最後回報時間 - / ACK - / 封包序號 -</p>
               <p id="networkStatus" class="muted">海纜異常 / 地面骨幹不穩 / 丟包 31%</p>
             </div>
             <div class="toolbar-actions">
@@ -340,7 +350,7 @@
                   </div>
                 </article>
 
-                <button class="sos-button" type="button" data-reply="NEED_HELP">大型求救按鈕</button>
+                <button class="sos-button" type="button" data-reply="SOS_BUTTON">大型求救按鈕</button>
 
                 <div class="phone-actions" aria-label="快速回覆按鈕">
                   <button type="button" data-reply="SAFE">我安全</button>
@@ -420,6 +430,10 @@
                 <div><dt>fallbackChannel</dt><dd id="commFallback">-</dd></div>
                 <div><dt>lowDataMode</dt><dd id="commLowData">-</dd></div>
                 <div><dt>satellite</dt><dd id="commSatellite">-</dd></div>
+                <div><dt>activeRoute</dt><dd id="starryActiveRouteLive">-</dd></div>
+                <div><dt>activeLayer</dt><dd id="starryActiveLayerLive">-</dd></div>
+                <div><dt>victimStatus</dt><dd id="starryVictimStatusLive">-</dd></div>
+                <div><dt>riskScore</dt><dd id="starryRiskLive">-</dd></div>
               </dl>
 
               <article class="detail-block">
@@ -570,8 +584,9 @@ batteryImpact * 0.05</code></pre>
                 <h3>Pseudo Code</h3>
               </div>
               <pre class="code-block"><code>function calculateRiskScore(userState) {
-  score = reply + gps + retry + battery + medical + lastSync
-  return clamp(score, 0, 100)
+  rawRiskScore = selectedButtons + reply + gps + retry + battery + medical + lastSync
+  displayRiskScore = clamp(rawRiskScore, 0, 100)
+  return { rawRiskScore, displayRiskScore }
 }
 
 function getRiskLevel(score) {
@@ -622,9 +637,9 @@ function updateUserStateFromMobileAction(action) {
       </footer>
     </div>
 
-    <script src="./communicationEngine.js?v=starrylink-paged-20260702c"></script>
-    <script src="./lowDataPacket.js?v=starrylink-paged-20260702c"></script>
-    <script src="./demoStore.js?v=starrylink-paged-20260702c"></script>
-    <script src="./app.js?v=starrylink-paged-20260702c"></script>
+    <script src="./communicationEngine.js?v=starrylink-paged-20260703a"></script>
+    <script src="./lowDataPacket.js?v=starrylink-paged-20260703a"></script>
+    <script src="./demoStore.js?v=starrylink-paged-20260703a"></script>
+    <script src="./app.js?v=starrylink-paged-20260703a"></script>
   </body>
 </html>

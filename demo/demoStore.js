@@ -20,6 +20,7 @@
 
   const replyScores = {
     SAFE: -8,
+    STATUS_CLEAR: 0,
     NEED_HELP: 38,
     INJURED: 42,
     TRAPPED: 54,
@@ -31,33 +32,62 @@
     NO_RESPONSE: 26,
   };
 
+  const defaultStarryState = {
+    selectedSymptoms: [],
+    symptomScore: 0,
+    riskScore: 0,
+    rawRiskScore: 0,
+    displayRiskScore: 0,
+    riskLevel: "stable",
+    victimStatus: "safe",
+    groundNetwork: "normal",
+    packetLoss: 0,
+    ackStatus: "ok",
+    gpsStatus: "locked",
+    activeRoute: "ground_primary",
+    activeLayer: "GROUND",
+    alertTriggered: false,
+    lowDataMode: false,
+    fallbackChannel: "BLE Relay",
+    selectedChannel: "5G / LTE",
+    recoveryCounter: 0,
+    targetId: null,
+    targetName: "",
+  };
+
   const symptomOptions = {
+    SOS_BUTTON: { label: "大型求救按鈕", score: 58, status: "sos" },
+    SAFE: { label: "我安全", score: -8, status: "safe" },
     NEED_HELP: { label: "需要救援", score: 58, status: "sos" },
     INJURED: { label: "我受傷", score: 66, status: "injured" },
     TRAPPED: { label: "我被困住", score: 82, status: "trapped" },
-    NEED_MEDICAL: { label: "需要醫療", score: 74, status: "medical_risk" },
+    NEED_MEDICAL: { label: "我需要醫療", score: 74, status: "medical_risk" },
     CANNOT_TALK: { label: "無法說話", score: 62, status: "medical_risk" },
     DISCOMFORT: { label: "身體不適", score: 42, status: "medical_risk" },
   };
 
-  const symptomPriority = ["NEED_HELP", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "INJURED", "DISCOMFORT"];
+  const symptomPriority = ["SOS_BUTTON", "INJURED", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "NEED_HELP", "SAFE", "DISCOMFORT"];
+  const replyPriority = ["SOS_BUTTON", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "INJURED", "NEED_HELP", "DISCOMFORT"];
 
-  let state = normalizeState(loadLocalState() || createInitialState());
+  let demoState = normalizeState(loadLocalState() || createInitialState());
   let saveTimer = null;
   let pollTimer = null;
+  let eventSource = null;
+  let acceptedServerState = false;
   const listeners = new Set();
   const transport = {
     serverAvailable: false,
     connectedClients: 0,
     lastError: null,
     applyingRemote: false,
+    liveMode: "local",
   };
 
   const broadcast = "BroadcastChannel" in global ? new BroadcastChannel("xingye-mvp-store") : null;
   if (broadcast) {
     broadcast.addEventListener("message", (event) => {
       const incoming = event.data?.state;
-      if (incoming?.app === APP_KIND && Number(incoming.revision || 0) > Number(state.revision || 0)) {
+      if (shouldAcceptRemote(incoming, "broadcast")) {
         applyRemoteState(incoming, "broadcast");
       }
     });
@@ -67,7 +97,7 @@
     if (event.key !== STORAGE_KEY || !event.newValue) return;
     try {
       const incoming = JSON.parse(event.newValue);
-      if (incoming?.app === APP_KIND && Number(incoming.revision || 0) > Number(state.revision || 0)) {
+      if (shouldAcceptRemote(incoming, "storage")) {
         applyRemoteState(incoming, "storage");
       }
     } catch (error) {
@@ -108,6 +138,21 @@
     return value || "unknown";
   }
 
+  function stateUpdatedMs(value) {
+    const time = new Date(value?.updatedAt || value?.serverUpdatedAt || 0).getTime();
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  function shouldAcceptRemote(incoming, source = "remote") {
+    if (!incoming || incoming.app !== APP_KIND) return false;
+    if (source === "server-initial") return true;
+    const incomingRevision = Number(incoming.revision || 0);
+    const currentRevision = Number(demoState.revision || 0);
+    if (incomingRevision > currentRevision) return true;
+    if (incomingRevision === currentRevision && stateUpdatedMs(incoming) > stateUpdatedMs(demoState)) return true;
+    return stateUpdatedMs(incoming) > stateUpdatedMs(demoState);
+  }
+
   function normalizeSymptoms(symptoms = []) {
     const input = Array.isArray(symptoms) ? symptoms : [];
     const unique = new Set(input.filter((code) => symptomOptions[code]));
@@ -117,6 +162,7 @@
   function inferSymptomsFromConfig(config = {}) {
     const symptoms = new Set();
     if (symptomOptions[config.replyCode]) symptoms.add(config.replyCode);
+    if (config.replyCode === "NEED_HELP") symptoms.add("NEED_HELP");
     if (config.trapped || config.cannotMove) symptoms.add("TRAPPED");
     if (config.breathingDifficulty) symptoms.add("CANNOT_TALK");
     if (config.injury || config.replyCode === "INJURED") symptoms.add("INJURED");
@@ -138,18 +184,14 @@
   }
 
   function calculateSymptomScore(symptoms = []) {
-    const scores = normalizeSymptoms(symptoms)
-      .map((code) => symptomOptions[code]?.score || 0)
-      .sort((a, b) => b - a);
-    if (!scores.length) return 0;
-    const [highest, ...rest] = scores;
-    const extra = rest.reduce((sum, score) => sum + Math.round(score * 0.35), 0);
-    return Math.max(0, Math.min(90, highest + extra));
+    return normalizeSymptoms(symptoms).reduce((sum, code) => sum + Number(symptomOptions[code]?.score || 0), 0);
   }
 
   function primaryReplyFromSymptoms(symptoms = []) {
     const normalized = normalizeSymptoms(symptoms);
-    return symptomPriority.find((code) => normalized.includes(code)) || "SAFE";
+    const primary = replyPriority.find((code) => normalized.includes(code));
+    if (primary === "SOS_BUTTON") return "NEED_HELP";
+    return primary || (normalized.includes("SAFE") ? "SAFE" : "STATUS_CLEAR");
   }
 
   function symptomLabels(symptoms = []) {
@@ -160,9 +202,15 @@
     return symptomOptions[code]?.label || lowData.replyLabels[code] || code;
   }
 
+  function replyCodeFromSymptoms(symptoms = []) {
+    const normalized = normalizeSymptoms(symptoms);
+    return normalized.length ? primaryReplyFromSymptoms(normalized) : "STATUS_CLEAR";
+  }
+
   function syncMedicalFromSymptoms(target) {
     const symptoms = normalizeSymptoms(target.selectedSymptoms);
-    const hasAny = symptoms.length > 0;
+    const medicalSymptoms = symptoms.filter((code) => ["INJURED", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "DISCOMFORT"].includes(code));
+    const hasAny = medicalSymptoms.length > 0;
     const injured = symptoms.includes("INJURED") || symptoms.includes("NEED_MEDICAL");
     const discomfort = injured || symptoms.includes("DISCOMFORT");
     const trapped = symptoms.includes("TRAPPED");
@@ -512,7 +560,7 @@
   function publicVictimStatus(target = {}, symptoms = []) {
     const latest = target.latestReply?.code;
     const selected = new Set(normalizeSymptoms(symptoms));
-    if (selected.has("NEED_HELP") || latest === "NEED_HELP") return "sos";
+    if (selected.has("SOS_BUTTON") || selected.has("NEED_HELP") || latest === "NEED_HELP") return "sos";
     if (selected.has("TRAPPED") || target.medical?.trapped || target.medical?.cannotMove) return "trapped";
     if (selected.has("NEED_MEDICAL") || selected.has("CANNOT_TALK") || target.medical?.breathingDifficulty) return "medical_risk";
     if (selected.has("INJURED") || target.medical?.injury) return "injured";
@@ -547,11 +595,14 @@
     const victimStatus = publicVictimStatus(target, symptoms);
     const packetLoss = Math.round(Number(target.communication?.packetLossRate ?? network.backbonePacketLossPercent ?? 0));
     const base = {
+      ...defaultStarryState,
       targetId: target.id || null,
       targetName: target.name || "",
       selectedSymptoms: symptoms,
       symptomScore: calculateSymptomScore(symptoms),
       riskScore: Number(target.risk?.score || 0),
+      rawRiskScore: Number(target.risk?.rawRiskScore ?? target.risk?.score ?? 0),
+      displayRiskScore: Number(target.risk?.displayRiskScore ?? target.risk?.score ?? 0),
       riskLevel,
       victimStatus,
       groundNetwork,
@@ -560,7 +611,11 @@
       gpsStatus,
       activeRoute: "ground_primary",
       activeLayer: "GROUND",
-      alertTriggered: riskLevel === "critical" || victimStatus === "sos" || ackStatus === "lost",
+      alertTriggered:
+        riskLevel === "critical" ||
+        riskLevel === "danger" ||
+        ["sos", "trapped", "medical_risk", "no_ack"].includes(victimStatus) ||
+        ackStatus === "lost",
       lowDataMode: Boolean(target.communication?.lowDataMode),
       fallbackChannel: lowData.routeLabel(target.communication?.fallbackRoute || "NONE"),
       selectedChannel: lowData.routeLabel(target.communication?.primaryRoute || "NONE"),
@@ -614,17 +669,19 @@
     const selectedSymptoms = normalizeSymptoms(target.selectedSymptoms);
     const selectedSet = new Set(selectedSymptoms);
     const symptomScore = calculateSymptomScore(selectedSymptoms);
-    const replyScore = selectedSymptoms.length && code !== "SAFE" ? 0 : code ? replyScores[code] || 0 : 0;
-    addRisk(items, "使用者回覆", replyScore, code ? `${latest.label} +${replyScore}` : "尚未回覆 +0", true);
+    const replyScore = selectedSymptoms.length ? 0 : code ? replyScores[code] || 0 : 0;
+    addRisk(items, "使用者回覆", replyScore, code ? `${latest.label} ${replyScore >= 0 ? "+" : ""}${replyScore}` : "尚未回覆 +0", true);
 
     addRisk(
       items,
       "受困者按鍵區",
       symptomScore,
-      symptomScore ? `${symptomLabels(selectedSymptoms).join("、")} +${symptomScore}` : "尚未選擇受困症狀 +0",
+      symptomScore
+        ? `${symptomLabels(selectedSymptoms).join("、")} = raw ${symptomScore}`
+        : "尚未選擇受困症狀 +0",
       true
     );
-    addRisk(items, "是否按下求救", !selectedSet.has("NEED_HELP") && code === "NEED_HELP" ? 20 : 0, "使用者按下需要救援 +20");
+    addRisk(items, "是否按下求救", !selectedSet.has("NEED_HELP") && !selectedSet.has("SOS_BUTTON") && code === "NEED_HELP" ? 20 : 0, "使用者按下需要救援 +20");
 
     const heartRate = Number(target.medical.heartRate);
     addRisk(items, "心率異常", heartRate > 120 || heartRate < 50 ? 12 : 0, `HR ${target.medical.heartRate ?? "-"} +12`);
@@ -685,11 +742,15 @@
     const syncScore = syncMinutes > 15 ? 20 : syncMinutes >= 8 ? 10 : 0;
     addRisk(items, "最後成功同步時間", syncScore, `${Math.round(syncMinutes)} 分鐘前 +${syncScore}`, true);
 
-    const score = Math.max(0, Math.min(100, items.reduce((sum, item) => sum + Number(item.score || 0), 0)));
-    const level = riskLevel(score);
+    const rawRiskScore = items.reduce((sum, item) => sum + Number(item.score || 0), 0);
+    const displayRiskScore = Math.max(0, Math.min(rawRiskScore, 100));
+    const score = displayRiskScore;
+    const level = riskLevel(displayRiskScore);
     const action = levelActions[level];
     return {
       score,
+      rawRiskScore,
+      displayRiskScore,
       level,
       reason: items.filter((item) => item.score > 0).map((item) => item.detail),
       action,
@@ -698,19 +759,19 @@
   }
 
   function getState() {
-    return state;
+    return demoState;
   }
 
-  function getActiveTarget(draft = state) {
+  function getActiveTarget(draft = demoState) {
     return draft.targets.find((target) => target.id === draft.activeTargetId) || draft.targets[0];
   }
 
-  function getSelectedTarget(draft = state) {
+  function getSelectedTarget(draft = demoState) {
     return draft.targets.find((target) => target.id === draft.selectedTargetId) || getActiveTarget(draft);
   }
 
   function getStarryState() {
-    return state.starryState || buildStarryState(state);
+    return demoState.starryState || buildStarryState(demoState);
   }
 
   function subscribe(listener) {
@@ -719,31 +780,31 @@
   }
 
   function emit(meta = {}) {
-    listeners.forEach((listener) => listener(state, { ...meta, transport: { ...transport } }));
+    listeners.forEach((listener) => listener(demoState, { ...meta, transport: { ...transport } }));
   }
 
   function commit(mutator, reason = "update", options = {}) {
-    const draft = clone(state);
+    const draft = clone(demoState);
     const result = mutator(draft);
     const next = normalizeState(result || draft);
     if (!options.remote) {
-      next.revision = Number(state.revision || 0) + 1;
+      next.revision = Number(demoState.revision || 0) + 1;
       next.updatedAt = nowIso();
     }
-    state = next;
-    saveLocalState(state);
+    demoState = next;
+    saveLocalState(demoState);
     if (!options.remote) {
-      broadcast?.postMessage({ state });
+      broadcast?.postMessage({ state: demoState });
       scheduleServerSave(reason);
     }
     emit({ reason });
-    return state;
+    return demoState;
   }
 
   function applyRemoteState(incoming, reason) {
     transport.applyingRemote = true;
-    state = normalizeState(clone(incoming));
-    saveLocalState(state);
+    demoState = normalizeState(clone(incoming));
+    saveLocalState(demoState);
     transport.applyingRemote = false;
     emit({ reason });
   }
@@ -768,7 +829,7 @@
   function scheduleServerSave(reason) {
     if (global.location?.protocol === "file:") return;
     global.clearTimeout(saveTimer);
-    saveTimer = global.setTimeout(() => persistServerState(reason), 120);
+    saveTimer = global.setTimeout(() => persistServerState(reason), 60);
   }
 
   async function persistServerState(reason) {
@@ -776,13 +837,14 @@
       const response = await fetch("/api/state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason, state }),
+        body: JSON.stringify({ reason, state: demoState }),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       transport.serverAvailable = true;
       transport.connectedClients = payload.connectedClients || 0;
       transport.lastError = null;
+      transport.liveMode = eventSource ? "sse" : "poll";
       emit({ reason: "server-save" });
     } catch (error) {
       transport.serverAvailable = false;
@@ -791,7 +853,7 @@
     }
   }
 
-  async function loadServerState() {
+  async function loadServerState(options = {}) {
     if (global.location?.protocol === "file:") return;
     try {
       const response = await fetch("/api/state", { cache: "no-store" });
@@ -800,25 +862,60 @@
       transport.serverAvailable = true;
       transport.connectedClients = payload.connectedClients || 0;
       transport.lastError = null;
+      transport.liveMode = eventSource ? "sse" : "poll";
       const incoming = payload.state;
-      if (incoming?.app === APP_KIND && Number(incoming.revision || 0) > Number(state.revision || 0)) {
-        applyRemoteState(incoming, "server-poll");
+      if (shouldAcceptRemote(incoming, options.initial || !acceptedServerState ? "server-initial" : "server-poll")) {
+        acceptedServerState = true;
+        applyRemoteState(incoming, options.initial ? "server-initial" : "server-poll");
       } else if (!incoming || incoming.app !== APP_KIND) {
         scheduleServerSave("initialize-mvp-store");
       } else {
+        acceptedServerState = true;
         emit({ reason: "server-poll" });
       }
     } catch (error) {
       transport.serverAvailable = false;
       transport.lastError = error.message;
+      transport.liveMode = "local";
       emit({ reason: "server-unavailable" });
     }
   }
 
+  function startEventStream() {
+    if (global.location?.protocol === "file:" || !("EventSource" in global) || eventSource) return;
+    eventSource = new EventSource("/api/events");
+    eventSource.addEventListener("state", (event) => {
+      try {
+        const payload = JSON.parse(event.data || "{}");
+        transport.serverAvailable = true;
+        transport.connectedClients = payload.connectedClients || 0;
+        transport.lastError = null;
+        transport.liveMode = "sse";
+        const incoming = payload.state;
+        if (shouldAcceptRemote(incoming, acceptedServerState ? "server-sse" : "server-initial")) {
+          acceptedServerState = true;
+          applyRemoteState(incoming, "server-sse");
+        } else {
+          acceptedServerState = true;
+          emit({ reason: "server-sse" });
+        }
+      } catch (error) {
+        transport.lastError = error.message;
+      }
+    });
+    eventSource.onerror = () => {
+      transport.serverAvailable = false;
+      transport.liveMode = "poll";
+      transport.lastError = "SSE disconnected; polling fallback active";
+      emit({ reason: "server-sse-error" });
+    };
+  }
+
   function startSync() {
-    loadServerState();
+    startEventStream();
+    loadServerState({ initial: true });
     if (!pollTimer && global.location?.protocol !== "file:") {
-      pollTimer = global.setInterval(loadServerState, 1500);
+      pollTimer = global.setInterval(loadServerState, 500);
     }
   }
 
@@ -970,10 +1067,10 @@
           item.medical.trapped = false;
         }
         syncMedicalFromSymptoms(item);
-        const primary = primaryReplyFromSymptoms(item.selectedSymptoms);
-        if (primary === "SAFE" && item.latestReply && symptomOptions[item.latestReply.code]) {
+        const primary = replyCodeFromSymptoms(item.selectedSymptoms);
+        if (primary === "STATUS_CLEAR") {
           item.latestReply = null;
-        } else if (primary !== "SAFE") {
+        } else {
           item.latestReply = {
             code: primary,
             label: replyLabel(primary),
@@ -986,7 +1083,7 @@
         }
       });
       draft.selectedTargetId = target.id;
-      addEvent(draft, target.id, "更新身體狀態", `${flag} = ${Boolean(value)}；症狀分數 ${calculateSymptomScore(target.selectedSymptoms)}`, "medical");
+      addEvent(draft, target.id, "更新身體狀態", `${flag} = ${Boolean(value)}；按鍵 raw ${calculateSymptomScore(target.selectedSymptoms)}`, "medical");
     }, "medical");
   }
 
@@ -997,18 +1094,13 @@
     let replyCode = code;
     commit((draft) => {
       const target = updateActiveTarget(draft, (item) => {
-        seq = Number(item.communication.packetSeq || 0) + 1;
-        if (code === "SAFE") {
-          item.selectedSymptoms = [];
-          syncMedicalFromSymptoms(item);
-        }
         if (symptomOptions[code]) {
           const symptoms = new Set(normalizeSymptoms(item.selectedSymptoms));
           if (symptoms.has(code)) symptoms.delete(code);
           else symptoms.add(code);
           item.selectedSymptoms = normalizeSymptoms([...symptoms]);
           syncMedicalFromSymptoms(item);
-          replyCode = primaryReplyFromSymptoms(item.selectedSymptoms);
+          replyCode = replyCodeFromSymptoms(item.selectedSymptoms);
         }
         if (code === "LOCATION_UNKNOWN") {
           item.location = {
@@ -1021,6 +1113,7 @@
             updatedAt: nowIso(nowMs),
           };
         }
+        seq = Number(item.communication.packetSeq || 0) + 1;
         item.latestReply = {
           code: replyCode,
           label: replyLabel(replyCode),
@@ -1055,7 +1148,7 @@
         draft,
         target.id,
         "收到手機端回覆",
-        `${target.name} 回覆「${replyLabel(replyCode)}」，症狀分數 ${calculateSymptomScore(target.selectedSymptoms)}，seq ${seq}，${packet.bytes} bytes。${weak ? "等待 ACK。" : "server ACK 已收到。"}`,
+        `${target.name} 回覆「${replyLabel(replyCode)}」，按鍵 raw ${calculateSymptomScore(target.selectedSymptoms)}，seq ${seq}，${packet.bytes} bytes。${weak ? "等待 ACK。" : "server ACK 已收到。"}`,
         "mobile",
         seq
       );
@@ -1211,7 +1304,7 @@
   }
 
   function simulatePacketLoss() {
-    simulatePacketEvent({ forceLoss: true, targetId: state.activeTargetId });
+    simulatePacketEvent({ forceLoss: true, targetId: demoState.activeTargetId });
   }
 
   function simulateGroundNetworkDown() {

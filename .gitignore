@@ -1,0 +1,27 @@
+.DS_Store
+Thumbs.db
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+
+# Dependency and build outputs
+node_modules/
+dist/
+build/
+.vercel/
+
+# Local test and generated artifacts
+output/
+qa/
+.playwright-cli/
+
+# Python/runtime artifacts
+__pycache__/
+*.py[cod]
+demo/demo_state.json
