@@ -1,6 +1,5 @@
 demo_state.json
 __pycache__/
 *.pyc
-api_server.py
 *.test.js
 README.md

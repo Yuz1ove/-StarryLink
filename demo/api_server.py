@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 ROOT = Path(__file__).resolve().parent
-STATE_FILE = ROOT / "demo_state.json"
+STATE_FILE = Path(os.environ.get("STARRY_STATE_FILE", ROOT / "demo_state.json"))
 SERVER_STARTED_AT = datetime.now(timezone.utc).isoformat()
 
 RESPONSE_LABELS = {
@@ -578,7 +578,14 @@ def persist_store():
         "version": store["version"],
         "savedAt": utc_now(),
     }
-    STATE_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        STATE_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        # Serverless file systems can be read-only outside /tmp. The in-memory
+        # store still drives the current warm instance, and polling keeps clients
+        # honest about the active server revision.
+        pass
 
 
 def bump_version():
@@ -2786,6 +2793,17 @@ def local_ip():
             pass
 
 
+def public_origin(handler):
+    proto = handler.headers.get("X-Forwarded-Proto")
+    host = handler.headers.get("X-Forwarded-Host") or handler.headers.get("Host")
+    if proto and host:
+        return f"{proto}://{host}"
+    if os.environ.get("VERCEL") and host:
+        return f"https://{host}"
+    port = getattr(getattr(handler, "server", None), "server_port", 8765)
+    return f"http://{host or f'127.0.0.1:{port}'}"
+
+
 def plan_route(event):
     snapshot = event.get("network_snapshot", {})
     bandwidth = snapshot.get("bandwidth_kbps", 64)
@@ -2839,16 +2857,21 @@ class Handler(SimpleHTTPRequestHandler):
             remember_client(self, "poll")
             self.json(public_state())
         elif parsed.path == "/api/demo-link":
-            host = self.headers.get("Host", f"127.0.0.1:{self.server.server_port}").split(":")[0]
-            port = self.server.server_port
-            lan_host = local_ip()
             query = parse_qs(parsed.query)
             target = query.get("target", query.get("recipient", ["U-DEMO"]))[0]
+            origin = public_origin(self).rstrip("/")
+            if os.environ.get("VERCEL"):
+                mobile_url = f"{origin}/?view=mobile&target={target}"
+                lan_ip = "cloud-preview"
+            else:
+                port = getattr(getattr(self, "server", None), "server_port", 8765)
+                lan_ip = local_ip()
+                mobile_url = f"http://{lan_ip}:{port}/?view=mobile&target={target}"
             self.json(
                 {
-                    "adminUrl": f"http://{host}:{port}/",
-                    "mobileUrl": f"http://{lan_host}:{port}/?view=mobile&target={target}",
-                    "lanIp": lan_host,
+                    "adminUrl": f"{origin}/",
+                    "mobileUrl": mobile_url,
+                    "lanIp": lan_ip,
                 }
             )
         elif parsed.path == "/api/events":
@@ -3070,6 +3093,15 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
         self.end_headers()
+        if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS"):
+            payload = public_state()
+            data = json.dumps(payload, ensure_ascii=False)
+            try:
+                self.wfile.write(f"event: state\ndata: {data}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            return
         last_version = -1
         started = time.time()
         try:
