@@ -2,4 +2,5 @@ demo_state.json
 __pycache__/
 *.pyc
 *.test.js
+online-smoke-test.mjs
 README.md

@@ -5,8 +5,17 @@
 - [ ] 五個分頁仍存在：作品介紹、海地星空通訊架構、Demo 展示、決策矩陣、程式運行。
 - [ ] 所有主要按鈕可點，無 console error。
 - [ ] 電腦端可啟動災害模式。
-- [ ] 手機端連結可開啟 `?view=mobile&recipient=U-DEMO`。
+- [ ] 手機端連結可開啟 `?view=mobile&target=U-DEMO`。
 - [ ] 手機端與電腦端同步同一位 `U-DEMO` target。
+
+## Vercel / Deployment
+
+- [ ] Vercel Project Root 是 `demo/`。
+- [ ] 首頁可公開載入，不會被 Vercel SSO / login page 擋住。
+- [ ] `index.html`、`styles.css`、`communicationEngine.js`、`lowDataPacket.js`、`demoStore.js`、`app.js` 都是 200。
+- [ ] Demo 頁「部署狀態」小卡顯示 Frontend loaded。
+- [ ] `/api/health`、`/api/state`、`/api/actions/reply` 顯示 OK；若失敗，畫面明確標示 `Vercel static preview`。
+- [ ] sync mode 明確顯示 SSE / polling / localStorage only。
 
 ## 手機狀態機
 

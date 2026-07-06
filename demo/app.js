@@ -10,6 +10,13 @@ let activeFilter = "all";
 let audioContext = null;
 let alarmEnabled = false;
 const pages = ["intro", "architecture", "demo", "matrix", "runtime"];
+const deploymentHealth = {
+  frontendLoaded: { status: "ok", detail: "DOM + app.js loaded" },
+  apiHealth: { status: "checking", detail: "not checked" },
+  apiState: { status: "checking", detail: "not checked" },
+  apiAction: { status: "checking", detail: "not checked" },
+  lastCheckedAt: null,
+};
 
 if (isMobileView) document.body.classList.add("mobile-view");
 
@@ -224,6 +231,135 @@ function render() {
   renderMatrixOverview(selected);
   renderPacketFlow(state, active, starry);
   renderRuntime(state);
+  renderDeploymentStatus(state);
+}
+
+function setText(id, value) {
+  const element = $(id);
+  if (element) element.textContent = value;
+}
+
+function statusText(check = {}) {
+  if (check.status === "ok") return `OK${check.detail ? ` / ${check.detail}` : ""}`;
+  if (check.status === "fail") return `FAIL${check.detail ? ` / ${check.detail}` : ""}`;
+  if (check.status === "warn") return `WARN${check.detail ? ` / ${check.detail}` : ""}`;
+  return `checking${check.detail && check.detail !== "not checked" ? ` / ${check.detail}` : ""}`;
+}
+
+function setStatusClass(id, status) {
+  const element = $(id);
+  if (!element) return;
+  element.classList.remove("status-ok", "status-fail", "status-warn", "status-checking");
+  element.classList.add(`status-${status || "checking"}`);
+}
+
+function isVercelHost() {
+  return /\.vercel\.app$/i.test(location.hostname || "");
+}
+
+function renderDeploymentStatus() {
+  const transport = window.__lastTransport || {};
+  const checks = [deploymentHealth.apiHealth, deploymentHealth.apiState, deploymentHealth.apiAction];
+  const apiUsable = checks.every((check) => check.status === "ok" || check.status === "warn");
+  const syncMode = location.protocol === "file:"
+    ? "localStorage only"
+    : transport.serverAvailable
+      ? (transport.liveMode === "sse" ? "SSE" : transport.liveMode === "action" ? "polling + action ack" : "polling")
+      : "localStorage only";
+  setText("deployFrontend", statusText(deploymentHealth.frontendLoaded));
+  setText("deployApiHealth", statusText(deploymentHealth.apiHealth));
+  setText("deployApiState", statusText(deploymentHealth.apiState));
+  setText("deployApiAction", statusText(deploymentHealth.apiAction));
+  setText("deploySyncMode", syncMode);
+  setText("deployServerAvailable", String(Boolean(transport.serverAvailable)));
+  setText("deployConnectedClients", String(transport.connectedClients || 0));
+  setText("deployLastError", transport.lastError || deploymentHealth.apiAction.detail || "-");
+  setStatusClass("deployFrontend", deploymentHealth.frontendLoaded.status);
+  setStatusClass("deployApiHealth", deploymentHealth.apiHealth.status);
+  setStatusClass("deployApiState", deploymentHealth.apiState.status);
+  setStatusClass("deployApiAction", deploymentHealth.apiAction.status);
+  setStatusClass("deployServerAvailable", transport.serverAvailable ? "ok" : apiUsable ? "warn" : "fail");
+  const notice = $("deployModeNotice");
+  if (!notice) return;
+  if (!apiUsable) {
+    notice.textContent = "目前為 Vercel static preview，本機按鈕仍可互動，但手機與電腦跨裝置同步請使用 python3 demo/api_server.py。";
+    notice.className = "deployment-notice warn";
+  } else if (isVercelHost()) {
+    notice.textContent = "Vercel serverless preview：API 可用；同步使用 polling + action ACK，state 可能因 cold start 重置，正式展示前請先按重新檢查。";
+    notice.className = "deployment-notice ok";
+  } else {
+    notice.textContent = "Python dynamic mode：本機 API、packet log、ACK、retry 與跨裝置狀態同步可用。";
+    notice.className = "deployment-notice ok";
+  }
+}
+
+async function readJsonResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!contentType.includes("application/json")) throw new Error(`non-json response: ${contentType || "unknown"}`);
+  return response.json();
+}
+
+async function runDeploymentHealthCheck() {
+  deploymentHealth.apiHealth = { status: "checking", detail: "checking" };
+  deploymentHealth.apiState = { status: "checking", detail: "checking" };
+  deploymentHealth.apiAction = { status: "checking", detail: "checking" };
+  renderDeploymentStatus();
+
+  try {
+    const health = await readJsonResponse(await fetch("/api/health", { cache: "no-store" }));
+    deploymentHealth.apiHealth = { status: "ok", detail: health.mode || health.status || "ok" };
+  } catch (error) {
+    deploymentHealth.apiHealth = { status: "fail", detail: error.message };
+  }
+
+  let statePayload = null;
+  try {
+    statePayload = await readJsonResponse(await fetch("/api/state", { cache: "no-store" }));
+    const stateReady = statePayload.state?.app === "xingye-sea-ground-space-demo";
+    deploymentHealth.apiState = { status: stateReady ? "ok" : "warn", detail: stateReady ? `revision ${statePayload.state.revision || statePayload.version || 0}` : "state not initialized" };
+  } catch (error) {
+    deploymentHealth.apiState = { status: "fail", detail: error.message };
+  }
+
+  try {
+    const current = store.getState();
+    const target = store.getActiveTarget(current);
+    const seq = Number(target.communication?.packetSeq || 0);
+    const clientKey = localStorage.getItem("starrylink-deployment-client") || `deploy-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    localStorage.setItem("starrylink-deployment-client", clientKey);
+    const actionPayload = {
+      clientId: clientKey,
+      targetId: target.id,
+      actionType: "healthcheck",
+      seq,
+      idempotencyKey: `${clientKey}:${target.id}:healthcheck:${Math.floor(Date.now() / 30000)}`,
+      baseRevision: Number(current.revision || 0),
+      clientTimestamp: new Date().toISOString(),
+      payload: {
+        targetId: target.id,
+        actionType: "healthcheck",
+        seq,
+        state: current,
+      },
+    };
+    const action = await readJsonResponse(
+      await fetch("/api/actions/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(actionPayload),
+      })
+    );
+    const ack = action.serverAck || {};
+    deploymentHealth.apiAction = {
+      status: ack.ok ? "ok" : "warn",
+      detail: `${ack.message || "ack"} / packetSeq ${ack.packetSeq ?? seq}`,
+    };
+  } catch (error) {
+    deploymentHealth.apiAction = { status: "fail", detail: error.message };
+  }
+  deploymentHealth.lastCheckedAt = new Date().toISOString();
+  renderDeploymentStatus(statePayload?.state || store.getState());
 }
 
 function renderToolbar(state, active) {
@@ -896,6 +1032,7 @@ function bindEvents() {
     store.actions.resetDemo();
   });
   $("copyMobileLink").addEventListener("click", copyMobileLink);
+  $("deploymentRecheck")?.addEventListener("click", runDeploymentHealthCheck);
 }
 
 function clearScriptTimers() {
@@ -1012,20 +1149,25 @@ async function copyMobileLink() {
     return;
   }
   let url = `${location.origin}${location.pathname}?view=mobile&target=U-DEMO`;
+  let apiLinkAvailable = false;
   try {
     const response = await fetch("/api/demo-link?target=U-DEMO", { cache: "no-store" });
     if (response.ok) {
       const payload = await response.json();
       if (payload.mobileUrl) url = payload.mobileUrl;
+      apiLinkAvailable = true;
     }
   } catch (error) {
     // Static file previews fall back to the current origin.
   }
+  const modeHint = apiLinkAvailable
+    ? ""
+    : "（目前 API 不可確認；此模式不保證跨裝置共享 state，完整同步請使用 python3 demo/api_server.py。）";
   try {
     await navigator.clipboard.writeText(url);
-    $("syncStatus").textContent = `手機連結已複製：${url}`;
+    $("syncStatus").textContent = `手機連結已複製：${url}${modeHint}`;
   } catch (error) {
-    $("syncStatus").textContent = `手機連結：${url}`;
+    $("syncStatus").textContent = `手機連結：${url}${modeHint}`;
   }
 }
 
@@ -1037,6 +1179,8 @@ store.subscribe((_state, meta) => {
 bindEvents();
 store.startSync();
 render();
+runDeploymentHealthCheck();
+setInterval(runDeploymentHealthCheck, 30000);
 setInterval(() => {
   const state = store.getState();
   const hasInFlightPacket = state.targets.some(

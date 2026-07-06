@@ -91,6 +91,10 @@
     liveMode: "local",
   };
 
+  function isVercelPreviewHost() {
+    return /\.vercel\.app$/i.test(global.location?.hostname || "");
+  }
+
   const broadcast = "BroadcastChannel" in global ? new BroadcastChannel("xingye-mvp-store") : null;
   if (broadcast) {
     broadcast.addEventListener("message", (event) => {
@@ -1029,6 +1033,10 @@
 
   function startEventStream() {
     if (global.location?.protocol === "file:" || !("EventSource" in global) || eventSource) return;
+    if (isVercelPreviewHost()) {
+      transport.liveMode = "poll";
+      return;
+    }
     eventSource = new EventSource("/api/events");
     eventSource.addEventListener("state", (event) => {
       try {

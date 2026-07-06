@@ -37,6 +37,18 @@ See [schema.md](./schema.md).
 
 This is a local simulation. It does not connect to real SMS, 119, medical, satellite, or push services. Low-data packets, ACK, retry, risk matrix scoring, and route switching are driven by local DOM, JS state, HTTP actions, and Python server state.
 
+## Vercel Preview Mode
+
+The Vercel deployment root is `demo/`. The root URL must serve `index.html` plus `styles.css`, `communicationEngine.js`, `lowDataPacket.js`, `demoStore.js`, and `app.js`.
+
+Vercel does not run the local `ThreadingHTTPServer` as a long-lived process. The preview uses a Python serverless entrypoint at `api/index.py`; the frontend uses polling and action ACK checks instead of long-running SSE. Without an external store such as Vercel KV, Redis, Supabase, or Neon, serverless state can reset after cold starts. If the API is unavailable, the UI displays `Vercel static preview` and does not promise cross-device state sharing.
+
+For stable judge demos, prefer:
+
+- Local: `python3 demo/api_server.py`, laptop and phone on the same Wi-Fi.
+- Online: verify the Deployment card shows `/api/health`, `/api/state`, and `/api/actions/reply` as OK before claiming cross-device sync.
+- GPS: use HTTPS tunnel for real mobile geolocation; if it fails, demonstrate fallback instead of fake coordinates.
+
 ## Acceptance Walkthrough
 
 1. Open the admin page.
@@ -73,3 +85,12 @@ Fallback behavior:
 Each action includes `clientId`, `targetId`, `actionType`, `seq` or `idempotencyKey`, `baseRevision`, `clientTimestamp`, and `payload`.
 
 The server merges action patches, checks duplicate `idempotencyKey`, appends event/packet logs, and returns `serverAck`, `newRevision`, `updatedTarget`, and `stateSummary`.
+
+## Online Smoke Test
+
+```sh
+npx --yes playwright --version
+node demo/online-smoke-test.mjs https://YOUR-VERCEL-PREVIEW.vercel.app
+```
+
+The script opens desktop and mobile views, checks health endpoints, verifies `INJURED` sync, duplicate handling, `SAFE`, ground-network failure, and GPS denied fallback.

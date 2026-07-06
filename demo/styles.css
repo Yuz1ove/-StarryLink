@@ -69,6 +69,7 @@ dd {
 .demo-toolbar,
 .script-status,
 .disaster-banner,
+.deployment-status-card,
 .phone-shell,
 .watch-workbench,
 .concept-card,
@@ -112,6 +113,94 @@ dd {
 
 .demo-disclaimer span {
   font-size: 13px;
+}
+
+.deployment-status-card {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 12px;
+}
+
+.deployment-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.deployment-status-head h3 {
+  margin-top: 2px;
+  font-size: 16px;
+}
+
+.deployment-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.deployment-status-grid div {
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.deployment-status-grid dd {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.deployment-status-grid dd::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  aspect-ratio: 1;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.deployment-status-grid .status-ok::before {
+  background: var(--green);
+}
+
+.deployment-status-grid .status-warn::before {
+  background: var(--amber);
+}
+
+.deployment-status-grid .status-fail::before {
+  background: var(--red);
+}
+
+.deployment-status-grid .status-checking::before {
+  background: var(--blue);
+}
+
+.deployment-notice {
+  padding: 9px 10px;
+  border: 1px solid rgba(126, 177, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(126, 177, 255, 0.08);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.deployment-notice.ok {
+  border-color: rgba(99, 210, 123, 0.32);
+  background: rgba(99, 210, 123, 0.08);
+  color: #c8efd1;
+}
+
+.deployment-notice.warn {
+  border-color: rgba(241, 184, 77, 0.36);
+  background: rgba(241, 184, 77, 0.1);
+  color: #f7dfad;
 }
 
 .brand,
@@ -1408,6 +1497,10 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .deployment-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .watch-columns {
     grid-template-columns: 1fr;
   }
@@ -1439,6 +1532,10 @@ dd {
   .hero,
   .page-shell {
     width: min(100vw - 18px, 720px);
+  }
+
+  .deployment-status-grid {
+    grid-template-columns: 1fr;
   }
 
   .topbar,
@@ -2785,7 +2882,8 @@ body {
 .mobile-view .console-panel,
 .mobile-view .demo-toolbar,
 .mobile-view .script-status,
-.mobile-view .disaster-banner {
+.mobile-view .disaster-banner,
+.mobile-view .deployment-status-card {
   display: none;
 }
 

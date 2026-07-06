@@ -2636,6 +2636,38 @@ def apply_client_action(body, handler, bucket):
     now = utc_now()
     updated_target = clone_json(target) if target else None
 
+    if action_type in {"healthcheck", "deployment-health"}:
+        if not duplicate:
+            store["seenMobileEvents"][idempotency_key] = {
+                "seenTs": time.time(),
+                "action": action_type,
+                "targetId": target_id,
+                "sequence": sequence,
+                "baseRevision": base_revision,
+                "idempotencyKey": idempotency_key,
+            }
+        ack = {
+            "ok": True,
+            "ackId": f"ack-health-{int(time.time() * 1000)}-{target_id or 'system'}-{sequence}",
+            "duplicate": duplicate,
+            "dedupeStatus": "duplicate ignored" if duplicate else "accepted",
+            "message": "deployment healthcheck ok",
+            "targetId": target_id,
+            "packetSeq": sequence,
+            "seq": sequence,
+            "actionType": action_type,
+            "baseRevision": base_revision,
+            "serverRevision": server_revision,
+            "receivedAt": now,
+        }
+        return {
+            "serverAck": ack,
+            "newRevision": store["version"],
+            "updatedTarget": updated_target,
+            "stateSummary": state_summary(state),
+            "state": state,
+        }, duplicate
+
     if duplicate:
         label = target.get("name", target_id) if target else target_id or "system"
         append_packet_log(
@@ -2852,7 +2884,16 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/health":
             remember_client(self, "health")
-            self.json({"status": "ok", "service": "xingye", "version": public_state()["version"]})
+            self.json(
+                {
+                    "status": "ok",
+                    "service": "xingye",
+                    "version": public_state()["version"],
+                    "mode": "vercel-serverless" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "python-threading-http",
+                    "sse": "one-shot" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "streaming",
+                    "stateFile": str(STATE_FILE),
+                }
+            )
         elif parsed.path == "/api/state":
             remember_client(self, "poll")
             self.json(public_state())
