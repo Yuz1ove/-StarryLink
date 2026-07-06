@@ -154,7 +154,9 @@
         channel.packetSuccessRate += groundDown ? 22 : backboneUnstable ? 16 : 0;
         channel.channelCost += groundDown ? 28 : backboneUnstable ? 18 : 0;
         channel.latencyMs += 0;
+        channel.batteryImpact -= battery < 20 ? 22 : battery < 30 ? 12 : 0;
       }
+      if (["WIFI", "LTE"].includes(channel.id)) channel.batteryImpact -= battery < 20 ? 8 : 0;
       channel.gpsAvailability = Math.round((channel.gpsAvailability + gpsOk) / 2);
       channel.batteryImpact = clamp(channel.batteryImpact - batteryPenalty, 0, 100);
       channel.packetSuccessRate = clamp(Math.round(channel.packetSuccessRate), 0, 100);
@@ -166,29 +168,71 @@
     });
   }
 
-  function calculateChannelScore(channelState, userRisk, network = {}) {
+  function calculateChannelScoreBreakdown(channelState, userRisk, network = {}) {
     const riskLevel = normalizeRiskLevel(userRisk);
     const backboneUnstable = isBackboneUnstable(network);
-    const score =
-      Number(channelState.packetSuccessRate || 0) * WEIGHTS.packetSuccessRate +
-      Number(channelState.latencyScore || 0) * WEIGHTS.latencyScore +
-      Number(channelState.signalStrength || 0) * WEIGHTS.signalStrength +
-      Number(channelState.gpsAvailability || 0) * WEIGHTS.gpsAvailability +
-      Number(channelState.channelCost || 0) * WEIGHTS.channelCost +
-      Number(channelState.batteryImpact || 0) * WEIGHTS.batteryImpact;
+    const components = {
+      packetSuccessRate: round(Number(channelState.packetSuccessRate || 0) * WEIGHTS.packetSuccessRate, 1),
+      latencyScore: round(Number(channelState.latencyScore || 0) * WEIGHTS.latencyScore, 1),
+      signalStrength: round(Number(channelState.signalStrength || 0) * WEIGHTS.signalStrength, 1),
+      gpsAvailability: round(Number(channelState.gpsAvailability || 0) * WEIGHTS.gpsAvailability, 1),
+      channelCost: round(Number(channelState.channelCost || 0) * WEIGHTS.channelCost, 1),
+      batteryImpact: round(Number(channelState.batteryImpact || 0) * WEIGHTS.batteryImpact, 1),
+    };
+    const baseScore = Object.values(components).reduce((sum, value) => sum + value, 0);
     let adjustment = 0;
+    const reasons = [];
     if (channelState.id === "SATELLITE") {
-      if (riskLevel === "RED") adjustment += 18;
-      if (riskLevel === "ORANGE") adjustment += 8;
-      if (backboneUnstable) adjustment += 10;
-      if (network.groundBackboneStatus === "down" || network.mobileAvailable === false) adjustment += 16;
-      if (riskLevel === "GREEN" || riskLevel === "YELLOW") adjustment -= 16;
+      if (riskLevel === "RED") {
+        adjustment += 18;
+        reasons.push("RED risk +18");
+      }
+      if (riskLevel === "ORANGE") {
+        adjustment += 8;
+        reasons.push("ORANGE risk +8");
+      }
+      if (backboneUnstable) {
+        adjustment += 10;
+        reasons.push("backbone unstable +10");
+      }
+      if (network.groundBackboneStatus === "down" || network.mobileAvailable === false) {
+        adjustment += 16;
+        reasons.push("ground down +16");
+      }
+      if (riskLevel === "GREEN" || riskLevel === "YELLOW") {
+        adjustment -= 16;
+        reasons.push("not high risk -16");
+      }
     }
-    if (["WIFI", "LTE"].includes(channelState.id) && backboneUnstable) adjustment -= 8;
-    if (channelState.id === "BLE_RELAY" && backboneUnstable) adjustment += 6;
-    if (channelState.id === "BLE_RELAY" && (riskLevel === "GREEN" || riskLevel === "YELLOW")) adjustment -= 8;
-    if (channelState.id === "SMS" && ["YELLOW", "ORANGE"].includes(riskLevel)) adjustment += 5;
-    return clamp(round(score + adjustment, 1), 0, 100);
+    if (["WIFI", "LTE"].includes(channelState.id) && backboneUnstable) {
+      adjustment -= 8;
+      reasons.push("backbone unstable -8");
+    }
+    if (channelState.id === "BLE_RELAY" && backboneUnstable) {
+      adjustment += 6;
+      reasons.push("backbone unstable +6");
+    }
+    if (channelState.id === "BLE_RELAY" && (riskLevel === "GREEN" || riskLevel === "YELLOW")) {
+      adjustment -= 8;
+      reasons.push("not high risk -8");
+    }
+    if (channelState.id === "SMS" && ["YELLOW", "ORANGE"].includes(riskLevel)) {
+      adjustment += 5;
+      reasons.push("medium risk low-data fit +5");
+    }
+    const score = clamp(round(baseScore + adjustment, 1), 0, 100);
+    return {
+      score,
+      baseScore: round(baseScore, 1),
+      adjustment: round(adjustment, 1),
+      components,
+      reasons,
+      text: reasons.length ? reasons.join("；") : "weighted channel metrics",
+    };
+  }
+
+  function calculateChannelScore(channelState, userRisk, network = {}) {
+    return calculateChannelScoreBreakdown(channelState, userRisk, network).score;
   }
 
   function selectBestChannel(channels, userRisk, network = {}) {
@@ -197,8 +241,9 @@
       .filter((channel) => channel.available !== false)
       .map((channel) => ({
         ...channel,
-        score: calculateChannelScore(channel, userRisk, network),
+        scoreBreakdown: calculateChannelScoreBreakdown(channel, userRisk, network),
       }))
+      .map((channel) => ({ ...channel, score: channel.scoreBreakdown.score, reason: channel.scoreBreakdown.text }))
       .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
     const primary = scored[0] || null;
     const fallback = scored.find((channel) => channel.id !== primary?.id) || null;
@@ -224,6 +269,10 @@
       satelliteRecommended,
       packetLossRate,
       averageLatencyMs: primary?.latencyMs || 0,
+      fallbackChannel: fallback?.name || "無",
+      reason: primary
+        ? `${primary.name} 分數最高（${primary.score}）：${primary.reason || "weighted channel metrics"}。${fallback ? `備援 ${fallback.name}。` : ""}`
+        : "目前沒有可用通道",
       summary: primary
         ? `${primary.name}${fallback ? `，備援 ${fallback.name}` : ""}`
         : "目前沒有可用通道",
@@ -239,6 +288,7 @@
     channelTemplates,
     buildChannelStates,
     calculateChannelScore,
+    calculateChannelScoreBreakdown,
     selectBestChannel,
     decisionForTarget,
     isBackboneUnstable,

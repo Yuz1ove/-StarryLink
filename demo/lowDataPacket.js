@@ -47,6 +47,16 @@
     return "U";
   }
 
+  function gpsStatus(location = {}) {
+    const source = String(location.source || "").toUpperCase();
+    if (location.confirmed && location.lat !== null && location.lng !== null) return "confirmed";
+    if (source === "GPS_DENIED") return "denied";
+    if (source === "GPS_UNAVAILABLE" || source === "UNAVAILABLE" || source === "TIMEOUT") return "unavailable";
+    if (source.startsWith("MANUAL_")) return "manual";
+    if (source === "SAME_LAN_SIMULATED" || location.demoEstimate) return "demo_estimate";
+    return "unknown";
+  }
+
   function statusCodeFor(replyCode) {
     const map = {
       SAFE: "OK",
@@ -91,9 +101,12 @@
       userId: target.id,
       timestamp: nowMs,
       gps: {
-        lat: target.location.lat,
-        lng: target.location.lng,
-        accuracy: target.location.confirmed ? target.location.accuracy : "unknown",
+        status: gpsStatus(target.location || {}),
+        source: target.location.source || "UNKNOWN",
+        lat: target.location.confirmed ? target.location.lat : null,
+        lng: target.location.confirmed ? target.location.lng : null,
+        accuracy: target.location.confirmed ? target.location.accuracy : target.location.accuracy || "unknown",
+        manualLabel: target.location.manualLabel || null,
       },
       statusCode: statusCodeFor(replyCode),
       batteryLevel: Math.round(Number(target.battery || 0)),
@@ -118,7 +131,10 @@
     const compactPayload = {
       u: payload.userId,
       ts: Math.floor(payload.timestamp / 1000),
-      gps: payload.gps.lat === null ? "U" : `${payload.gps.lat},${payload.gps.lng},${compactAccuracy(payload.gps.accuracy)}`,
+      gps:
+        payload.gps.status === "confirmed"
+          ? `${payload.gps.lat},${payload.gps.lng},${compactAccuracy(payload.gps.accuracy)}`
+          : `${payload.gps.status}:${payload.gps.source}`,
       s: payload.statusCode,
       b: payload.batteryLevel,
       risk: payload.riskLevel,
@@ -155,6 +171,7 @@
     routeLabels,
     estimateBytes,
     compactAccuracy,
+    gpsStatus,
     statusCodeFor,
     checksumFor,
     encodeLowDataPacket,

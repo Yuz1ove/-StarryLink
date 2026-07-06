@@ -27,6 +27,12 @@
         </nav>
       </header>
 
+      <aside class="demo-disclaimer" aria-label="Demo 模式聲明">
+        <strong>Demo / Simulation mode</strong>
+        <span>本作品為災害弱網通訊 Demo。低資料封包、ACK、retry、風險矩陣與通訊路徑切換為本機模擬；尚未連接真實 SMS、119、醫療、衛星或推播服務。</span>
+        <span>目前階段聚焦於決策引擎、低資料封包格式、弱網同步與守望隊工作流驗證；外部電信、衛星、119 與醫療系統可作為後續 API / 合作介接。</span>
+      </aside>
+
       <main class="page-stage" aria-live="polite">
         <section class="page-panel intro-panel active" data-page="intro" aria-labelledby="introTitle">
           <div class="intro-layout">
@@ -106,7 +112,7 @@
               <i aria-hidden="true"></i>
               <span class="flow-pill">守望隊工作台</span>
               <i aria-hidden="true"></i>
-              <span class="flow-pill flow-pill-alert">高風險升級 119 / 衛星備援</span>
+              <span class="flow-pill flow-pill-alert">高風險升級流程 / 衛星備援模擬</span>
             </div>
           </div>
         </section>
@@ -359,6 +365,7 @@
                   <button type="button" data-reply="NEED_MEDICAL">我需要醫療</button>
                   <button type="button" data-reply="CANNOT_TALK">無法說話</button>
                   <button type="button" data-reply="NEED_HELP">需要救援</button>
+                  <button type="button" data-reply="STATUS_CLEAR">清除狀態</button>
                 </div>
                 <p id="phoneSymptomScore" class="phone-score-hint">症狀分數 0 / 風險 Stable</p>
 
@@ -376,6 +383,13 @@
                     <button id="refreshLocation" type="button">重新取得位置</button>
                     <button id="dropLocation" type="button">無法提供位置</button>
                   </div>
+                  <div class="manual-location-actions" aria-label="手動回報位置">
+                    <button type="button" data-manual-location="HOME">我在家</button>
+                    <button type="button" data-manual-location="SCHOOL">我在學校</button>
+                    <button type="button" data-manual-location="SHELTER">我在避難點</button>
+                    <button type="button" data-manual-location="UNKNOWN">我不知道位置</button>
+                  </div>
+                  <p id="phoneLocationNote" class="phone-note">GPS 失敗時會改走手動回報，不會顯示假座標。</p>
                 </section>
 
                 <section class="phone-section" aria-label="醫療與身體狀態">
@@ -470,6 +484,9 @@
                 <button type="button" data-filter="noResponse">未回覆</button>
                 <button type="button" data-filter="medical">需要醫療</button>
                 <button type="button" data-filter="gpsStatic">GPS 靜止</button>
+                <button type="button" data-filter="unhandled">未處理</button>
+                <button type="button" data-filter="processed">已處理</button>
+                <button type="button" data-filter="highPriority">高優先</button>
               </div>
               <div id="targetList" class="target-list"></div>
 
@@ -480,6 +497,7 @@
                 </div>
                 <div id="targetDetail" class="detail-grid"></div>
               </article>
+              <article id="workflowPanel" class="detail-block workflow-panel" aria-label="守望隊處理流程"></article>
             </section>
           </section>
         </section>
@@ -523,18 +541,21 @@ gpsAvailability * 0.15 +
 channelCost * 0.10 +
 batteryImpact * 0.05</code></pre>
               <p class="matrix-note">channelCost 分數越高代表越適合使用，不是越昂貴。一般狀態 Wi-Fi / 5G / SMS 優先；Red 高風險且地面網路失敗時，Satellite Backup 才提高優先級。</p>
+              <p id="commReason" class="matrix-note">依封包成功率、延遲、訊號、GPS、成本與電量影響加權選路。</p>
               <div class="table-wrap">
                 <table class="matrix-table comm-score-table">
                   <thead>
                     <tr>
                       <th>通訊路徑</th>
                       <th>總分</th>
+                      <th>為什麼</th>
                       <th>packetSuccessRate</th>
                       <th>latencyScore</th>
                       <th>signalStrength</th>
                       <th>gpsAvailability</th>
                       <th>channelCost</th>
                       <th>batteryImpact</th>
+                      <th>score breakdown</th>
                     </tr>
                   </thead>
                   <tbody id="commScoreRows"></tbody>
@@ -639,6 +660,7 @@ function updateUserStateFromMobileAction(action) {
 
     <script src="./communicationEngine.js?v=starrylink-paged-20260703a"></script>
     <script src="./lowDataPacket.js?v=starrylink-paged-20260703a"></script>
+    <script src="./sharedSchema.js?v=starrylink-paged-20260706"></script>
     <script src="./demoStore.js?v=starrylink-paged-20260703a"></script>
     <script src="./app.js?v=starrylink-paged-20260703a"></script>
   </body>

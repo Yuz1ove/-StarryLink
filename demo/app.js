@@ -121,7 +121,7 @@ function starryLayerLabel(layer) {
 }
 
 function gpsStatusLabel(status) {
-  const map = { locked: "GPS locked", drifting: "GPS drifting", last_known: "last known" };
+  const map = { locked: "GPS confirmed", drifting: "GPS drifting", last_known: "位置待確認", denied: "GPS_DENIED", unavailable: "GPS_UNAVAILABLE", manual: "manual location" };
   return map[status] || "last known";
 }
 
@@ -147,18 +147,27 @@ function signedScoreText(value) {
 }
 
 function accuracyText(location = {}) {
+  if (String(location.source || "").startsWith("MANUAL_")) return "manual";
+  if (location.source === "GPS_DENIED") return "denied";
+  if (location.source === "GPS_UNAVAILABLE" || location.source === "UNAVAILABLE") return "unavailable";
   return location.confirmed ? location.accuracy || "unknown" : "unknown";
 }
 
 function locationStatusText(location = {}) {
-  if (location.confirmed) return "位置已確認";
-  if (["GPS_DENIED", "UNAVAILABLE"].includes(location.source)) return "無法定位";
+  if (location.confirmed) return "GPS confirmed";
+  if (location.source === "GPS_DENIED") return "GPS_DENIED / 位置待確認";
+  if (location.source === "GPS_UNAVAILABLE" || location.source === "UNAVAILABLE") return "GPS_UNAVAILABLE / fallback 待確認";
+  if (String(location.source || "").startsWith("MANUAL_")) return `${location.manualLabel || "手動回報位置"} / 需人工確認`;
+  if (location.source === "SAME_LAN_SIMULATED" || location.demoEstimate) return "非真實 GPS，僅 Demo 推估";
   return "位置待確認";
 }
 
 function gpsCardLabel(location = {}) {
-  if (location.confirmed) return "有 GPS";
-  if (["GPS_DENIED", "UNAVAILABLE"].includes(location.source)) return "無 GPS";
+  if (location.confirmed) return "GPS confirmed";
+  if (location.source === "GPS_DENIED") return "GPS_DENIED";
+  if (location.source === "GPS_UNAVAILABLE" || location.source === "UNAVAILABLE") return "GPS_UNAVAILABLE";
+  if (String(location.source || "").startsWith("MANUAL_")) return "manual";
+  if (location.source === "SAME_LAN_SIMULATED" || location.demoEstimate) return "Demo 推估";
   return "GPS 待確認";
 }
 
@@ -209,6 +218,7 @@ function render() {
   renderPhone(active, state, starry);
   renderTargets(state, selected);
   renderDetail(state, selected);
+  renderWorkflow(state, selected);
   renderRisk(selected);
   renderCommunication(active);
   renderMatrixOverview(selected);
@@ -401,6 +411,15 @@ function renderPhone(target, state, starry = starrySnapshot(state)) {
   if ($("phoneGpsLat")) $("phoneGpsLat").textContent = coordinateText(target.location.lat);
   if ($("phoneGpsLng")) $("phoneGpsLng").textContent = coordinateText(target.location.lng);
   if ($("phoneGpsAccuracy")) $("phoneGpsAccuracy").textContent = accuracyText(target.location);
+  if ($("phoneLocationNote")) {
+    $("phoneLocationNote").textContent = target.location.confirmed
+      ? "GPS confirmed，座標與精度會進入低資料封包。"
+      : target.location.source === "GPS_DENIED"
+        ? "GPS_DENIED：已保留位置待確認風險，請改用手動位置。"
+        : String(target.location.source || "").startsWith("MANUAL_")
+          ? "手動位置已送出；守望隊仍需人工確認。"
+          : "GPS_UNAVAILABLE：Demo 會展示 fallback 流程，不顯示假座標。";
+  }
   $("phoneVitals").textContent = `HR ${target.medical.heartRate ?? "--"} / SpO2 ${target.medical.spo2 ?? "--"}`;
   $("discomfortToggle").checked = Boolean(target.medical.discomfort);
   $("immobileToggle").checked = Boolean(target.medical.cannotMove || target.latestReply?.code === "CANNOT_MOVE");
@@ -499,6 +518,7 @@ function renderTargets(state, selected) {
       const gps = gpsCardLabel(target.location);
       const needsContact = ["ORANGE", "RED"].includes(target.risk.level) || target.latestReply?.code === "NO_RESPONSE";
       const dispatch = target.risk.level === "RED" ? "優先派遣" : target.risk.level === "ORANGE" ? "主動確認" : "持續觀察";
+      const workflow = target.workflow || {};
       return `
         <button class="target-item ${active} ${linked ? "linked" : ""}" type="button" data-target-id="${escapeHtml(target.id)}">
           <span>
@@ -510,7 +530,7 @@ function renderTargets(state, selected) {
             <small>${escapeHtml(target.latestReply?.label || "尚未回覆")}</small>
             <small>${ackLabel(target.communication.ackStatus)} / ${gps} / ${timeText(target.lastUpdatedAt || target.communication.lastAckAt)}</small>
             <small>${linked ? activeRouteLabel(starry.activeRoute) : routeName(target.communication.primaryRoute)} / 成功率 ${target.communication.packetSuccessRate || 0}%</small>
-            <small>${needsContact ? "需要主動聯繫" : "持續觀察"} / ${dispatch} / ${actionText(target.risk.action)}</small>
+            <small>${needsContact ? "需要主動聯繫" : "持續觀察"} / ${dispatch} / ${actionText(target.risk.action)} / ${workflowStatusLabel(workflow)}</small>
           </span>
         </button>
       `;
@@ -527,7 +547,17 @@ function targetMatchesFilter(target) {
   if (activeFilter === "noResponse") return code === "NO_RESPONSE" || !target.latestReply;
   if (activeFilter === "medical") return Boolean(target.medical.injury || target.medical.breathingDifficulty || code === "NEED_MEDICAL" || code === "INJURED");
   if (activeFilter === "gpsStatic") return Number(target.location.staticMinutes || 0) >= 10;
+  if (activeFilter === "processed") return target.workflow?.status === "processed";
+  if (activeFilter === "unhandled") return target.workflow?.status !== "processed";
+  if (activeFilter === "highPriority") return target.workflow?.priority === "high" || target.risk.level === "RED";
   return true;
+}
+
+function workflowStatusLabel(workflow = {}) {
+  if (workflow.priority === "high") return "高優先";
+  if (workflow.status === "processed") return "已處理";
+  if (workflow.status === "manual_followup") return "人工追蹤";
+  return "未處理";
 }
 
 function roleLabel(role) {
@@ -576,6 +606,74 @@ function renderDetail(state, target) {
         )
         .join("")
     : `<p class="empty">尚無事件紀錄</p>`;
+}
+
+function renderWorkflow(_state, target) {
+  const panel = $("workflowPanel");
+  if (!panel || !target) return;
+  const riskItems = (target.risk?.items || []).filter((item) => item.score > 0).slice(0, 5);
+  const nextSteps = recommendedSteps(target);
+  const locationTrust = locationTrustText(target.location);
+  const workflow = target.workflow || {};
+  panel.innerHTML = `
+    <div class="section-line">
+      <span>守望隊處理流程</span>
+      <strong>${workflowStatusLabel(workflow)}</strong>
+    </div>
+    <div class="workflow-grid">
+      <div>
+        <h3>建議下一步</h3>
+        <ul>${nextSteps.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+      <div>
+        <h3>為什麼</h3>
+        <ul>${riskItems.length ? riskItems.map((item) => `<li>${escapeHtml(item.label)} ${signedScoreText(item.score)}：${escapeHtml(item.detail)}</li>`).join("") : "<li>目前沒有高風險加分項。</li>"}</ul>
+      </div>
+      <div>
+        <h3>通訊方式</h3>
+        <p>${escapeHtml(routeName(target.communication.primaryRoute))} / 備援 ${escapeHtml(routeName(target.communication.fallbackRoute))}</p>
+        <small>${escapeHtml(target.communication.decisionReason || "依通訊矩陣加權選路。")}</small>
+      </div>
+      <div>
+        <h3>位置可信度</h3>
+        <p>${escapeHtml(locationTrust)}</p>
+        <small>${escapeHtml(locationStatusText(target.location))}</small>
+      </div>
+    </div>
+    <div class="workflow-actions">
+      <button class="button primary" type="button" data-workflow-action="confirm-safe">標記已確認安全</button>
+      <button class="button" type="button" data-workflow-action="follow-up">需要人工追蹤</button>
+      <button class="button quiet" type="button" data-workflow-action="high-priority">標記高優先</button>
+    </div>
+    <div class="note-row">
+      <input id="workflowNoteInput" type="text" placeholder="加入守望隊備註" value="" />
+      <button id="workflowNoteButton" class="button quiet" type="button">加入備註</button>
+    </div>
+    <div class="note-list">
+      ${(workflow.notes || []).length ? workflow.notes.map((note) => `<p><strong>${timeText(note.timestamp)}</strong>${escapeHtml(note.text)}</p>`).join("") : "<p class=\"empty\">尚無備註</p>"}
+    </div>
+  `;
+}
+
+function recommendedSteps(target) {
+  const steps = [];
+  if (target.risk.level === "RED") steps.push("升級救援");
+  if (target.risk.level === "ORANGE" || target.risk.level === "RED") steps.push("派遣志工或守望隊確認");
+  if (target.latestReply?.code === "CANNOT_TALK" || target.selectedSymptoms?.includes("CANNOT_TALK")) steps.push("主動文字確認，避免要求通話");
+  else if (target.risk.level !== "GREEN") steps.push("主動文字確認");
+  if (target.location?.confirmed) steps.push("使用 GPS confirmed 位置輔助排序");
+  else steps.push("位置待確認，請要求手動回報或人工確認");
+  if (target.workflow?.priority !== "high" && ["RED", "ORANGE"].includes(target.risk.level)) steps.push("通知守護者（Demo 內部流程）");
+  return Array.from(new Set(steps.length ? steps : ["持續觀察 ACK 與下一次回覆"]));
+}
+
+function locationTrustText(location = {}) {
+  if (location.confirmed) return `GPS / ${accuracyText(location)}`;
+  if (String(location.source || "").startsWith("MANUAL_")) return `manual / ${location.manualLabel || "手動位置"}`;
+  if (location.source === "GPS_DENIED") return "GPS denied / 位置待確認";
+  if (location.source === "GPS_UNAVAILABLE" || location.source === "UNAVAILABLE") return "GPS unavailable / fallback 流程";
+  if (location.source === "SAME_LAN_SIMULATED" || location.demoEstimate) return "非真實 GPS，僅 Demo 推估";
+  return "unknown";
 }
 
 function detailRow(label, value) {
@@ -629,6 +727,7 @@ function renderCommunication(target) {
   $("commLoss").textContent = `${communication.packetLossRate || 0}%`;
   $("commLowData").textContent = communication.lowDataMode ? "是" : "否";
   $("commSatellite").textContent = communication.satelliteRecommended ? "建議保留 / 必要時啟用" : "暫不啟用";
+  if ($("commReason")) $("commReason").textContent = communication.decisionReason || "依封包成功率、延遲、訊號、GPS、成本與電量影響加權選路。";
 
   $("commScoreRows").innerHTML = (communication.channelScores || [])
     .map(
@@ -636,16 +735,25 @@ function renderCommunication(target) {
         <tr>
           <td>${escapeHtml(channel.name)}</td>
           <td>${channel.score}</td>
+          <td>${escapeHtml(channel.reason || channel.scoreBreakdown?.text || "-")}</td>
           <td>${channel.packetSuccessRate}%</td>
           <td>${channel.latencyScore}</td>
           <td>${channel.signalStrength}</td>
           <td>${channel.gpsAvailability}</td>
           <td>${channel.channelCost}</td>
           <td>${channel.batteryImpact}</td>
+          <td>${escapeHtml(scoreBreakdownText(channel.scoreBreakdown))}</td>
         </tr>
       `
     )
     .join("");
+}
+
+function scoreBreakdownText(breakdown = {}) {
+  const components = breakdown.components || {};
+  const pieces = Object.entries(components).map(([key, value]) => `${key}:${value}`);
+  if (Number.isFinite(Number(breakdown.adjustment)) && Number(breakdown.adjustment) !== 0) pieces.push(`adjust:${breakdown.adjustment}`);
+  return pieces.join(" / ") || "-";
 }
 
 function renderMatrixOverview(target) {
@@ -664,7 +772,7 @@ function requestCurrentLocation() {
   };
 
   if (!navigator.geolocation) {
-    store.actions.setLocation("unknown", { source: "UNAVAILABLE", updateReply: false });
+    store.actions.setLocation("unknown", { source: "GPS_UNAVAILABLE", updateReply: false });
     finish();
     return;
   }
@@ -681,8 +789,10 @@ function requestCurrentLocation() {
     },
     (error) => {
       const permissionDenied = error.code === 1 || error.code === error.PERMISSION_DENIED;
+      const timeout = error.code === 3 || error.code === error.TIMEOUT;
       store.actions.setLocation("unknown", {
-        source: permissionDenied ? "GPS_DENIED" : "UNAVAILABLE",
+        source: permissionDenied ? "GPS_DENIED" : "GPS_UNAVAILABLE",
+        errorCode: permissionDenied ? "permission_denied" : timeout ? "timeout" : "unavailable",
         updateReply: false,
       });
       finish();
@@ -737,7 +847,26 @@ function bindEvents() {
 
   $("refreshLocation").addEventListener("click", requestCurrentLocation);
   $("dropLocation").addEventListener("click", () => {
-    store.actions.setLocation("unknown", { source: "UNAVAILABLE", updateReply: true });
+    store.actions.setLocation("unknown", { source: "GPS_UNAVAILABLE", updateReply: true });
+  });
+  document.querySelectorAll("[data-manual-location]").forEach((button) => {
+    button.addEventListener("click", () => store.actions.setManualLocation(button.dataset.manualLocation));
+  });
+
+  $("workflowPanel")?.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-workflow-action]");
+    if (actionButton) {
+      store.actions.updateWorkflow(actionButton.dataset.workflowAction);
+      return;
+    }
+    if (event.target.closest("#workflowNoteButton")) {
+      const input = $("workflowNoteInput");
+      const note = input?.value?.trim();
+      if (note) {
+        store.actions.updateWorkflow("note", { note });
+        input.value = "";
+      }
+    }
   });
 
   $("discomfortToggle").addEventListener("change", (event) => {
@@ -882,9 +1011,9 @@ async function copyMobileLink() {
     $("syncStatus").textContent = "請先執行 python3 demo/api_server.py，再用同一個區網網址開啟電腦端與手機端。";
     return;
   }
-  let url = `${location.origin}${location.pathname}?view=mobile&recipient=U-DEMO`;
+  let url = `${location.origin}${location.pathname}?view=mobile&target=U-DEMO`;
   try {
-    const response = await fetch("/api/demo-link?recipient=U-DEMO", { cache: "no-store" });
+    const response = await fetch("/api/demo-link?target=U-DEMO", { cache: "no-store" });
     if (response.ok) {
       const payload = await response.json();
       if (payload.mobileUrl) url = payload.mobileUrl;

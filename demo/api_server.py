@@ -73,6 +73,36 @@ ACTION_DEFINITIONS = {
         "reassurance": "需要協助已送出。守護指揮中心已收到，請留在安全位置等待確認。",
         "routeHint": "SMS 主通道，若無 ACK 則升級人工追蹤。",
     },
+    "SOS_BUTTON": {
+        "responseCode": "H",
+        "label": "大型求救按鈕",
+        "severity": 5,
+        "status": "SOS 已送出",
+        "needsTriage": True,
+        "preferredChannel": "SMS / Low Data Text + Satellite Backup",
+        "reassurance": "SOS 已送出。守望隊工作台已收到最高優先封包；請盡量留在安全位置。",
+        "routeHint": "最高優先，低資料封包優先，地面網路失效時提高衛星備援分數。",
+    },
+    "INJURED": {
+        "responseCode": "M",
+        "label": "我受傷",
+        "severity": 4,
+        "status": "受傷狀態已送出",
+        "needsTriage": True,
+        "preferredChannel": "SMS / Low Data Text",
+        "reassurance": "受傷狀態已送出。守望隊會用低資料方式確認位置與身體狀態。",
+        "routeHint": "提高醫療與人工追蹤權重，但不宣稱已連接真實醫療服務。",
+    },
+    "TRAPPED": {
+        "responseCode": "H",
+        "label": "我被困住",
+        "severity": 5,
+        "status": "受困狀態已送出",
+        "needsTriage": True,
+        "preferredChannel": "SMS / BLE Relay / Satellite Backup",
+        "reassurance": "受困狀態已送出。請不要勉強移動，系統會優先保留低資料位置與狀態封包。",
+        "routeHint": "受困高優先，弱網時提高 SMS / BLE Relay，RED 且地面失效時提高 Satellite Backup。",
+    },
     "CANNOT_TALK": {
         "responseCode": "N",
         "label": "無法通話",
@@ -92,6 +122,26 @@ ACTION_DEFINITIONS = {
         "preferredChannel": "SMS + Manual Call + Guardian Notify",
         "reassurance": "守護指揮中心已收到。請先確認周圍安全，保持手機在身邊。若身邊有人，請請他協助留意並等待後台聯繫。",
         "routeHint": "最高優先級，建議守護指揮中心人工追蹤與守護者模擬通知。",
+    },
+    "DISCOMFORT": {
+        "responseCode": "M",
+        "label": "身體不適",
+        "severity": 3,
+        "status": "身體不適已送出",
+        "needsTriage": True,
+        "preferredChannel": "SMS / Low Data Text",
+        "reassurance": "身體不適已送出。守望隊會持續確認是否需要人工追蹤。",
+        "routeHint": "中風險，保留低資料文字確認。",
+    },
+    "STATUS_CLEAR": {
+        "responseCode": "S",
+        "label": "清除狀態",
+        "severity": 1,
+        "status": "狀態已清除",
+        "needsTriage": False,
+        "preferredChannel": "SSE / SMS",
+        "reassurance": "狀態已清除。若您目前安全，請按「我安全」完成回報。",
+        "routeHint": "清除症狀，不刪除事件紀錄。",
     },
     "LOCATION_ANOMALY": {
         "responseCode": "L",
@@ -211,16 +261,26 @@ TRIAGE_FLOWS = {
 BASE_RISK = {
     "SAFE_OK": 5,
     "NEED_HELP": 45,
+    "SOS_BUTTON": 90,
+    "INJURED": 70,
+    "TRAPPED": 82,
     "CANNOT_TALK": 60,
     "NEED_MEDICAL": 75,
+    "DISCOMFORT": 55,
+    "STATUS_CLEAR": 0,
     "LOCATION_ANOMALY": 55,
 }
 
 SYSTEM_MESSAGES = {
     "SAFE_OK": "長者已回報：我平安。系統已記錄 ACK，暫不列入高優先處理。",
     "NEED_HELP": "長者已回報：需要協助。建議守護指揮中心確認所在位置與是否有立即危險。",
+    "SOS_BUTTON": "使用者已按下 SOS。系統以最高優先寫入 packet log，並提高低資料與衛星備援通道權重。",
+    "INJURED": "使用者已回報：我受傷。建議守望隊用低資料文字確認位置、意識狀態與身邊是否有人協助。",
+    "TRAPPED": "使用者已回報：我被困住。請優先確認位置可信度、是否可回覆與最近協助者。",
     "CANNOT_TALK": "長者已回報：無法通話。建議改用低資料文字確認，不要以語音作為唯一聯繫方式。",
     "NEED_MEDICAL": "長者已回報：需要醫療協助。請優先確認是否可繼續按鍵回覆、所在位置、身邊是否有人可協助。此 demo 未連接真實外部通報服務。",
+    "DISCOMFORT": "使用者已回報：身體不適。系統保留低資料確認並建議人工追蹤。",
+    "STATUS_CLEAR": "使用者已清除手機端狀態。事件紀錄保留，風險矩陣重新計算。",
     "LOCATION_ANOMALY": "長者已回報：位置異常。請確認同網路模擬定位結果，並以文字方式向長者確認目前是否安全。",
 }
 
@@ -239,10 +299,247 @@ store = {
     "seenPackets": {},
     "seenMobileEvents": {},
     "lastSeqByRecipient": {},
+    "lastSeqByTarget": {},
     "version": 0,
     "connectedClients": {},
     "startedAt": SERVER_STARTED_AT,
 }
+
+TARGET_REQUIRED_STATE_KEYS = ("targets", "packetLog", "events", "starryState")
+
+
+def clone_json(value):
+    return json.loads(json.dumps(value, ensure_ascii=False))
+
+
+def ensure_target_shape(target):
+    if not isinstance(target, dict):
+        return None
+    target.setdefault("id", target.get("targetId") or target.get("recipientId") or target.get("userId"))
+    target.setdefault("name", target.get("displayName") or target.get("recipientName") or target.get("id", "Demo target"))
+    target.setdefault("role", target.get("role", "general"))
+    target.setdefault("age", target.get("age", 0))
+    target.setdefault("phoneOnline", True)
+    target.setdefault("signalQuality", target.get("lastSignalQuality", 72))
+    target.setdefault("battery", target.get("batteryLevel", 72))
+    target.setdefault("selectedSymptoms", [])
+    target.setdefault(
+        "location",
+        {
+            "lat": None,
+            "lng": None,
+            "accuracy": "unknown",
+            "confirmed": False,
+            "source": "UNKNOWN",
+            "updatedAt": None,
+            "staticMinutes": 0,
+        },
+    )
+    target.setdefault(
+        "medical",
+        {
+            "chronicNote": target.get("chronicNote", "無特殊"),
+            "heartRate": target.get("heartRate"),
+            "spo2": target.get("spo2"),
+            "discomfort": False,
+            "injury": False,
+            "cannotMove": False,
+            "breathingDifficulty": False,
+            "trapped": False,
+            "hypothermia": False,
+        },
+    )
+    target.setdefault(
+        "communication",
+        {
+            "primaryRoute": "WIFI",
+            "fallbackRoute": "LTE",
+            "packetSeq": 0,
+            "packetBytes": 0,
+            "ackStatus": "pending",
+            "retryCount": 0,
+            "lastAckAt": None,
+            "ackPendingSince": None,
+            "packetSuccessRate": 0,
+            "averageLatencyMs": 0,
+            "packetLossRate": 0,
+            "lowDataMode": False,
+            "satelliteRecommended": False,
+            "channelScores": [],
+        },
+    )
+    target.setdefault("risk", {"score": 0, "rawRiskScore": 0, "displayRiskScore": 0, "level": "GREEN", "reason": [], "items": []})
+    target.setdefault("workflow", {"status": "unhandled", "priority": "normal", "notes": [], "updatedAt": None})
+    target.setdefault("lastUpdatedAt", target.get("lastAckAt"))
+    ensure_recipient_profile(target)
+    return target
+
+
+def migrate_state_to_targets(state):
+    if not isinstance(state, dict):
+        return state
+    if not isinstance(state.get("targets"), list) or not state.get("targets"):
+        legacy_targets = state.get("recipients")
+        if not legacy_targets:
+            legacy_targets = state.get("event", {}).get("recipients")
+        if isinstance(legacy_targets, list):
+            state["targets"] = [clone_json(item) for item in legacy_targets if isinstance(item, dict)]
+    state["targets"] = [target for target in (ensure_target_shape(item) for item in state.get("targets", [])) if target and target.get("id")]
+    state.pop("recipients", None)
+    if isinstance(state.get("event"), dict):
+        event = state["event"]
+        if not isinstance(event.get("targets"), list) and isinstance(event.get("recipients"), list):
+            event["targets"] = [clone_json(item) for item in event.get("recipients", [])]
+        event.pop("recipients", None)
+    state.setdefault("packetLog", [])
+    state.setdefault("events", [])
+    state.setdefault("starryState", {})
+    state.setdefault("revision", store.get("version", 0))
+    state.setdefault("updatedAt", utc_now())
+    return state
+
+
+def state_targets(state):
+    migrate_state_to_targets(state)
+    return state.get("targets", []) if isinstance(state, dict) else []
+
+
+def target_id_from_body(body):
+    return body.get("targetId") or body.get("recipientId") or body.get("r") or body.get("userId")
+
+
+def find_target(state, target_id):
+    return next((item for item in state_targets(state) if item.get("id") == target_id), None)
+
+
+def sync_state_runtime_lists(state):
+    if not isinstance(state, dict):
+        return
+    migrate_state_to_targets(state)
+    state["packetLog"] = store["packetLog"][:80]
+    state.setdefault("events", [])
+    state.setdefault("starryState", {})
+    state["serverUpdatedAt"] = utc_now()
+    state["revision"] = store["version"]
+
+
+def append_state_event(state, target_id, title, detail, kind="server", sequence=None, risk_score=None):
+    if not isinstance(state, dict):
+        return
+    events = state.setdefault("events", [])
+    events.insert(
+        0,
+        {
+            "id": f"srv-{int(time.time() * 1000)}-{len(events) + 1}",
+            "targetId": target_id or "system",
+            "kind": kind,
+            "title": title,
+            "detail": detail,
+            "seq": sequence,
+            "packetSeq": sequence,
+            "riskScore": risk_score,
+            "timestamp": utc_now(),
+        },
+    )
+    del events[80:]
+
+
+def state_summary(state):
+    targets = state_targets(state)
+    high = [target for target in targets if str(target.get("risk", {}).get("level", "")).upper() in {"RED", "ORANGE"}]
+    return {
+        "targetCount": len(targets),
+        "highRiskCount": len(high),
+        "packetLogCount": len(state.get("packetLog", [])),
+        "eventCount": len(state.get("events", [])),
+        "starryState": state.get("starryState", {}),
+    }
+
+
+def iso_ms(value):
+    if not value:
+        return 0
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp() * 1000
+    except Exception:
+        try:
+            return float(value)
+        except Exception:
+            return 0
+
+
+def target_freshness(target):
+    communication = target.get("communication", {})
+    return max(
+        iso_ms(target.get("lastUpdatedAt")),
+        iso_ms(target.get("updatedAt")),
+        iso_ms(communication.get("lastAckAt")),
+        float(communication.get("packetSeq") or 0),
+    )
+
+
+def merge_unique_by_id(existing, incoming, limit=80):
+    seen = set()
+    merged = []
+    for item in list(incoming or []) + list(existing or []):
+        key = item.get("id") if isinstance(item, dict) else None
+        if not key:
+            key = json.dumps(item, ensure_ascii=False, sort_keys=True)[:160]
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(item)
+    return merged[:limit]
+
+
+def merge_state_from_client(incoming_state, reason="state-merge"):
+    incoming = clone_json(incoming_state or {})
+    migrate_state_to_targets(incoming)
+    if not store["state"]:
+        store["state"] = incoming
+        ensure_state_defaults(store["state"])
+        append_state_event(store["state"], "system", "Server state initialized", f"/api/state 初始化：{reason}", "server")
+        return
+
+    current = store["state"]
+    ensure_state_defaults(current)
+    current_revision = int(current.get("revision") or store.get("version") or 0)
+    incoming_revision = int(incoming.get("revision") or 0)
+    if incoming.get("app"):
+        current["app"] = incoming.get("app")
+    current.setdefault("activeTargetId", incoming.get("activeTargetId") or "U-DEMO")
+    current.setdefault("selectedTargetId", incoming.get("selectedTargetId") or current.get("activeTargetId"))
+
+    if incoming_revision >= current_revision:
+        incoming_event = incoming.get("event")
+        if isinstance(incoming_event, dict):
+            current_event = current.setdefault("event", {})
+            for key, value in incoming_event.items():
+                if key == "network" and isinstance(value, dict):
+                    current_event.setdefault("network", {}).update(value)
+                elif key == "script" and isinstance(value, dict):
+                    current_event.setdefault("script", {}).update(value)
+                elif key != "targets":
+                    current_event[key] = value
+    else:
+        append_state_event(current, "system", "Stale state merge", f"/api/state base revision {incoming_revision} < server {current_revision}，只合併較新的 target。", "server")
+
+    current_by_id = {target.get("id"): target for target in state_targets(current)}
+    for incoming_target in state_targets(incoming):
+        target_id = incoming_target.get("id")
+        if not target_id:
+            continue
+        if target_id not in current_by_id:
+            current_by_id[target_id] = incoming_target
+            current["targets"].append(incoming_target)
+            continue
+        if target_freshness(incoming_target) >= target_freshness(current_by_id[target_id]):
+            current_by_id[target_id].update(incoming_target)
+
+    current["events"] = merge_unique_by_id(current.get("events", []), incoming.get("events", []), 80)
+    if incoming.get("starryState") and incoming_revision >= current_revision:
+        current["starryState"] = incoming.get("starryState")
+    current["updatedAt"] = utc_now()
 
 
 def utc_now():
@@ -264,7 +561,10 @@ def load_store():
         store["seenPackets"] = data.get("seenPackets", {})
         store["seenMobileEvents"] = data.get("seenMobileEvents", {})
         store["lastSeqByRecipient"] = data.get("lastSeqByRecipient", {})
+        store["lastSeqByTarget"] = data.get("lastSeqByTarget", data.get("lastSeqByRecipient", {}))
         store["version"] = int(data.get("version", 0))
+        if store["state"]:
+            sync_state_runtime_lists(store["state"])
 
 
 def persist_store():
@@ -274,6 +574,7 @@ def persist_store():
         "seenPackets": store["seenPackets"],
         "seenMobileEvents": store["seenMobileEvents"],
         "lastSeqByRecipient": store["lastSeqByRecipient"],
+        "lastSeqByTarget": store["lastSeqByTarget"],
         "version": store["version"],
         "savedAt": utc_now(),
     }
@@ -282,12 +583,16 @@ def persist_store():
 
 def bump_version():
     store["version"] += 1
+    if store["state"]:
+        sync_state_runtime_lists(store["state"])
     persist_store()
     store_changed.notify_all()
 
 
 def public_state():
     with store_lock:
+        if store["state"]:
+            sync_state_runtime_lists(store["state"])
         return {
             "state": store["state"],
             "packetLog": store["packetLog"][:40],
@@ -401,10 +706,11 @@ def ensure_recipient_profile(recipient):
 def ensure_state_defaults(state):
     if not state:
         return
-    for recipient in state.get("recipients", []):
-        ensure_recipient_profile(recipient)
-    for recipient in state.get("event", {}).get("recipients", []):
-        ensure_recipient_profile(recipient)
+    migrate_state_to_targets(state)
+    for target in state.get("targets", []):
+        ensure_target_shape(target)
+    for target in state.get("event", {}).get("targets", []):
+        ensure_target_shape(target)
     conversations = state.get("conversations")
     if not isinstance(conversations, dict):
         conversations = {}
@@ -413,7 +719,7 @@ def ensure_state_defaults(state):
     if not isinstance(triage_flows, dict):
         state["triageFlows"] = {}
     state.setdefault("activeConversationRecipientId", state.get("activeRecipientId"))
-    state.setdefault("lastSeqByRecipient", {})
+    state.setdefault("lastSeqByTarget", state.get("lastSeqByRecipient", {}))
     state.setdefault("locationUpdates", {})
     state.setdefault("locationPreference", {})
     state.setdefault("mobileAlertReceipts", {})
@@ -615,6 +921,8 @@ def operator_recommendation(action_code, risk, flow, location=None):
 
 def ensure_triage_flow(state, recipient_id, action_code, location=None, reset=False):
     ensure_state_defaults(state)
+    if action_code not in TRIAGE_FLOWS:
+        action_code = "NEED_MEDICAL" if action_code in {"INJURED", "DISCOMFORT"} else "NEED_HELP" if action_code in {"SOS_BUTTON", "TRAPPED"} else "SAFE_OK"
     flows = state.setdefault("triageFlows", {})
     existing = flows.get(recipient_id)
     if existing and not reset and existing.get("flowId") == action_code and not existing.get("flowComplete"):
@@ -636,7 +944,7 @@ def ensure_triage_flow(state, recipient_id, action_code, location=None, reset=Fa
         "timeline": [],
     }
     flow["currentQuestion"] = current_question_payload(flow)
-    flow["risk"] = calculate_triage_risk(state, next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), {}), flow, location)
+    flow["risk"] = calculate_triage_risk(state, find_target(state, recipient_id) or {}, flow, location)
     flow["recommendedOperatorAction"] = operator_recommendation(action_code, flow["risk"], flow, location)
     flows[recipient_id] = flow
     return flow
@@ -662,7 +970,7 @@ def refresh_triage_flow(state, recipient, flow, location=None, ack_missing=False
 def ensure_conversation_thread(state, recipient_id, action_code=None, severity=None):
     ensure_state_defaults(state)
     conversations = state.setdefault("conversations", {})
-    recipient = next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), {})
+    recipient = find_target(state, recipient_id) or {}
     thread = conversations.get(recipient_id)
     if not thread:
         thread = {
@@ -755,13 +1063,19 @@ def packet_log_entry(
             "action": log_type,
             "receivedAction": action_code or log_type,
             "recipientId": recipient_id,
+            "targetId": recipient_id,
         },
         "packet": packet_payload,
         "bytes": text_bytes(packet_payload if bytes_len is None else "x" * int(bytes_len)),
+        "targetId": recipient_id,
+        "packetSeq": sequence,
+        "riskScore": risk_change,
         "decodeResult": {
             "logType": log_type,
             "recipientId": recipient_id,
+            "targetId": recipient_id,
             "recipientName": recipient_label,
+            "targetName": recipient_label,
             "content": content,
             "channel": channel,
             "ack": ack,
@@ -770,6 +1084,8 @@ def packet_log_entry(
             "questionId": question_id,
             "answerCode": answer_code,
             "riskChange": risk_change,
+            "riskScore": risk_change,
+            "packetSeq": sequence,
             "seq": sequence,
             "q": question_id or sequence,
             "timestamp": timestamp,
@@ -778,6 +1094,10 @@ def packet_log_entry(
 
 
 def append_packet_log(log_type, recipient_id, recipient_label, content, channel, **kwargs):
+    if kwargs.get("risk_change") is None and store.get("state"):
+        target = find_target(store["state"], recipient_id)
+        if target:
+            kwargs["risk_change"] = target.get("risk", {}).get("displayRiskScore", target.get("riskScore"))
     response = packet_log_entry(log_type, recipient_id, recipient_label, content, channel, **kwargs)
     store["packetLog"].insert(0, response)
     del store["packetLog"][80:]
@@ -804,14 +1124,15 @@ def append_server_ack_log(response):
 
 
 def recipient_name(state, recipient_id):
-    for recipient in state.get("recipients", []):
+    for recipient in state_targets(state):
         if recipient.get("id") == recipient_id:
             return recipient.get("name", recipient_id)
     return recipient_id
 
 
 def sync_event_recipient_state(state, recipient_id, source):
-    for recipient in state.get("event", {}).get("recipients", []):
+    event_targets = state.get("event", {}).get("targets", [])
+    for recipient in event_targets:
         if recipient.get("id") != recipient_id:
             continue
         recipient.update(
@@ -1031,7 +1352,7 @@ def runtime_trace_summary(event_id, recipient_id, sequence, action, dedupe_statu
         "recipientId": recipient_id,
         "seq": sequence,
         "message": f"{action} {dedupe_status}",
-        "inputSummary": f"action={action}; seq={sequence}; recipient={recipient_id}",
+        "inputSummary": f"action={action}; seq={sequence}; target={recipient_id}",
         "outputSummary": f"{log_type or action}; route={route_decision.get('primaryChannel', '-')}; risk={route_decision.get('riskScore', route_decision.get('finalRiskScore', '-'))}",
         "durationMs": 0,
         "steps": [
@@ -1059,11 +1380,12 @@ def apply_mobile_event(body, handler):
     if action_code not in ACTION_DEFINITIONS:
         raise ValueError("unknown action")
     definition = ACTION_DEFINITIONS[action_code]
-    recipient_id = body.get("recipientId")
-    event_id = body.get("eventId") or state.get("event", {}).get("id")
-    if event_id != state.get("event", {}).get("id"):
+    recipient_id = target_id_from_body(body)
+    event_id = body.get("eventId") or state.get("event", {}).get("id") or "starrylink-demo"
+    state_event_id = state.get("event", {}).get("id")
+    if state_event_id and event_id != state_event_id:
         return None, None, False, "event mismatch"
-    recipient = next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), None)
+    recipient = find_target(state, recipient_id)
     if not recipient:
         return None, None, False, "recipient not found"
 
@@ -1145,6 +1467,7 @@ def apply_mobile_event(body, handler):
             "ackId": f"ack-{int(now_ts * 1000)}-{recipient_id}-{sequence}",
             "eventId": event_id,
             "recipientId": recipient_id,
+            "targetId": recipient_id,
             "sequence": sequence,
             "seq": sequence,
             "action": action_code,
@@ -1253,8 +1576,8 @@ def apply_mobile_event(body, handler):
             response_status,
             "ack" if action_code == "SAFE_OK" else "followup",
         )
-        state.setdefault("lastSeqByRecipient", {})[recipient_id] = sequence
-        store["lastSeqByRecipient"][recipient_id] = sequence
+        state.setdefault("lastSeqByTarget", {})[recipient_id] = sequence
+        store["lastSeqByTarget"][recipient_id] = sequence
         store["seenMobileEvents"][dedupe_key] = {
             "seenTs": now_ts,
             "action": action_code,
@@ -1294,6 +1617,7 @@ def apply_mobile_event(body, handler):
             "action": action_code,
             "receivedAction": action_code,
             "recipientId": recipient_id,
+            "targetId": recipient_id,
         },
         "packet": packet,
         "bytes": bytes_len,
@@ -1301,7 +1625,9 @@ def apply_mobile_event(body, handler):
             **compact,
             "logType": "MOBILE_ACTION",
             "recipientId": recipient_id,
+            "targetId": recipient_id,
             "recipientName": recipient_name(state, recipient_id),
+            "targetName": recipient_name(state, recipient_id),
             "actionCode": action_code,
             "actionLabel": definition["label"],
             "content": definition["label"],
@@ -1314,7 +1640,9 @@ def apply_mobile_event(body, handler):
             "internalEvent": {
                 "eventId": event_id,
                 "recipientId": recipient_id,
+                "targetId": recipient_id,
                 "recipientName": recipient_name(state, recipient_id),
+                "targetName": recipient_name(state, recipient_id),
                 "actionCode": action_code,
                 "actionLabel": definition["label"],
                 "severity": definition["severity"],
@@ -1368,14 +1696,15 @@ def apply_triage_answer(body, handler):
     if not state:
         return None, False, "no active event"
     ensure_state_defaults(state)
-    recipient_id = body.get("recipientId") or body.get("r")
+    recipient_id = target_id_from_body(body)
     action_code = body.get("action") or body.get("a") or "SAFE_OK"
     question_id = body.get("questionId") or body.get("q")
     answer_code = body.get("answerCode") or body.get("ans")
-    event_id = body.get("eventId") or state.get("event", {}).get("id")
-    if event_id != state.get("event", {}).get("id"):
+    event_id = body.get("eventId") or state.get("event", {}).get("id") or "starrylink-demo"
+    state_event_id = state.get("event", {}).get("id")
+    if state_event_id and event_id != state_event_id:
         return None, False, "event mismatch"
-    recipient = next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), None)
+    recipient = find_target(state, recipient_id)
     if not recipient:
         return None, False, "recipient not found"
     now_ts = time.time()
@@ -1511,6 +1840,7 @@ def apply_triage_answer(body, handler):
             "ackId": f"ack-{int(now_ts * 1000)}-{recipient_id}-{sequence}",
             "eventId": event_id,
             "recipientId": recipient_id,
+            "targetId": recipient_id,
             "sequence": sequence,
             "seq": sequence,
             "action": action_code,
@@ -1607,8 +1937,8 @@ def apply_triage_answer(body, handler):
             "sequence": sequence,
             "dedupeKey": dedupe_key,
         }
-        state.setdefault("lastSeqByRecipient", {})[recipient_id] = sequence
-        store["lastSeqByRecipient"][recipient_id] = sequence
+        state.setdefault("lastSeqByTarget", {})[recipient_id] = sequence
+        store["lastSeqByTarget"][recipient_id] = sequence
     else:
         route_decision = mobile_route_decision(action_code, ACTION_DEFINITIONS.get(action_code, ACTION_DEFINITIONS["SAFE_OK"]), state, recipient, location)
         if state.get("mobileMirrorState"):
@@ -1643,6 +1973,7 @@ def apply_triage_answer(body, handler):
             "action": "TRIAGE_ANSWER",
             "receivedAction": "TRIAGE_ANSWER",
             "recipientId": recipient_id,
+            "targetId": recipient_id,
         },
         "packet": packet,
         "bytes": bytes_len,
@@ -1650,7 +1981,9 @@ def apply_triage_answer(body, handler):
             **compact,
             "logType": "TRIAGE_ANSWER",
             "recipientId": recipient_id,
+            "targetId": recipient_id,
             "recipientName": recipient_name(state, recipient_id),
+            "targetName": recipient_name(state, recipient_id),
             "actionCode": action_code,
             "questionId": question_id,
             "answerCode": answer_code,
@@ -1663,7 +1996,9 @@ def apply_triage_answer(body, handler):
             "internalEvent": {
                 "eventId": event_id,
                 "recipientId": recipient_id,
+                "targetId": recipient_id,
                 "recipientName": recipient_name(state, recipient_id),
+                "targetName": recipient_name(state, recipient_id),
                 "actionCode": action_code,
                 "actionLabel": ACTION_DEFINITIONS.get(action_code, ACTION_DEFINITIONS["SAFE_OK"])["label"],
                 "questionId": question_id,
@@ -1719,11 +2054,12 @@ def apply_location_update(body, handler):
     if not state:
         return None, False, "no active event"
     ensure_state_defaults(state)
-    recipient_id = body.get("recipientId") or body.get("r")
-    event_id = body.get("eventId") or state.get("event", {}).get("id")
-    if event_id != state.get("event", {}).get("id"):
+    recipient_id = target_id_from_body(body)
+    event_id = body.get("eventId") or state.get("event", {}).get("id") or "starrylink-demo"
+    state_event_id = state.get("event", {}).get("id")
+    if state_event_id and event_id != state_event_id:
         return None, False, "event mismatch"
-    recipient = next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), None)
+    recipient = find_target(state, recipient_id)
     if not recipient:
         return None, False, "recipient not found"
 
@@ -1786,6 +2122,7 @@ def apply_location_update(body, handler):
             "ackId": f"ack-{int(now_ts * 1000)}-{recipient_id}-{sequence}",
             "eventId": event_id,
             "recipientId": recipient_id,
+            "targetId": recipient_id,
             "sequence": sequence,
             "seq": sequence,
             "action": "LOCATION_UPDATE",
@@ -1830,8 +2167,8 @@ def apply_location_update(body, handler):
             "sequence": sequence,
             "dedupeKey": dedupe_key,
         }
-        state.setdefault("lastSeqByRecipient", {})[recipient_id] = sequence
-        store["lastSeqByRecipient"][recipient_id] = sequence
+        state.setdefault("lastSeqByTarget", {})[recipient_id] = sequence
+        store["lastSeqByTarget"][recipient_id] = sequence
     else:
         append_packet_log(
             "DUPLICATE_IGNORED",
@@ -1859,6 +2196,7 @@ def apply_location_update(body, handler):
             "action": "LOCATION_UPDATE",
             "receivedAction": "LOCATION_UPDATE",
             "recipientId": recipient_id,
+            "targetId": recipient_id,
         },
         "packet": packet,
         "bytes": bytes_len,
@@ -1866,7 +2204,9 @@ def apply_location_update(body, handler):
             **compact,
             "logType": log_type,
             "recipientId": recipient_id,
+            "targetId": recipient_id,
             "recipientName": recipient_name(state, recipient_id),
+            "targetName": recipient_name(state, recipient_id),
             "actionCode": "LOCATION_UPDATE",
             "content": location.get("note") or location.get("status"),
             "channel": "HTTPS",
@@ -1905,7 +2245,7 @@ def apply_decoded_packet(decoded):
     response_status = "needs_followup" if response_code in FOLLOWUP_CODES else "acknowledged"
 
     if not duplicate:
-        for recipient in state.get("recipients", []):
+        for recipient in state_targets(state):
             if recipient.get("id") != decoded["recipientId"]:
                 continue
             recipient_found = True
@@ -2031,7 +2371,7 @@ def apply_quick_reply(body):
     text = str(body.get("text") or "").strip()
     if not recipient_id or not text:
         raise ValueError("recipient and text required")
-    recipient = next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), None)
+    recipient = find_target(state, recipient_id)
     if not recipient:
         raise ValueError("recipient not found")
     thread = ensure_conversation_thread(state, recipient_id)
@@ -2121,7 +2461,7 @@ def apply_mark_confirmed(body):
     recipient_id = body.get("recipientId") or state.get("activeConversationRecipientId") or state.get("activeRecipientId")
     thread = ensure_conversation_thread(state, recipient_id)
     action_code = thread.get("currentAction")
-    recipient = next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), None)
+    recipient = find_target(state, recipient_id)
     if not recipient:
         raise ValueError("recipient not found")
     sustained_tracking = action_code in {"NEED_MEDICAL", "CANNOT_TALK"}
@@ -2165,7 +2505,7 @@ def apply_escalate_conversation(body):
     ensure_state_defaults(state)
     recipient_id = body.get("recipientId") or state.get("activeConversationRecipientId") or state.get("activeRecipientId")
     thread = ensure_conversation_thread(state, recipient_id)
-    recipient = next((item for item in state.get("recipients", []) if item.get("id") == recipient_id), None)
+    recipient = find_target(state, recipient_id)
     if not recipient:
         raise ValueError("recipient not found")
     recipient["ackStatus"] = "escalated"
@@ -2240,6 +2580,174 @@ def apply_ui_log(body):
     return response
 
 
+def merge_target_patch(target, patch):
+    if not isinstance(patch, dict):
+        return target
+    for key, value in patch.items():
+        if key in {"location", "medical", "communication", "risk", "workflow"} and isinstance(value, dict):
+            target.setdefault(key, {})
+            target[key].update(value)
+        elif key in {"packetLog", "events", "starryState", "targets", "recipients"}:
+            continue
+        else:
+            target[key] = value
+    ensure_target_shape(target)
+    return target
+
+
+def normalize_action_body(body, bucket):
+    payload = body.get("payload") if isinstance(body.get("payload"), dict) else {}
+    target_id = body.get("targetId") or payload.get("targetId") or target_id_from_body(body) or target_id_from_body(payload)
+    action_type = body.get("actionType") or payload.get("actionType") or bucket
+    sequence = body.get("seq") or body.get("sequence") or payload.get("seq") or payload.get("packetSeq") or payload.get("sequence") or 0
+    idempotency_key = body.get("idempotencyKey") or payload.get("idempotencyKey")
+    if not idempotency_key:
+        idempotency_key = f"{body.get('clientId', 'client')}:{target_id}:{action_type}:{payload.get('code') or payload.get('operation') or ''}:{sequence}"
+    return payload, target_id, action_type, int(sequence or 0), idempotency_key
+
+
+def apply_client_action(body, handler, bucket):
+    payload, target_id, action_type, sequence, idempotency_key = normalize_action_body(body, bucket)
+    incoming_state = payload.get("state")
+    if not store.get("state") and isinstance(incoming_state, dict):
+        store["state"] = clone_json(incoming_state)
+        ensure_state_defaults(store["state"])
+    state = store.get("state")
+    if not state:
+        raise ValueError("state not initialized")
+    ensure_state_defaults(state)
+
+    target = find_target(state, target_id) if target_id else None
+    if bucket not in {"simulation", "network", "reset"} and not target:
+        raise ValueError("target not found")
+
+    base_revision = int(body.get("baseRevision") or payload.get("baseRevision") or 0)
+    server_revision = int(state.get("revision") or store.get("version") or 0)
+    stale = base_revision and base_revision < server_revision
+    previous = store["seenMobileEvents"].get(idempotency_key)
+    duplicate = bool(previous)
+    now = utc_now()
+    updated_target = clone_json(target) if target else None
+
+    if duplicate:
+        label = target.get("name", target_id) if target else target_id or "system"
+        append_packet_log(
+            "DUPLICATE_IGNORED",
+            target_id or "system",
+            label,
+            f"{action_type} duplicate ignored",
+            "ACTION_API",
+            bytes_len=0,
+            dedupe_status="duplicate",
+            sequence=sequence,
+            action_code=action_type,
+            risk_change=target.get("risk", {}).get("displayRiskScore") if target else None,
+        )
+        append_state_event(state, target_id or "system", "duplicate ignored", f"{action_type} / packetSeq {sequence} 已忽略，未重複加分。", "dedupe", sequence, target.get("risk", {}).get("displayRiskScore") if target else None)
+    else:
+        if bucket == "reset":
+            reset_state = payload.get("state")
+            if not isinstance(reset_state, dict):
+                raise ValueError("reset payload.state required")
+            store["state"] = clone_json(reset_state)
+            state = store["state"]
+            ensure_state_defaults(state)
+            store["packetLog"] = []
+            append_state_event(state, "system", "Demo reset", "Action API 已重置 demo state。", "reset", sequence)
+            updated_target = find_target(state, state.get("activeTargetId")) or (state_targets(state)[0] if state_targets(state) else None)
+        else:
+            if bucket in {"network", "simulation"}:
+                event_patch = payload.get("eventPatch")
+                if isinstance(event_patch, dict):
+                    current_event = state.setdefault("event", {})
+                    for key, value in event_patch.items():
+                        if key == "network" and isinstance(value, dict):
+                            current_event.setdefault("network", {}).update(value)
+                        elif key == "script" and isinstance(value, dict):
+                            current_event.setdefault("script", {}).update(value)
+                        else:
+                            current_event[key] = value
+                for patch in payload.get("targetPatches", []) if isinstance(payload.get("targetPatches"), list) else []:
+                    patch_target_id = patch.get("id") or patch.get("targetId")
+                    patch_target = find_target(state, patch_target_id)
+                    if patch_target:
+                        merge_target_patch(patch_target, patch)
+                state["starryState"] = payload.get("starryState", state.get("starryState", {}))
+
+            target_patch = payload.get("targetPatch") or payload.get("target")
+            if target and isinstance(target_patch, dict):
+                merge_target_patch(target, target_patch)
+                updated_target = clone_json(target)
+            elif target:
+                updated_target = clone_json(target)
+
+            if isinstance(payload.get("starryState"), dict):
+                state["starryState"] = payload["starryState"]
+
+            packet_entry = payload.get("packetLogEntry") if isinstance(payload.get("packetLogEntry"), dict) else {}
+            label = (updated_target or target or {}).get("name", target_id or "system")
+            risk_score = (updated_target or target or {}).get("risk", {}).get("displayRiskScore")
+            packet = packet_entry.get("packet")
+            bytes_len = packet_entry.get("bytes")
+            append_packet_log(
+                "SERVER_ACK",
+                target_id or "system",
+                label,
+                f"{action_type} accepted",
+                packet_entry.get("route") or "ACTION_API",
+                packet=packet,
+                bytes_len=bytes_len,
+                dedupe_status="accepted",
+                sequence=sequence,
+                action_code=action_type,
+                risk_change=risk_score,
+            )
+            append_state_event(
+                state,
+                target_id or "system",
+                f"{action_type} accepted",
+                f"packetSeq {sequence} / riskScore {risk_score if risk_score is not None else '-'} / {('stale baseRevision merged' if stale else 'ack')}",
+                bucket,
+                sequence,
+                risk_score,
+            )
+
+        store["seenMobileEvents"][idempotency_key] = {
+            "seenTs": time.time(),
+            "action": action_type,
+            "targetId": target_id,
+            "sequence": sequence,
+            "baseRevision": base_revision,
+            "idempotencyKey": idempotency_key,
+        }
+        if target_id:
+            state.setdefault("lastSeqByTarget", {})[target_id] = sequence
+            store["lastSeqByTarget"][target_id] = sequence
+
+    state["updatedAt"] = now
+    ack = {
+        "ok": True,
+        "ackId": f"ack-{int(time.time() * 1000)}-{target_id or 'system'}-{sequence}",
+        "duplicate": duplicate,
+        "dedupeStatus": "duplicate ignored" if duplicate else "accepted",
+        "message": "duplicate ignored" if duplicate else ("accepted with stale baseRevision merge" if stale else "accepted"),
+        "targetId": target_id,
+        "packetSeq": sequence,
+        "seq": sequence,
+        "actionType": action_type,
+        "baseRevision": base_revision,
+        "serverRevision": server_revision,
+        "receivedAt": now,
+    }
+    return {
+        "serverAck": ack,
+        "newRevision": store["version"] + 1,
+        "updatedTarget": updated_target,
+        "stateSummary": state_summary(state),
+        "state": state,
+    }, duplicate
+
+
 def packet_response(packet, decoded=None, error=None, duplicate=False, message="accepted"):
     return {
         "serverAck": {
@@ -2254,9 +2762,12 @@ def packet_response(packet, decoded=None, error=None, duplicate=False, message="
             "seq": decoded.get("sequence") if decoded else None,
             "receivedAction": decoded.get("responseCode") if decoded else None,
             "recipientId": decoded.get("recipientId") if decoded else None,
+            "targetId": decoded.get("recipientId") if decoded else None,
         },
         "packet": packet,
         "bytes": len(str(packet).encode("utf-8")),
+        "targetId": decoded.get("recipientId") if decoded else None,
+        "packetSeq": decoded.get("sequence") if decoded else None,
         "decodeResult": decoded,
     }
 
@@ -2332,11 +2843,11 @@ class Handler(SimpleHTTPRequestHandler):
             port = self.server.server_port
             lan_host = local_ip()
             query = parse_qs(parsed.query)
-            recipient = query.get("recipient", ["U-DEMO"])[0]
+            target = query.get("target", query.get("recipient", ["U-DEMO"]))[0]
             self.json(
                 {
                     "adminUrl": f"http://{host}:{port}/",
-                    "mobileUrl": f"http://{lan_host}:{port}/?view=mobile&recipient={recipient}",
+                    "mobileUrl": f"http://{lan_host}:{port}/?view=mobile&target={target}",
                     "lanIp": lan_host,
                 }
             )
@@ -2360,14 +2871,17 @@ class Handler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/state":
             with store_lock:
-                store["state"] = body.get("state")
-                if store["state"]:
-                    ensure_state_defaults(store["state"])
-                    store["state"]["serverUpdatedAt"] = utc_now()
+                merge_state_from_client(body.get("state"), body.get("reason", "state-merge"))
                 bump_version()
                 payload = public_state()
             self.json(payload)
             return
+
+        if parsed.path.startswith("/api/actions/"):
+            action_bucket = parsed.path.rsplit("/", 1)[-1]
+            if action_bucket in {"reply", "location", "network", "medical", "simulation", "reset"}:
+                self.handle_client_action(body, action_bucket)
+                return
 
         if parsed.path == "/api/reset":
             with store_lock:
@@ -2376,6 +2890,7 @@ class Handler(SimpleHTTPRequestHandler):
                 store["seenPackets"] = {}
                 store["seenMobileEvents"] = {}
                 store["lastSeqByRecipient"] = {}
+                store["lastSeqByTarget"] = {}
                 bump_version()
             self.json(public_state())
             return
@@ -2421,6 +2936,22 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         self.send_error(404)
+
+    def handle_client_action(self, body, action_bucket):
+        try:
+            with store_lock:
+                response, duplicate = apply_client_action(body, self, action_bucket)
+                bump_version()
+                response["newRevision"] = store["version"]
+                response["publicState"] = public_state()
+            self.json(response, status=202 if duplicate else 200)
+        except Exception as exc:
+            with store_lock:
+                response = packet_response(body, error=str(exc), message="action failed")
+                store["packetLog"].insert(0, response)
+                del store["packetLog"][80:]
+                bump_version()
+            self.json(response, status=400)
 
     def handle_packet(self, body):
         packet = body.get("packet", "")
@@ -2586,7 +3117,7 @@ def main():
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     ip = local_ip()
     print(f"星夜 demo admin: http://127.0.0.1:{port}/")
-    print(f"同 Wi-Fi 手機: http://{ip}:{port}/?view=mobile&recipient=U-DEMO")
+    print(f"同 Wi-Fi 手機: http://{ip}:{port}/?view=mobile&target=U-DEMO")
     print(f"Route API: POST http://127.0.0.1:{port}/api/route/plan")
     server.serve_forever()
 

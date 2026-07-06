@@ -1,6 +1,7 @@
 (function (global) {
   const APP_KIND = "xingye-sea-ground-space-demo";
   const STORAGE_KEY = "xingye-sea-ground-space-state-v2";
+  const CLIENT_ID_KEY = "xingye-sea-ground-space-client-id";
   const lowData = global.XY_LOW_DATA;
   const communicationEngine = global.XY_COMMUNICATION;
 
@@ -66,8 +67,15 @@
     DISCOMFORT: { label: "身體不適", score: 42, status: "medical_risk" },
   };
 
+  const highRiskSymptoms = ["SOS_BUTTON", "NEED_HELP", "INJURED", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "DISCOMFORT"];
   const symptomPriority = ["SOS_BUTTON", "INJURED", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "NEED_HELP", "SAFE", "DISCOMFORT"];
-  const replyPriority = ["SOS_BUTTON", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "INJURED", "NEED_HELP", "DISCOMFORT"];
+  const replyPriority = ["SOS_BUTTON", "TRAPPED", "NEED_MEDICAL", "CANNOT_TALK", "INJURED", "NEED_HELP", "DISCOMFORT", "SAFE"];
+  const manualLocationOptions = {
+    HOME: { label: "我在家", source: "MANUAL_HOME", riskLabel: "manual/home" },
+    SCHOOL: { label: "我在學校", source: "MANUAL_SCHOOL", riskLabel: "manual/school" },
+    SHELTER: { label: "我在避難點", source: "MANUAL_SHELTER", riskLabel: "manual/shelter" },
+    UNKNOWN: { label: "我不知道位置", source: "MANUAL_UNKNOWN", riskLabel: "manual/unknown" },
+  };
 
   let demoState = normalizeState(loadLocalState() || createInitialState());
   let saveTimer = null;
@@ -107,6 +115,19 @@
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function clientId() {
+    try {
+      let value = localStorage.getItem(CLIENT_ID_KEY);
+      if (!value) {
+        value = `client-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+        localStorage.setItem(CLIENT_ID_KEY, value);
+      }
+      return value;
+    } catch (error) {
+      return "client-memory";
+    }
   }
 
   function nowIso(nowMs = Date.now()) {
@@ -156,7 +177,22 @@
   function normalizeSymptoms(symptoms = []) {
     const input = Array.isArray(symptoms) ? symptoms : [];
     const unique = new Set(input.filter((code) => symptomOptions[code]));
+    const hasHighRisk = highRiskSymptoms.some((code) => code !== "SAFE" && unique.has(code));
+    if (hasHighRisk) unique.delete("SAFE");
     return symptomPriority.filter((code) => unique.has(code));
+  }
+
+  function symptomsAfterAction(currentSymptoms = [], code) {
+    if (code === "STATUS_CLEAR") return [];
+    if (code === "SAFE") return ["SAFE"];
+    const symptoms = new Set(normalizeSymptoms(currentSymptoms));
+    if (highRiskSymptoms.includes(code)) {
+      symptoms.delete("SAFE");
+      symptoms.add(code);
+    } else if (symptomOptions[code]) {
+      symptoms.add(code);
+    }
+    return normalizeSymptoms([...symptoms]);
   }
 
   function inferSymptomsFromConfig(config = {}) {
@@ -190,7 +226,6 @@
   function primaryReplyFromSymptoms(symptoms = []) {
     const normalized = normalizeSymptoms(symptoms);
     const primary = replyPriority.find((code) => normalized.includes(code));
-    if (primary === "SOS_BUTTON") return "NEED_HELP";
     return primary || (normalized.includes("SAFE") ? "SAFE" : "STATUS_CLEAR");
   }
 
@@ -294,6 +329,13 @@
         channelScores: [],
       },
       risk: { score: 0, level: "GREEN", reason: [], action: "MONITOR", items: [] },
+      workflow: {
+        status: "unhandled",
+        priority: "normal",
+        notes: [],
+        updatedAt: null,
+        lastOperatorAction: null,
+      },
       lastUpdatedAt: config.lastUpdatedAt || null,
     };
   }
@@ -461,6 +503,14 @@
 
   function normalizeState(input) {
     const next = input && input.app === APP_KIND ? input : createInitialState();
+    if ((!Array.isArray(next.targets) || next.targets.length === 0) && Array.isArray(next.recipients)) {
+      next.targets = next.recipients;
+    }
+    if (next.event?.recipients && !next.event.targets) {
+      next.event.targets = next.event.recipients;
+    }
+    delete next.recipients;
+    if (next.event) delete next.event.recipients;
     if (!Array.isArray(next.targets) || next.targets.length === 0) next.targets = createInitialState().targets;
     if (!Array.isArray(next.packetLog)) next.packetLog = [];
     if (!Array.isArray(next.events)) next.events = [];
@@ -515,6 +565,14 @@
           channelScores: [],
           ...(target.communication || {}),
         },
+        workflow: {
+          status: "unhandled",
+          priority: "normal",
+          notes: [],
+          updatedAt: null,
+          lastOperatorAction: null,
+          ...(target.workflow || {}),
+        },
       };
       if (!normalized.location.source) normalized.location.source = normalized.location.confirmed ? "GPS" : "UNKNOWN";
       if (!Array.isArray(target.selectedSymptoms)) normalized.selectedSymptoms = inferSymptomsFromTarget(normalized);
@@ -551,6 +609,9 @@
   }
 
   function publicGpsStatus(location = {}) {
+    if (location.source === "GPS_DENIED") return "denied";
+    if (location.source === "GPS_UNAVAILABLE" || location.source === "UNAVAILABLE") return "unavailable";
+    if (String(location.source || "").startsWith("MANUAL_")) return "manual";
     if (!location.confirmed) return "last_known";
     const meters = accuracyMeters(location.accuracy);
     if (location.staticMinutes >= 10 || location.accuracy === "medium" || (Number.isFinite(meters) && meters > 50)) return "drifting";
@@ -659,6 +720,8 @@
     target.communication.lowDataMode = decision.lowDataMode;
     target.communication.satelliteRecommended = decision.satelliteRecommended;
     target.communication.channelScores = decision.scores || [];
+    target.communication.decisionReason = decision.reason || decision.summary || "";
+    target.communication.scoreBreakdown = primary?.scoreBreakdown || null;
     return target;
   }
 
@@ -795,7 +858,7 @@
     saveLocalState(demoState);
     if (!options.remote) {
       broadcast?.postMessage({ state: demoState });
-      scheduleServerSave(reason);
+      if (options.persistState === true) scheduleServerSave(reason);
     }
     emit({ reason });
     return demoState;
@@ -850,6 +913,89 @@
       transport.serverAvailable = false;
       transport.lastError = error.message;
       emit({ reason: "server-save-failed" });
+    }
+  }
+
+  function actionEnvelope(actionType, targetId, payload = {}, options = {}) {
+    return {
+      clientId: clientId(),
+      targetId,
+      actionType,
+      seq: options.seq ?? payload.seq ?? payload.packetSeq ?? 0,
+      idempotencyKey: options.idempotencyKey || payload.idempotencyKey,
+      baseRevision: options.baseRevision ?? demoState.revision ?? 0,
+      clientTimestamp: nowIso(),
+      payload: {
+        ...payload,
+        targetId,
+        actionType,
+        baseRevision: options.baseRevision ?? demoState.revision ?? 0,
+      },
+    };
+  }
+
+  function targetPatch(target) {
+    return clone({
+      id: target.id,
+      name: target.name,
+      role: target.role,
+      age: target.age,
+      phoneOnline: target.phoneOnline,
+      signalQuality: target.signalQuality,
+      battery: target.battery,
+      selectedSymptoms: target.selectedSymptoms,
+      location: target.location,
+      medical: target.medical,
+      latestReply: target.latestReply,
+      communication: target.communication,
+      risk: target.risk,
+      workflow: target.workflow,
+      lastUpdatedAt: target.lastUpdatedAt,
+    });
+  }
+
+  function latestPacketFor(targetId, seq) {
+    return demoState.packetLog.find((packet) => packet.targetId === targetId && (!seq || packet.seq === seq)) || null;
+  }
+
+  function actionPatchFromState(state, targetId = state.activeTargetId) {
+    return {
+      targetId,
+      eventPatch: clone(state.event || {}),
+      targetPatches: state.targets.map(targetPatch),
+      starryState: clone(state.starryState || buildStarryState(state)),
+    };
+  }
+
+  async function postAction(bucket, actionType, payload = {}, options = {}) {
+    if (global.location?.protocol === "file:") return null;
+    const targetId = payload.targetId || demoState.activeTargetId;
+    const envelope = actionEnvelope(actionType, targetId, payload, options);
+    try {
+      const response = await fetch(`/api/actions/${bucket}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(envelope),
+      });
+      const result = await response.json();
+      transport.serverAvailable = response.ok;
+      transport.connectedClients = result.publicState?.connectedClients || transport.connectedClients || 0;
+      transport.lastError = response.ok ? null : result.serverAck?.message || result.error || `HTTP ${response.status}`;
+      transport.liveMode = eventSource ? "sse" : "action";
+      const incoming = result.publicState?.state || result.state;
+      if (incoming && shouldAcceptRemote(incoming, "server-action")) {
+        acceptedServerState = true;
+        applyRemoteState(incoming, "server-action");
+      } else {
+        emit({ reason: "server-action" });
+      }
+      return result;
+    } catch (error) {
+      transport.serverAvailable = false;
+      transport.lastError = error.message;
+      transport.liveMode = "local";
+      emit({ reason: "server-action-failed" });
+      return null;
     }
   }
 
@@ -955,19 +1101,39 @@
   }
 
   function setWeakSignal(enabled) {
-    commit((draft) => {
+    const nowMs = Date.now();
+    let actionPayload = null;
+    const nextState = commit((draft) => {
       const target = updateActiveTarget(draft, (item) => {
         item.signalQuality = enabled ? 32 : 78;
         item.phoneOnline = true;
       });
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
       draft.selectedTargetId = target.id;
       addEvent(draft, target.id, enabled ? "切換弱訊號模擬" : "恢復良好訊號", `U-DEMO signalQuality = ${target.signalQuality}%`, "communication");
+      actionPayload = {
+        targetId: target.id,
+        seq: Number(target.communication.packetSeq || 0),
+        operation: "weak-signal",
+        enabled: Boolean(enabled),
+        targetPatch: targetPatch(target),
+        starryState: buildStarryState(draft),
+      };
     }, "weak-signal");
+    if (actionPayload) {
+      postAction("network", "network", actionPayload, {
+        seq: actionPayload.seq,
+        idempotencyKey: `${clientId()}:${actionPayload.targetId}:network:weak:${Boolean(enabled)}:${Math.floor(nowMs / 1200)}`,
+        baseRevision: Number(nextState.revision || 0) - 1,
+      });
+    }
   }
 
   function setLocation(kind, options = {}) {
     const nowMs = Date.now();
-    commit((draft) => {
+    let actionPayload = null;
+    const nextState = commit((draft) => {
       let seq = 0;
       const target = updateActiveTarget(draft, (item) => {
         if (kind === "confirmed") {
@@ -987,6 +1153,23 @@
               timestamp: nowMs,
             };
           }
+        } else if (kind === "manual") {
+          item.location = {
+            lat: null,
+            lng: null,
+            accuracy: "manual",
+            confirmed: false,
+            staticMinutes: 0,
+            source: options.source || "MANUAL_UNKNOWN",
+            manualLabel: options.label || "手動位置待確認",
+            demoEstimate: false,
+            updatedAt: nowIso(nowMs),
+          };
+          item.latestReply = {
+            code: options.source === "MANUAL_UNKNOWN" ? "LOCATION_UNKNOWN" : "LOCATION_UPDATE",
+            label: options.label || lowData.replyLabels.LOCATION_UNKNOWN,
+            timestamp: nowMs,
+          };
         } else {
           item.location = {
             lat: null,
@@ -994,7 +1177,9 @@
             accuracy: "unknown",
             confirmed: false,
             staticMinutes: 0,
-            source: options.source || "UNAVAILABLE",
+            source: options.source || "GPS_UNAVAILABLE",
+            errorCode: options.errorCode || null,
+            demoEstimate: Boolean(options.demoEstimate),
             updatedAt: nowIso(nowMs),
           };
           if (options.updateReply) {
@@ -1018,7 +1203,7 @@
       const replyCode = kind === "confirmed" ? "LOCATION_UPDATE" : "LOCATION_UNKNOWN";
       const packet = lowData.makePacket(target, replyCode, seq, nowMs);
       target.communication.packetBytes = packet.bytes;
-      addPacketLog(draft, {
+      const packetEntry = {
         targetId: target.id,
         seq,
         attempt: 1,
@@ -1030,27 +1215,53 @@
         status: "received",
         dedupe: "accepted",
         route: target.communication.primaryRoute,
+      };
+      addPacketLog(draft, {
+        ...packetEntry,
       });
       addEvent(
         draft,
         target.id,
-        kind === "confirmed" ? "位置已確認" : "無法定位",
+        kind === "confirmed" ? "GPS confirmed" : kind === "manual" ? "手動回報位置" : target.location.source === "GPS_DENIED" ? "GPS_DENIED" : "GPS_UNAVAILABLE",
         kind === "confirmed"
           ? `GPS ${target.location.lat}, ${target.location.lng} / ${target.location.accuracy}，守望隊可使用定位輔助排序。`
-          : "使用者無法提供位置，封包 GPS 改為 null / unknown，風險矩陣加入 GPS unknown。",
+          : kind === "manual"
+            ? `${target.location.manualLabel}；此為手動回報，需守望隊人工確認。`
+            : `${target.location.source}；封包 gps.status=${target.location.source === "GPS_DENIED" ? "denied" : "unavailable"}，風險矩陣加入 GPS 未確認。`,
         "location",
         seq
       );
+      actionPayload = {
+        targetId: target.id,
+        seq,
+        source: target.location.source,
+        location: clone(target.location),
+        targetPatch: targetPatch(target),
+        packetLogEntry: packetEntry,
+        starryState: buildStarryState(draft),
+      };
     }, "location");
+    if (actionPayload) {
+      postAction("location", "location", actionPayload, {
+        seq: actionPayload.seq,
+        idempotencyKey: `${clientId()}:${actionPayload.targetId}:location:${actionPayload.source}:${Math.floor(nowMs / 1200)}`,
+        baseRevision: Number(nextState.revision || 0) - 1,
+      });
+    }
   }
 
   function updateMedicalFlag(flag, value) {
-    commit((draft) => {
+    const nowMs = Date.now();
+    let actionPayload = null;
+    const nextState = commit((draft) => {
       const target = updateActiveTarget(draft, (item) => {
         const symptomCode = flag === "discomfort" ? "DISCOMFORT" : flag === "cannotMove" ? "TRAPPED" : null;
         if (symptomCode) {
           const symptoms = new Set(normalizeSymptoms(item.selectedSymptoms));
-          if (value) symptoms.add(symptomCode);
+          if (value) {
+            symptoms.delete("SAFE");
+            symptoms.add(symptomCode);
+          }
           else symptoms.delete(symptomCode);
           item.selectedSymptoms = normalizeSymptoms([...symptoms]);
         }
@@ -1083,8 +1294,26 @@
         }
       });
       draft.selectedTargetId = target.id;
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
       addEvent(draft, target.id, "更新身體狀態", `${flag} = ${Boolean(value)}；按鍵 raw ${calculateSymptomScore(target.selectedSymptoms)}`, "medical");
+      actionPayload = {
+        targetId: target.id,
+        seq: Number(target.communication.packetSeq || 0),
+        operation: "medical-flag",
+        flag,
+        value: Boolean(value),
+        targetPatch: targetPatch(target),
+        starryState: buildStarryState(draft),
+      };
     }, "medical");
+    if (actionPayload) {
+      postAction("medical", "medical", actionPayload, {
+        seq: actionPayload.seq,
+        idempotencyKey: `${clientId()}:${actionPayload.targetId}:medical:${flag}:${Boolean(value)}:${Math.floor(nowMs / 1200)}`,
+        baseRevision: Number(nextState.revision || 0) - 1,
+      });
+    }
   }
 
   function sendReply(code) {
@@ -1092,15 +1321,19 @@
     let seq = 0;
     let weak = false;
     let replyCode = code;
-    commit((draft) => {
+    let actionPayload = null;
+    const idempotencyWindow = Math.floor(nowMs / 1500);
+    const nextState = commit((draft) => {
       const target = updateActiveTarget(draft, (item) => {
         if (symptomOptions[code]) {
-          const symptoms = new Set(normalizeSymptoms(item.selectedSymptoms));
-          if (symptoms.has(code)) symptoms.delete(code);
-          else symptoms.add(code);
-          item.selectedSymptoms = normalizeSymptoms([...symptoms]);
+          item.selectedSymptoms = symptomsAfterAction(item.selectedSymptoms, code);
           syncMedicalFromSymptoms(item);
           replyCode = replyCodeFromSymptoms(item.selectedSymptoms);
+        }
+        if (code === "STATUS_CLEAR") {
+          item.selectedSymptoms = [];
+          syncMedicalFromSymptoms(item);
+          replyCode = "STATUS_CLEAR";
         }
         if (code === "LOCATION_UNKNOWN") {
           item.location = {
@@ -1109,16 +1342,12 @@
             accuracy: "unknown",
             confirmed: false,
             staticMinutes: 0,
-            source: "UNAVAILABLE",
+            source: "MANUAL_UNKNOWN",
             updatedAt: nowIso(nowMs),
           };
         }
         seq = Number(item.communication.packetSeq || 0) + 1;
-        item.latestReply = {
-          code: replyCode,
-          label: replyLabel(replyCode),
-          timestamp: nowMs,
-        };
+        item.latestReply = replyCode === "STATUS_CLEAR" ? null : { code: replyCode, label: replyLabel(replyCode), timestamp: nowMs };
         item.communication.packetSeq = seq;
         item.communication.ackStatus = Number(item.signalQuality || 0) < 40 ? "pending" : "received";
         item.communication.retryCount = 0;
@@ -1131,7 +1360,7 @@
       const packet = lowData.makePacket(target, replyCode, seq, nowMs);
       target.communication.packetBytes = packet.bytes;
       weak = Number(target.signalQuality || 0) < 40;
-      addPacketLog(draft, {
+      const packetEntry = {
         targetId: target.id,
         seq,
         attempt: 1,
@@ -1143,19 +1372,37 @@
         status: weak ? "pending" : "received",
         dedupe: "accepted",
         route: target.communication.primaryRoute,
-      });
+      };
+      addPacketLog(draft, packetEntry);
       addEvent(
         draft,
         target.id,
-        "收到手機端回覆",
-        `${target.name} 回覆「${replyLabel(replyCode)}」，按鍵 raw ${calculateSymptomScore(target.selectedSymptoms)}，seq ${seq}，${packet.bytes} bytes。${weak ? "等待 ACK。" : "server ACK 已收到。"}`,
+        replyCode === "STATUS_CLEAR" ? "清除手機端狀態" : "收到手機端回覆",
+        `${target.name} ${replyCode === "STATUS_CLEAR" ? "清除所有症狀" : `回覆「${replyLabel(replyCode)}」`}，rawRiskScore ${target.risk.rawRiskScore}，displayRiskScore ${target.risk.displayRiskScore}，seq ${seq}，${packet.bytes} bytes。${weak ? "等待 ACK。" : "server ACK 已收到。"}`,
         "mobile",
         seq
       );
       if (!weak) {
         addEvent(draft, target.id, "ACK received", `後台已回 ACK：seq ${seq}`, "ack", seq);
       }
+      actionPayload = {
+        targetId: target.id,
+        seq,
+        code,
+        replyCode,
+        targetPatch: targetPatch(target),
+        packetLogEntry: packetEntry,
+        starryState: buildStarryState(draft),
+      };
     }, "reply");
+
+    if (actionPayload) {
+      postAction("reply", "reply", actionPayload, {
+        seq,
+        idempotencyKey: `${clientId()}:${actionPayload.targetId}:reply:${code}:${idempotencyWindow}`,
+        baseRevision: Number(nextState.revision || 0) - 1,
+      });
+    }
 
     if (weak) {
       global.setTimeout(() => markRetry(seq, 1), 1500);
@@ -1164,33 +1411,52 @@
   }
 
   function markRetry(seq, retryCount) {
-    commit((draft) => {
+    let actionPayload = null;
+    const nextState = commit((draft) => {
       const target = getActiveTarget(draft);
       if (target.communication.packetSeq !== seq || target.communication.ackStatus === "received") return;
       target.communication.retryCount = retryCount;
       target.communication.ackStatus = "retrying";
       target.risk = calculateRisk(target);
       applyCommunicationDecision(target, draft.event.network);
-      const packet = lowData.makePacket(target, target.latestReply.code, seq);
-      addPacketLog(draft, {
+      const retryReplyCode = target.latestReply?.code || "STATUS_CLEAR";
+      const packet = lowData.makePacket(target, retryReplyCode, seq);
+      const packetEntry = {
         targetId: target.id,
         seq,
         attempt: retryCount + 1,
-        replyCode: target.latestReply.code,
-        replyLabel: target.latestReply.label,
+        replyCode: retryReplyCode,
+        replyLabel: target.latestReply?.label || replyLabel(retryReplyCode),
         bytes: packet.bytes,
         packet: packet.preview,
         ack: null,
         status: "retrying",
         dedupe: "same seq retry",
         route: target.communication.primaryRoute,
-      });
+      };
+      addPacketLog(draft, packetEntry);
       addEvent(draft, target.id, "低資料模式重送", `ACK 尚未收到，seq ${seq} 進行第 ${retryCount} 次 retry。`, "retry", seq);
+      actionPayload = {
+        targetId: target.id,
+        seq,
+        operation: "retry",
+        targetPatch: targetPatch(target),
+        packetLogEntry: packetEntry,
+        starryState: buildStarryState(draft),
+      };
     }, "retry");
+    if (actionPayload) {
+      postAction("reply", "retry", actionPayload, {
+        seq,
+        idempotencyKey: `${clientId()}:${actionPayload.targetId}:retry:${seq}:${retryCount}`,
+        baseRevision: Number(nextState.revision || 0) - 1,
+      });
+    }
   }
 
   function markAck(seq) {
-    commit((draft) => {
+    let actionPayload = null;
+    const nextState = commit((draft) => {
       const target = getActiveTarget(draft);
       if (target.communication.packetSeq !== seq || target.communication.ackStatus === "received") return;
       const ack = lowData.makeAck(target.id, seq);
@@ -1214,7 +1480,22 @@
         route: "SERVER_ACK",
       });
       addEvent(draft, target.id, "ACK received", `守望隊已收到 seq ${seq}，手機端改為「已收到」。`, "ack", seq);
+      actionPayload = {
+        targetId: target.id,
+        seq,
+        operation: "ack",
+        targetPatch: targetPatch(target),
+        packetLogEntry: latestPacketFor(target.id, seq),
+        starryState: buildStarryState(draft),
+      };
     }, "ack");
+    if (actionPayload) {
+      postAction("reply", "ack", actionPayload, {
+        seq,
+        idempotencyKey: `${clientId()}:${actionPayload.targetId}:ack:${seq}`,
+        baseRevision: Number(nextState.revision || 0) - 1,
+      });
+    }
   }
 
   function riskRank(level) {
@@ -1230,13 +1511,17 @@
   }
 
   function simulatePacketEvent(options = {}) {
-    commit((draft) => {
+    let actionTargetId = null;
+    let actionSeq = 0;
+    const nextState = commit((draft) => {
       const network = draft.event.network || {};
       const target = options.targetId
         ? draft.targets.find((item) => item.id === options.targetId) || pickSimulationTarget(draft)
         : pickSimulationTarget(draft);
       const nowMs = Date.now();
       const seq = Number(target.communication.packetSeq || 0) + 1;
+      actionTargetId = target.id;
+      actionSeq = seq;
       const replyCode = target.latestReply?.code || "NO_RESPONSE";
 
       if (!target.latestReply) {
@@ -1301,6 +1586,11 @@
         applyCommunicationDecision(item, network);
       });
     }, options.forceLoss ? "packet-loss" : "packet-event");
+    postAction("simulation", "simulation", { ...actionPatchFromState(nextState, actionTargetId), operation: options.forceLoss ? "packet-loss" : "packet-event", seq: actionSeq }, {
+      seq: actionSeq,
+      idempotencyKey: `${clientId()}:simulation:${options.forceLoss ? "packet-loss" : "packet-event"}:${actionTargetId}:${actionSeq}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function simulatePacketLoss() {
@@ -1308,7 +1598,8 @@
   }
 
   function simulateGroundNetworkDown() {
-    commit((draft) => {
+    let actionSeq = 0;
+    const nextState = commit((draft) => {
       const nowMs = Date.now();
       draft.event.status = "地面網路失效";
       draft.event.network.groundBackboneStatus = "down";
@@ -1324,6 +1615,7 @@
       const target = getActiveTarget(draft);
       draft.selectedTargetId = target.id;
       const seq = Number(target.communication.packetSeq || 0) + 1;
+      actionSeq = seq;
       const replyCode = target.latestReply?.code || "NO_RESPONSE";
       target.communication.packetSeq = seq;
       target.communication.ackStatus = "retrying";
@@ -1356,10 +1648,15 @@
         seq
       );
     }, "ground-network-down");
+    postAction("network", "network", { ...actionPatchFromState(nextState), operation: "ground-network-down", seq: actionSeq }, {
+      seq: actionSeq,
+      idempotencyKey: `${clientId()}:network:ground-down:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function enableSatelliteFallback() {
-    commit((draft) => {
+    const nextState = commit((draft) => {
       draft.event.status = "高風險衛星備援啟用";
       draft.event.network.satelliteAvailable = true;
       draft.event.network.disasterMode = true;
@@ -1380,14 +1677,92 @@
       applyCommunicationDecision(target, draft.event.network);
       addEvent(draft, target.id, "切換高風險衛星備援", `${target.name} 進入 ${target.risk.level}，Satellite Backup 提高優先級。`, "satellite");
     }, "satellite-fallback");
+    const target = getActiveTarget(nextState);
+    postAction("network", "network", { ...actionPatchFromState(nextState), operation: "satellite-fallback", seq: Number(target.communication.packetSeq || 0) }, {
+      seq: Number(target.communication.packetSeq || 0),
+      idempotencyKey: `${clientId()}:network:satellite-fallback:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
+  }
+
+  function setManualLocation(kind) {
+    const option = manualLocationOptions[kind] || manualLocationOptions.UNKNOWN;
+    setLocation("manual", { source: option.source, label: option.label, updateReply: true });
+  }
+
+  function updateWorkflow(operation, extra = {}) {
+    const nowMs = Date.now();
+    let actionPayload = null;
+    const nextState = commit((draft) => {
+      const target = getSelectedTarget(draft);
+      target.workflow = {
+        status: "unhandled",
+        priority: "normal",
+        notes: [],
+        updatedAt: null,
+        lastOperatorAction: null,
+        ...(target.workflow || {}),
+      };
+      if (operation === "confirm-safe") {
+        target.workflow.status = "processed";
+        target.workflow.priority = "normal";
+        target.workflow.lastOperatorAction = "標記已確認安全";
+        target.latestReply = { code: "SAFE", label: replyLabel("SAFE"), timestamp: nowMs };
+        target.selectedSymptoms = ["SAFE"];
+        syncMedicalFromSymptoms(target);
+      }
+      if (operation === "follow-up") {
+        target.workflow.status = "manual_followup";
+        target.workflow.priority = target.risk.level === "RED" ? "high" : "normal";
+        target.workflow.lastOperatorAction = "需要人工追蹤";
+      }
+      if (operation === "high-priority") {
+        target.workflow.status = "manual_followup";
+        target.workflow.priority = "high";
+        target.workflow.lastOperatorAction = "標記高優先";
+      }
+      if (operation === "note") {
+        const text = String(extra.note || "").trim();
+        if (text) {
+          target.workflow.notes = [{ text, timestamp: nowIso(nowMs) }, ...(target.workflow.notes || [])].slice(0, 12);
+          target.workflow.lastOperatorAction = "加入備註";
+        }
+      }
+      target.workflow.updatedAt = nowIso(nowMs);
+      target.lastUpdatedAt = nowIso(nowMs);
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
+      addEvent(draft, target.id, target.workflow.lastOperatorAction || "更新守望隊處理流程", extra.note || `workflow=${target.workflow.status} / priority=${target.workflow.priority}`, "workflow");
+      actionPayload = {
+        targetId: target.id,
+        seq: Number(target.communication.packetSeq || 0),
+        operation,
+        note: extra.note,
+        targetPatch: targetPatch(target),
+        starryState: buildStarryState(draft),
+      };
+    }, "workflow");
+    if (actionPayload) {
+      postAction("medical", "workflow", actionPayload, {
+        seq: actionPayload.seq,
+        idempotencyKey: `${clientId()}:${actionPayload.targetId}:workflow:${operation}:${extra.note || ""}:${Math.floor(nowMs / 1200)}`,
+        baseRevision: Number(nextState.revision || 0) - 1,
+      });
+    }
   }
 
   function resetDemo() {
-    commit(() => createInitialState(), "reset");
+    const nextState = commit(() => createInitialState(), "reset");
+    postAction(
+      "reset",
+      "reset",
+      { targetId: nextState.activeTargetId, seq: 0, state: nextState, starryState: nextState.starryState },
+      { seq: 0, idempotencyKey: `${clientId()}:reset:${Date.now()}`, baseRevision: Number(nextState.revision || 0) - 1 }
+    );
   }
 
   function startScript() {
-    commit((draft) => {
+    const nextState = commit((draft) => {
       const fresh = createInitialState();
       fresh.revision = Number(draft.revision || 0);
       fresh.event.status = "災害模式啟動";
@@ -1406,26 +1781,41 @@
       addEvent(fresh, "system", "災害模式啟動", "地震後海纜與地面骨幹不穩，系統切換低資料量封包並重新評估通訊路徑。", "script");
       return fresh;
     }, "script-start");
+    postAction("simulation", "simulation", { ...actionPatchFromState(nextState), operation: "script-start", seq: 0 }, {
+      seq: 0,
+      idempotencyKey: `${clientId()}:simulation:script-start:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function pauseScript() {
-    commit((draft) => {
+    const nextState = commit((draft) => {
       draft.event.script.running = false;
       draft.event.script.label = "模擬已暫停：可繼續操作手機端，或重新啟動災害模式。";
       addEvent(draft, "system", "暫停模擬", "背景封包事件已停止，手機端操作仍會同步到守望隊工作台。", "script");
     }, "script-pause");
+    postAction("simulation", "simulation", { ...actionPatchFromState(nextState), operation: "script-pause", seq: 0 }, {
+      seq: 0,
+      idempotencyKey: `${clientId()}:simulation:script-pause:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function setScriptPhase(elapsedSeconds, label) {
-    commit((draft) => {
+    const nextState = commit((draft) => {
       draft.event.script.elapsedSeconds = elapsedSeconds;
       draft.event.script.label = label;
       if (elapsedSeconds >= 180) draft.event.script.running = false;
     }, "script-phase");
+    postAction("simulation", "simulation", { ...actionPatchFromState(nextState), operation: "script-phase", seq: elapsedSeconds }, {
+      seq: elapsedSeconds,
+      idempotencyKey: `${clientId()}:simulation:script-phase:${elapsedSeconds}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function sendSafetyCheckins() {
-    commit((draft) => {
+    const nextState = commit((draft) => {
       draft.event.status = "安全確認已送出";
       draft.targets.forEach((target) => {
         target.communication.packetSeq = Number(target.communication.packetSeq || 0) + 1;
@@ -1436,6 +1826,11 @@
       });
       addEvent(draft, "system", "發送低資料安全確認", "系統只送 GPS、求救等級、生命狀態與按鍵回覆，降低海纜/骨幹異常時的丟包風險。", "script");
     }, "script-checkin");
+    postAction("simulation", "simulation", { ...actionPatchFromState(nextState), operation: "script-checkin", seq: 0 }, {
+      seq: 0,
+      idempotencyKey: `${clientId()}:simulation:script-checkin:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function applyScriptReplies() {
@@ -1445,7 +1840,7 @@
       ["U-021", "NEED_HELP", { signalQuality: 24, communication: { ackStatus: "failed", retryCount: 4 }, medical: { trapped: true, breathingDifficulty: true, heartRate: 124, spo2: 91 } }],
       ["U-034", "SAFE", { battery: 14, signalQuality: 45, communication: { ackStatus: "received", retryCount: 0, lastAckAt: nowIso(minutesAgo(9)) } }],
     ];
-    commit((draft) => {
+    const nextState = commit((draft) => {
       presets.forEach(([id, code, patch]) => {
         const target = draft.targets.find((item) => item.id === id);
         if (!target) return;
@@ -1484,10 +1879,15 @@
       });
       addEvent(draft, "system", "收到 4 位目標狀態", "阿明安全、林奶奶未回覆且 GPS 靜止、陳先生求救且封包多次失敗、王小姐低電量；U-DEMO 等待手機端操作。", "script");
     }, "script-replies");
+    postAction("simulation", "simulation", { ...actionPatchFromState(nextState), operation: "script-replies", seq: 0 }, {
+      seq: 0,
+      idempotencyKey: `${clientId()}:simulation:script-replies:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function finalizeDispatch() {
-    commit((draft) => {
+    const nextState = commit((draft) => {
       draft.event.status = "建議調度已產生";
       draft.targets.forEach((target) => {
         target.risk = calculateRisk(target);
@@ -1495,6 +1895,11 @@
       });
       addEvent(draft, "system", "建議調度", "Green/Yellow 優先 Wi-Fi、5G 或 SMS；Orange 啟用低資料量與主動確認；Red 優先 GPS/求救/生命狀態並建議衛星或高優先備援。", "dispatch");
     }, "script-dispatch");
+    postAction("simulation", "simulation", { ...actionPatchFromState(nextState), operation: "script-dispatch", seq: 0 }, {
+      seq: 0,
+      idempotencyKey: `${clientId()}:simulation:script-dispatch:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
   }
 
   function refreshRiskTick() {
@@ -1516,6 +1921,7 @@
     getSelectedTarget,
     getStarryState,
     symptomOptions,
+    manualLocationOptions,
     subscribe,
     startSync,
     loadServerState,
@@ -1525,6 +1931,8 @@
       setLocation,
       updateMedicalFlag,
       sendReply,
+      setManualLocation,
+      updateWorkflow,
       resetDemo,
       startScript,
       pauseScript,
