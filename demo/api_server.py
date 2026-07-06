@@ -2891,6 +2891,8 @@ class Handler(SimpleHTTPRequestHandler):
                     "version": public_state()["version"],
                     "mode": "vercel-serverless" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "python-threading-http",
                     "sse": "one-shot" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "streaming",
+                    "persistence": "volatile-tmp" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "local-json-file",
+                    "crossDeviceSync": "not-guaranteed" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "available-on-same-server",
                     "stateFile": str(STATE_FILE),
                 }
             )

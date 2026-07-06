@@ -26,7 +26,7 @@ http://<筆電區網 IP>:8765/?view=mobile&target=U-DEMO
 
 ## Vercel 線上版
 
-Vercel preview 可用於公開畫面與單機互動預覽。若 `/api/health`、`/api/state`、`/api/actions/reply` 都顯示 OK，線上版會以 serverless API + polling 驗證手機/電腦同步；若任一 API 不可用，頁面會明確標示 `Vercel static preview`。
+Vercel preview 可用於公開畫面、單機互動與 action API 格式預覽。若 `/api/health`、`/api/state`、`/api/actions/reply` 都顯示 OK，代表 serverless API 可用；但沒有外部資料庫時，Vercel state 屬 volatile，不承諾穩定手機/電腦跨裝置同步。若任一 API 不可用，頁面會明確標示 `Vercel static preview`。
 
 線上版不使用 long-running `ThreadingHTTPServer` 或長時間 SSE。沒有外部資料庫時，serverless state 可能因 cold start 或 instance 回收而重置；若要最穩定展示跨裝置共享狀態，請使用本機 Python server。
 
@@ -56,7 +56,7 @@ Vercel preview 可用於公開畫面與單機互動預覽。若 `/api/health`、
 ## 建議展示方式
 
 - 若要最穩定：使用 `python3 demo/api_server.py`，手機與筆電連同一個 Wi-Fi，從電腦端複製手機連結。
-- 若要展示線上版：只承諾單機互動與視覺流程；跨裝置同步需先確認部署狀態卡的 `/api/state` 與 `/api/actions/reply` 可用。
+- 若要展示線上版：只承諾單機互動、視覺流程與 action API 格式；跨裝置穩定同步請使用本機 Python server，或後續接 Vercel KV / Redis / Supabase / Neon。
 - 若要展示 GPS：建議使用 HTTPS tunnel，例如 ngrok 或 Cloudflare Tunnel。
 - 若 GPS 失敗：展示 `GPS_DENIED` / `GPS_UNAVAILABLE` / 手動位置 fallback，不要假裝取得定位。
 - 若使用 Vercel preview：確認未被 Vercel SSO protection 擋住，首頁與 `styles.css`、`communicationEngine.js`、`lowDataPacket.js`、`demoStore.js`、`app.js` 必須能公開載入。

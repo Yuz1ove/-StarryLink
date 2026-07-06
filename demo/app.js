@@ -263,6 +263,8 @@ function renderDeploymentStatus() {
   const apiUsable = checks.every((check) => check.status === "ok" || check.status === "warn");
   const syncMode = location.protocol === "file:"
     ? "localStorage only"
+    : isVercelHost()
+      ? (transport.serverAvailable ? "polling + action ACK / volatile serverless" : "localStorage only")
     : transport.serverAvailable
       ? (transport.liveMode === "sse" ? "SSE" : transport.liveMode === "action" ? "polling + action ack" : "polling")
       : "localStorage only";
@@ -285,8 +287,8 @@ function renderDeploymentStatus() {
     notice.textContent = "目前為 Vercel static preview，本機按鈕仍可互動，但手機與電腦跨裝置同步請使用 python3 demo/api_server.py。";
     notice.className = "deployment-notice warn";
   } else if (isVercelHost()) {
-    notice.textContent = "Vercel serverless preview：API 可用；同步使用 polling + action ACK，state 可能因 cold start 重置，正式展示前請先按重新檢查。";
-    notice.className = "deployment-notice ok";
+    notice.textContent = "Vercel serverless preview：API 可用於畫面與 action 格式驗證；沒有外部資料庫時 state 屬 volatile，跨裝置同步不保證。完整手機/電腦同步請使用 python3 demo/api_server.py。";
+    notice.className = "deployment-notice warn";
   } else {
     notice.textContent = "Python dynamic mode：本機 API、packet log、ACK、retry 與跨裝置狀態同步可用。";
     notice.className = "deployment-notice ok";
@@ -308,7 +310,8 @@ async function runDeploymentHealthCheck() {
 
   try {
     const health = await readJsonResponse(await fetch("/api/health", { cache: "no-store" }));
-    deploymentHealth.apiHealth = { status: "ok", detail: health.mode || health.status || "ok" };
+    const detail = health.crossDeviceSync === "not-guaranteed" ? `${health.mode} / volatile` : health.mode || health.status || "ok";
+    deploymentHealth.apiHealth = { status: "ok", detail };
   } catch (error) {
     deploymentHealth.apiHealth = { status: "fail", detail: error.message };
   }
@@ -367,7 +370,9 @@ function renderToolbar(state, active) {
   const transport = window.__lastTransport || {};
   const liveMode = String(transport.liveMode || "").toUpperCase();
   const sync = transport.serverAvailable
-    ? `Server sync ${liveMode ? `(${liveMode})` : ""} / clients ${transport.connectedClients || 0}`
+    ? isVercelHost()
+      ? `Vercel serverless preview ${liveMode ? `(${liveMode})` : ""} / volatile state；完整跨裝置同步請用 python3 demo/api_server.py`
+      : `Server sync ${liveMode ? `(${liveMode})` : ""} / clients ${transport.connectedClients || 0}`
     : location.protocol === "file:"
       ? "file:// 僅可預覽；跨裝置同步請用 python3 demo/api_server.py"
       : isMobileView
@@ -1161,7 +1166,9 @@ async function copyMobileLink() {
     // Static file previews fall back to the current origin.
   }
   const modeHint = apiLinkAvailable
-    ? ""
+    ? isVercelHost()
+      ? "（Vercel serverless preview：此模式不保證跨裝置共享 state，完整同步請使用 python3 demo/api_server.py。）"
+      : ""
     : "（目前 API 不可確認；此模式不保證跨裝置共享 state，完整同步請使用 python3 demo/api_server.py。）";
   try {
     await navigator.clipboard.writeText(url);

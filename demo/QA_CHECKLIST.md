@@ -15,7 +15,8 @@
 - [ ] `index.html`、`styles.css`、`communicationEngine.js`、`lowDataPacket.js`、`demoStore.js`、`app.js` 都是 200。
 - [ ] Demo 頁「部署狀態」小卡顯示 Frontend loaded。
 - [ ] `/api/health`、`/api/state`、`/api/actions/reply` 顯示 OK；若失敗，畫面明確標示 `Vercel static preview`。
-- [ ] sync mode 明確顯示 SSE / polling / localStorage only。
+- [ ] Vercel 顯示 serverless volatile preview，不宣稱穩定跨裝置同步。
+- [ ] sync mode 明確顯示 SSE / polling / volatile serverless / localStorage only。
 
 ## 手機狀態機
 
