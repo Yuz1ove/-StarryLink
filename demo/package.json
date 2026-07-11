@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "node --check persistenceRepositories.js && node --check networkSimulationService.js && node --check packetMetricsService.js && node --check syncService.js && node --check demoStore.js && node --check app.js && node --check homepage-air-smoke-test.mjs && node communicationEngine.test.js && node routeDecisionEngine.test.js && node syncService.test.js",
+    "test": "node communicationEngine.test.js && node routeDecisionEngine.test.js && node syncService.test.js"
+  }
+}

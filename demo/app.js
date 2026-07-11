@@ -1,6 +1,8 @@
 const $ = (id) => document.getElementById(id);
 const store = window.XY_DEMO_STORE;
 const lowData = window.XY_LOW_DATA;
+const syncService = window.XY_SYNC_SERVICE;
+const networkSimulation = window.XY_NETWORK_SIMULATION;
 const query = new URLSearchParams(window.location.search);
 const isMobileView = query.get("view") === "mobile";
 let scriptTimers = [];
@@ -9,6 +11,7 @@ let activePage = isMobileView ? "demo" : "intro";
 let activeFilter = "all";
 let audioContext = null;
 let alarmEnabled = false;
+const persistedAppPacketKeys = new Set();
 const pages = ["intro", "architecture", "demo", "matrix", "runtime"];
 const deploymentHealth = {
   frontendLoaded: { status: "ok", detail: "DOM + app.js loaded" },
@@ -222,6 +225,7 @@ function render() {
   renderToolbar(state, active);
   renderDisasterBanner(state);
   renderArchitecture(state, active, starry);
+  renderHomeArchitecture(starry);
   renderPhone(active, state, starry);
   renderTargets(state, selected);
   renderDetail(state, selected);
@@ -232,6 +236,8 @@ function render() {
   renderPacketFlow(state, active, starry);
   renderRuntime(state);
   renderDeploymentStatus(state);
+  persistReportsFromPacketLog(state);
+  renderResilienceSync();
 }
 
 function setText(id, value) {
@@ -293,6 +299,170 @@ function renderDeploymentStatus() {
     notice.textContent = "Python dynamic mode：本機 API、packet log、ACK、retry 與跨裝置狀態同步可用。";
     notice.className = "deployment-notice ok";
   }
+}
+
+function syncStatusLabel(status) {
+  const map = {
+    pending: "本地暫存",
+    syncing: "同步中",
+    synced: "已同步",
+    failed: "同步失敗",
+  };
+  return map[status] || status || "-";
+}
+
+function reportRiskLabel(report = {}) {
+  const map = { low: "低風險", medium: "中風險", high: "高風險", critical: "極高風險" };
+  return `${report.riskScore ?? 0} ${map[report.riskLevel] || report.riskLevel || ""}`.trim();
+}
+
+function reportGpsText(report = {}) {
+  if (report.latitude === null || report.latitude === undefined || report.longitude === null || report.longitude === undefined) {
+    return report.locationSource === "GPS_DENIED" ? "定位未取得 / GPS_DENIED" : "定位未取得";
+  }
+  return `${coordinateText(report.latitude)}, ${coordinateText(report.longitude)} / ${report.locationAccuracy || "unknown"}`;
+}
+
+function simulationLinkLabel(link) {
+  return networkSimulation?.linkLabel?.(link) || link || "-";
+}
+
+function groundNetworkSimulationLabel(network = {}) {
+  if (network.groundNetwork === "down") return "中斷";
+  if (network.groundNetwork === "unstable") return "不穩";
+  return "正常";
+}
+
+function syncFlowClass(snapshot = {}) {
+  if (snapshot.network?.mode === "fallback") return "fallback";
+  if (snapshot.summary?.syncing > 0) return "syncing";
+  if (snapshot.summary?.pending > 0 || snapshot.network?.mode === "offline") return "pending";
+  if (snapshot.summary?.synced > 0) return "synced";
+  return "idle";
+}
+
+function syncFlowCaption(snapshot = {}) {
+  const pending = snapshot.summary?.pending || 0;
+  const syncing = snapshot.summary?.syncing || 0;
+  if (snapshot.network?.mode === "offline") return `完全離線：資料已先寫入本地資料庫，${pending} 筆保留在同步佇列。`;
+  if (snapshot.network?.mode === "fallback") return `地面網路失效：資料保留本地，通訊鏈路標示為 ${simulationLinkLabel(snapshot.network.currentLink)} / Simulation。`;
+  if (syncing > 0) return `正在補傳 ${syncing} 筆資料；完成後會寫入 syncedAt 並移出本地佇列。`;
+  if (pending > 0) return `${pending} 筆資料等待補傳；恢復地面網路後會自動掃描佇列。`;
+  return "正常網路下，資料先寫入本地，再完成同步確認。";
+}
+
+function renderResilienceSync() {
+  const panel = $("resilienceSyncPanel");
+  if (!panel) return;
+  if (!syncService) {
+    setText("syncNotice", "同步服務尚未載入。");
+    return;
+  }
+  const snapshot = syncService.getSnapshot();
+  const summary = snapshot.summary || {};
+  const network = snapshot.network || {};
+  const reports = snapshot.reports || [];
+  const queueCount = (summary.pending || 0) + (summary.syncing || 0) + (summary.failed || 0);
+  setText("syncPendingCount", String(summary.pending || 0));
+  setText("syncSyncingCount", String(summary.syncing || 0));
+  setText("syncSyncedCount", String(summary.synced || 0));
+  setText("syncFailedCount", String(summary.failed || 0));
+  setText("syncLastSyncedAt", summary.lastSyncedAt ? timeText(summary.lastSyncedAt) : "-");
+  setText("syncGroundNetwork", groundNetworkSimulationLabel(network));
+  setText("syncCurrentLink", `${simulationLinkLabel(network.currentLink)} / Simulation`);
+  setText("syncLocalQueue", `${queueCount} 筆`);
+  setText("syncCloudStatus", network.canRemoteSync ? network.cloudStatus || "可同步" : "等待恢復");
+  setText("syncIntegrity", summary.failed ? "需重試" : "正常");
+  setText("syncEventCount", `${reports.length} 筆`);
+  setText("syncFlowCaption", syncFlowCaption(snapshot));
+
+  const notice = $("syncNotice");
+  if (notice) {
+    notice.textContent = snapshot.notice?.message || "韌性資料同步待命";
+    notice.className = `sync-notice ${snapshot.notice?.tone || ""}`.trim();
+  }
+
+  const flow = $("syncFlow");
+  if (flow) flow.className = `sync-flow ${syncFlowClass(snapshot)}`;
+
+  const rows = $("syncEventRows");
+  if (!rows) return;
+  rows.innerHTML = reports.length
+    ? reports
+        .slice(0, 10)
+        .map(
+          (report) => `
+            <tr>
+              <td>${timeText(report.createdAt)}</td>
+              <td>${escapeHtml(report.userId || report.deviceId || "-")}</td>
+              <td>${escapeHtml(report.name || "狀態回報")}</td>
+              <td>${escapeHtml(reportRiskLabel(report))}</td>
+              <td>${escapeHtml(reportGpsText(report))}</td>
+              <td>${escapeHtml(simulationLinkLabel(report.selectedLink))}</td>
+              <td>${Number(report.packetSizeBytes || report.compressedSizeBytes || 0)} B<br><small>${escapeHtml(report.packetMetricLabel || "Demo 封包序列化估算")} / ${report.reductionRate || 0}%</small></td>
+              <td><span class="sync-badge ${escapeHtml(report.syncStatus || "pending")}">${escapeHtml(syncStatusLabel(report.syncStatus))}</span></td>
+            </tr>
+          `
+        )
+        .join("")
+    : `<tr><td colspan="8">尚無資料，請送出測試回報或匯入預設 Demo 紀錄。</td></tr>`;
+}
+
+function packetReplyCode(packet = {}) {
+  if (packet.replyCode) return packet.replyCode;
+  const statusMap = {
+    OK: "SAFE",
+    CLEAR: "STATUS_CLEAR",
+    NEED_HELP: "NEED_HELP",
+    INJURED: "INJURED",
+    TRAPPED: "TRAPPED",
+    SICK: "NEED_MEDICAL",
+    STOP: "TRAPPED",
+    "LOC?": "LOCATION_UNKNOWN",
+    LOCATION_UPDATE: "LOCATION_UPDATE",
+    NORES: "NO_RESPONSE",
+  };
+  try {
+    const parsed = typeof packet.packet === "string" ? JSON.parse(packet.packet) : packet.packet;
+    return statusMap[parsed?.statusCode] || statusMap[parsed?.s] || parsed?.statusCode || parsed?.s || null;
+  } catch (error) {
+    return packet.decodeResult?.answerCode || null;
+  }
+}
+
+function packetSeq(packet = {}) {
+  return Number(packet.seq || packet.packetSeq || packet.decodeResult?.seq || packet.decodeResult?.packetSeq || 0);
+}
+
+function persistReportsFromPacketLog(state) {
+  if (!syncService?.recordStatusReport || !Array.isArray(state?.packetLog)) return;
+  state.packetLog
+    .map((packet) => ({ packet, seq: packetSeq(packet), replyCode: packetReplyCode(packet) }))
+    .filter(({ packet, seq, replyCode }) => packet?.targetId && seq && replyCode && Number(packet.bytes || 0) > 0)
+    .slice(0, 8)
+    .forEach(({ packet, seq, replyCode }) => {
+      const target = state.targets.find((item) => item.id === packet.targetId);
+      if (!target) return;
+      const source = String(replyCode).startsWith("LOCATION") ? "location-update" : "mobile-reply";
+      const key = `${packet.targetId}:${seq}:${source}:${replyCode}`;
+      if (persistedAppPacketKeys.has(key)) return;
+      persistedAppPacketKeys.add(key);
+      Promise.resolve(
+        syncService.recordStatusReport({
+          state,
+          target,
+          replyCode,
+          packetEntry: {
+            ...packet,
+            seq,
+            replyCode,
+            replyLabel: lowData.replyLabels[replyCode] || replyCode,
+          },
+          source,
+          seq,
+        })
+      ).catch((error) => syncService.setNotice?.(`資料持久化失敗：${error.message}`, "warn"));
+    });
 }
 
 async function readJsonResponse(response) {
@@ -481,6 +651,30 @@ function renderArchitecture(state, active, starry = starrySnapshot(state)) {
   syncArchitectureNodes(starry);
   document.querySelectorAll(".route-health-row").forEach((row) => row.classList.remove("active"));
   document.querySelector(`.${String(starry.activeLayer || "GROUND").toLowerCase()}-health`)?.classList.add("active");
+}
+
+function renderHomeArchitecture(starry = {}) {
+  const statuses = starry.moduleStatuses || {};
+  setText("missionGroundStatus", statuses.ground || "可用／主要路徑");
+  setText("missionAirStatus", statuses.air || "待命中");
+  setText("missionSeaStatus", statuses.sea || "監測中");
+  setText("missionSpaceStatus", statuses.space || "備援待命");
+
+  const selectedRoute = starry.selectedRoute || "ground";
+  document.querySelectorAll("[data-home-module]").forEach((card) => {
+    const module = card.dataset.homeModule;
+    const active =
+      module === selectedRoute ||
+      (module === "space" && selectedRoute === "satellite") ||
+      (module === "sea" && starry.seaBackboneHealthy === false);
+    card.classList.toggle("active", Boolean(active));
+  });
+  document.querySelectorAll("[data-home-route]").forEach((chip) => {
+    const route = chip.dataset.homeRoute;
+    chip.classList.toggle("active", route === selectedRoute);
+  });
+  const routeSelector = $("introRouteSelector");
+  if (routeSelector) routeSelector.dataset.selectedRoute = selectedRoute;
 }
 
 function syncArchitectureNodes(starry = {}) {
@@ -942,6 +1136,15 @@ function requestCurrentLocation() {
   );
 }
 
+function runSyncTask(task) {
+  Promise.resolve()
+    .then(task)
+    .catch((error) => {
+      syncService?.setNotice?.(`操作失敗：${error.message}`, "warn");
+      console.error(error);
+    });
+}
+
 function bindEvents() {
   document.querySelectorAll("[data-nav-page]").forEach((button) => {
     button.addEventListener("click", () => setActivePage(button.dataset.navPage));
@@ -1027,8 +1230,14 @@ function bindEvents() {
   });
   $("pauseDemo")?.addEventListener("click", pauseDisasterDemo);
   $("simulatePacketLoss")?.addEventListener("click", () => store.actions.simulatePacketLoss());
-  $("simulateGroundDown")?.addEventListener("click", () => store.actions.simulateGroundNetworkDown());
-  $("enableSatelliteFallback")?.addEventListener("click", () => store.actions.enableSatelliteFallback());
+  $("simulateGroundDown")?.addEventListener("click", () => {
+    networkSimulation?.simulateFallback?.("mesh");
+    store.actions.simulateGroundNetworkDown();
+  });
+  $("enableSatelliteFallback")?.addEventListener("click", () => {
+    networkSimulation?.simulateFallback?.("satellite");
+    store.actions.enableSatelliteFallback();
+  });
   $("enableAlarm")?.addEventListener("click", enableAlarmSound);
   $("enablePhoneAlarm")?.addEventListener("click", enableAlarmSound);
   $("resetDemo").addEventListener("click", () => {
@@ -1038,6 +1247,39 @@ function bindEvents() {
   });
   $("copyMobileLink").addEventListener("click", copyMobileLink);
   $("deploymentRecheck")?.addEventListener("click", runDeploymentHealthCheck);
+  $("syncTestReport")?.addEventListener("click", () => {
+    store.actions.sendReply("INJURED");
+    syncService?.setNotice?.("已送出測試回報，資料會先保存再依網路狀態同步。", "info");
+  });
+  $("syncWeakNetwork")?.addEventListener("click", () => {
+    networkSimulation?.simulateWeak?.();
+    store.actions.setWeakSignal(true);
+    syncService?.setNotice?.("已切換弱網：後續回報會慢速同步並保留 retry 資訊。", "info");
+  });
+  $("syncOfflineMode")?.addEventListener("click", () => {
+    networkSimulation?.simulateOffline?.();
+    store.actions.simulateGroundNetworkDown();
+    syncService?.setNotice?.("已模擬完全斷線：後續回報會進入本地同步佇列。", "warn");
+  });
+  $("syncFallbackMode")?.addEventListener("click", () => {
+    const state = store.getState();
+    const active = store.getActiveTarget(state);
+    const link = active?.risk?.level === "RED" || active?.communication?.satelliteRecommended ? "satellite" : "mesh";
+    networkSimulation?.simulateFallback?.(link);
+    store.actions.simulateGroundNetworkDown();
+    syncService?.setNotice?.(`已切換 ${simulationLinkLabel(link)}；此為 Simulation，不代表連接實體設備。`, "info");
+  });
+  $("syncRestoreNetwork")?.addEventListener("click", () => {
+    networkSimulation?.restore?.();
+    store.actions.restoreGroundNetwork?.();
+    runSyncTask(() => syncService?.syncPending?.());
+  });
+  $("syncManualRun")?.addEventListener("click", () => runSyncTask(() => syncService?.syncPending?.()));
+  $("syncImportSeed")?.addEventListener("click", () => runSyncTask(() => syncService?.seedDefaultData?.(store.getState(), { force: true })));
+  $("syncClearData")?.addEventListener("click", () => {
+    if (!window.confirm("確定清除韌性資料同步 Demo 資料？這不會重置星夜專案設定。")) return;
+    runSyncTask(() => syncService?.clearDemoData?.());
+  });
 }
 
 function clearScriptTimers() {
@@ -1123,7 +1365,7 @@ function startDisasterDemo() {
     store.actions.finalizeDispatch();
   }, 120000));
   scriptTimers.push(setTimeout(() => {
-    store.actions.setScriptPhase(180, "展示完成：低資料封包、ACK、retry、海地星空路徑切換與風險排序已完成。");
+    store.actions.setScriptPhase(180, "展示完成：低資料封包、ACK、retry、星海地空路徑選擇與風險排序已完成。");
     clearSimulationTimer();
   }, 180000));
 }
@@ -1183,8 +1425,11 @@ store.subscribe((_state, meta) => {
   render();
 });
 
+syncService?.subscribe(() => renderResilienceSync());
+
 bindEvents();
 store.startSync();
+runSyncTask(() => syncService?.autoSeedIfNeeded?.(store.getState()));
 render();
 runDeploymentHealthCheck();
 setInterval(runDeploymentHealthCheck, 30000);

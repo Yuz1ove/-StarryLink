@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>星夜 StarryLink｜海纜・地網・衛星多路徑災害韌性通訊助理</title>
+    <title>星夜 StarryLink｜星・海・地・空多路徑災害韌性通訊助理</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23167c80'/%3E%3Cpath d='M32 8l5.5 17.4H56L41 36.2 46.5 56 32 44 17.5 56 23 36.2 8 25.4h18.5L32 8z' fill='white'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./styles.css?v=starrylink-paged-20260703a" />
   </head>
@@ -14,13 +14,13 @@
           <span class="brand-mark" aria-hidden="true">✦</span>
           <span>
             <strong>星夜 StarryLink</strong>
-            <small>海纜・地網・衛星多路徑災害韌性通訊助理</small>
+            <small>星・海・地・空多路徑災害韌性通訊助理</small>
           </span>
         </button>
 
         <nav class="nav-tabs" aria-label="展示分頁">
           <button class="nav-tab active" type="button" data-nav-page="intro">作品介紹</button>
-          <button class="nav-tab" type="button" data-nav-page="architecture">海地星空通訊架構</button>
+          <button class="nav-tab" type="button" data-nav-page="architecture">星海地空通訊架構</button>
           <button class="nav-tab" type="button" data-nav-page="demo">Demo 展示</button>
           <button class="nav-tab" type="button" data-nav-page="matrix">決策矩陣</button>
           <button class="nav-tab" type="button" data-nav-page="runtime">程式運行</button>
@@ -39,9 +39,9 @@
             <div class="intro-copy">
               <p class="eyebrow">StarryLink</p>
               <h1 id="introTitle">星夜 StarryLink</h1>
-              <h2>海纜・地網・衛星多路徑災害韌性通訊助理</h2>
+              <h2>星・海・地・空多路徑災害韌性通訊助理</h2>
               <p>
-                面向地震、颱風與海纜／地面骨幹異常的弱網情境，星夜把手機端狀態壓縮成低資料量封包，讓 GPS、求救、生命狀態與按鍵回覆先抵達守望隊工作台。
+                面向地震、颱風、海纜異常、基地台中斷與偏遠地區弱網情境，星夜會將手機端的 GPS、SOS 與生命狀態壓縮成低資料量封包，依據網路品質、風險等級與通訊節點可用性，在地面網路、空中中繼、海纜骨幹與衛星備援間選擇適合的傳輸路徑，將重要資訊優先送達守望隊工作台。
               </p>
               <div class="intro-signal-grid" aria-label="作品定位">
                 <div>
@@ -57,8 +57,8 @@
                   <span>位置、求救與生命狀態優先於一般同步資料。</span>
                 </div>
                 <div>
-                  <strong>多路徑自動切換</strong>
-                  <span>Wi-Fi / 5G / SMS / BLE Relay / Satellite Backup 依風險升級。</span>
+                  <strong>星・海・地・空路徑選擇</strong>
+                  <span>依據網路品質、風險分數與節點可用性，在地面網路、空中中繼、海纜骨幹與衛星備援之間進行路徑評估與切換。</span>
                 </div>
               </div>
               <div class="intro-actions" aria-label="展示操作">
@@ -67,8 +67,8 @@
               </div>
             </div>
 
-            <div class="core-card-grid mission-stack" aria-label="海地星空任務模組">
-              <article class="info-card concept-card mission-card sea-mission">
+            <div class="core-card-grid mission-stack" aria-label="星海地空任務模組">
+              <article class="info-card concept-card mission-card sea-mission" data-home-module="sea">
                 <div class="mission-card-head">
                   <span class="mission-icon" aria-hidden="true">海</span>
                   <div>
@@ -77,9 +77,20 @@
                   </div>
                 </div>
                 <p>持續監測海纜、國際骨幹與區域閘道健康度。延遲與丟包升高時，立即觸發低資料策略。</p>
-                <span class="mission-status">監測中</span>
+                <span id="missionSeaStatus" class="mission-status">監測中</span>
               </article>
-              <article class="info-card concept-card mission-card ground-mission">
+              <article class="info-card concept-card mission-card air-mission" data-home-module="air">
+                <div class="mission-card-head">
+                  <span class="mission-icon" aria-hidden="true">空</span>
+                  <div>
+                    <p class="eyebrow">AIR MODULE</p>
+                    <h3>空中中繼與臨時覆蓋</h3>
+                  </div>
+                </div>
+                <p>當地面基地台受損、道路中斷或災區訊號薄弱時，系統可將空中中繼節點納入路徑評估，模擬透過無人機、繫留氣球或臨時空中基地台延伸通訊覆蓋，優先傳送 SOS、GPS 與高風險生命狀態封包。</p>
+                <span id="missionAirStatus" class="mission-status">待命中</span>
+              </article>
+              <article class="info-card concept-card mission-card ground-mission" data-home-module="ground">
                 <div class="mission-card-head">
                   <span class="mission-icon" aria-hidden="true">地</span>
                   <div>
@@ -88,9 +99,9 @@
                   </div>
                 </div>
                 <p>手機端以大按鈕回覆，後台依 GPS、電量、ACK、成功率與風險分數排序調度。</p>
-                <span class="mission-status">可切換</span>
+                <span id="missionGroundStatus" class="mission-status">可用／主要路徑</span>
               </article>
-              <article class="info-card concept-card mission-card space-mission">
+              <article class="info-card concept-card mission-card space-mission" data-home-module="space">
                 <div class="mission-card-head">
                   <span class="mission-icon" aria-hidden="true">星</span>
                   <div>
@@ -98,8 +109,8 @@
                     <h3>衛星與高風險備援通道</h3>
                   </div>
                 </div>
-                <p>衛星保留給 Red 風險、地面網路失效與高優先求救封包，避免一般同步佔用。</p>
-                <span class="mission-status">備援待命</span>
+                <p>衛星備援模擬保留給高風險、地面與空中節點無法穩定傳送時的 GPS、SOS 與生命狀態封包，避免一般同步佔用。</p>
+                <span id="missionSpaceStatus" class="mission-status">備援待命</span>
               </article>
             </div>
 
@@ -110,9 +121,17 @@
               <i aria-hidden="true"></i>
               <span class="flow-pill">風險評分矩陣</span>
               <i aria-hidden="true"></i>
-              <span class="flow-pill">守望隊工作台</span>
+              <span id="introRouteSelector" class="flow-pill flow-pill-route">
+                <b>通訊路徑選擇</b>
+                <small>
+                  <em data-home-route="ground">地 Ground</em>
+                  <em data-home-route="air">空 Air</em>
+                  <em data-home-route="sea">海 Sea</em>
+                  <em data-home-route="satellite">星 Space</em>
+                </small>
+              </span>
               <i aria-hidden="true"></i>
-              <span class="flow-pill flow-pill-alert">高風險升級流程 / 衛星備援模擬</span>
+              <span class="flow-pill">守望隊工作台</span>
             </div>
           </div>
         </section>
@@ -120,14 +139,14 @@
         <section class="page-panel architecture-panel" data-page="architecture" aria-labelledby="architectureTitle">
           <div class="page-header">
             <div>
-              <p class="eyebrow">Sea・Ground・Space</p>
-              <h2 id="architectureTitle">海地星空通訊架構</h2>
+              <p class="eyebrow">Space・Sea・Ground・Air</p>
+              <h2 id="architectureTitle">星海地空通訊架構</h2>
             </div>
-            <p>三層通訊邏輯分工：海纜與骨幹監測、地面弱網與守望隊調度、衛星高風險備援。</p>
+            <p>四層韌性架構分工：海纜與骨幹監測、地面弱網與守望隊調度、空中中繼模擬、衛星高風險備援。</p>
           </div>
 
           <div class="architecture-grid">
-            <section class="architecture-map" aria-label="三層通訊架構圖">
+            <section class="architecture-map" aria-label="多路徑通訊架構圖">
               <div class="architecture-flow-rail" aria-hidden="true">
                 <span class="rail-label rail-top">高風險升級</span>
                 <span class="rail-label rail-bottom">健康監測</span>
@@ -243,7 +262,7 @@
                 <button class="button quiet architecture-jump" type="button" data-page-target="demo">查看 Demo 狀態</button>
               </div>
 
-              <div class="route-health" aria-label="三層狀態條">
+              <div class="route-health" aria-label="多路徑狀態條">
                 <div class="route-health-row sea-health">
                   <div>
                     <span><b></b>Sea</span>
@@ -284,7 +303,7 @@
                 <div><dt>Risk</dt><dd id="archRiskLive">-</dd></div>
                 <div><dt>Raw</dt><dd id="archRawRiskLive">-</dd></div>
               </dl>
-              <p id="archPacketHint" class="panel-note">手機端封包先嘗試 Wi-Fi / 5G；地面通道丟包時切換 SMS / BLE Relay，高風險才升級 Satellite Backup。</p>
+              <p id="archPacketHint" class="panel-note">手機端封包先嘗試 Wi-Fi / 5G；地面通道丟包時評估空中中繼、SMS 模擬 / BLE Relay 模擬，高風險才升級 Satellite Backup 模擬。</p>
             </aside>
           </div>
         </section>
@@ -342,6 +361,97 @@
               <div><dt>lastError</dt><dd id="deployLastError">-</dd></div>
             </dl>
             <p id="deployModeNotice" class="deployment-notice">正在確認線上 API 與同步模式。</p>
+          </section>
+
+          <section id="resilienceSyncPanel" class="resilience-sync-panel" aria-label="韌性資料同步">
+            <div class="resilience-sync-head">
+              <div>
+                <p class="eyebrow">Persistence / Offline Sync</p>
+                <h3>韌性資料同步</h3>
+                <p>Demo Mode：本區使用本地 repository 與同步佇列示範離線暫存、自動補傳與歷史留存。</p>
+              </div>
+              <div class="sync-control-row" aria-label="韌性資料同步 Demo 控制">
+                <button id="syncTestReport" class="button primary" type="button">送出測試回報</button>
+                <button id="syncWeakNetwork" class="button quiet" type="button">模擬弱網</button>
+                <button id="syncOfflineMode" class="button quiet" type="button">模擬完全斷線</button>
+                <button id="syncFallbackMode" class="button quiet" type="button">模擬備援鏈路</button>
+                <button id="syncRestoreNetwork" class="button quiet" type="button">恢復地面網路</button>
+                <button id="syncManualRun" class="button quiet" type="button">手動同步</button>
+                <button id="syncImportSeed" class="button quiet" type="button">匯入預設 Demo 紀錄</button>
+                <button id="syncClearData" class="button quiet danger" type="button">清除 Demo 資料</button>
+              </div>
+            </div>
+
+            <p id="syncNotice" class="sync-notice">韌性資料同步待命</p>
+
+            <div class="sync-overview-grid" aria-label="同步總覽">
+              <div><dt>本地待同步</dt><dd id="syncPendingCount">0</dd></div>
+              <div><dt>同步中</dt><dd id="syncSyncingCount">0</dd></div>
+              <div><dt>已同步</dt><dd id="syncSyncedCount">0</dd></div>
+              <div><dt>同步失敗</dt><dd id="syncFailedCount">0</dd></div>
+              <div><dt>最近同步時間</dt><dd id="syncLastSyncedAt">-</dd></div>
+            </div>
+
+            <div class="sync-status-grid">
+              <article class="sync-state-panel" aria-label="網路與資料狀態">
+                <div class="section-line">
+                  <span>網路與資料狀態</span>
+                  <strong>Simulation</strong>
+                </div>
+                <dl class="sync-kpis">
+                  <div><dt>地面網路</dt><dd id="syncGroundNetwork">正常</dd></div>
+                  <div><dt>目前鏈路</dt><dd id="syncCurrentLink">Wi-Fi</dd></div>
+                  <div><dt>本地佇列</dt><dd id="syncLocalQueue">0 筆</dd></div>
+                  <div><dt>雲端同步</dt><dd id="syncCloudStatus">可同步</dd></div>
+                  <div><dt>資料完整性</dt><dd id="syncIntegrity">正常</dd></div>
+                </dl>
+              </article>
+
+              <article class="sync-flow-card" aria-label="資料流視覺化">
+                <div class="section-line">
+                  <span>資料流</span>
+                  <strong>手機端 → 守望端</strong>
+                </div>
+                <div id="syncFlow" class="sync-flow" aria-hidden="true">
+                  <span id="syncFlowMobile">手機端</span>
+                  <i></i>
+                  <span id="syncFlowLocal">本地資料庫</span>
+                  <i></i>
+                  <span id="syncFlowQueue">同步佇列</span>
+                  <i></i>
+                  <span id="syncFlowLink">備援鏈路</span>
+                  <i></i>
+                  <span id="syncFlowCloud">守望端資料庫</span>
+                </div>
+                <p id="syncFlowCaption" class="sync-caption">正常網路下，資料先寫入本地，再完成同步確認。</p>
+              </article>
+            </div>
+
+            <article class="sync-event-card" aria-label="離線佇列與事件紀錄">
+              <div class="section-line">
+                <span>離線佇列與事件紀錄</span>
+                <strong id="syncEventCount">0 筆</strong>
+              </div>
+              <div class="sync-table-wrap">
+                <table class="sync-event-table">
+                  <thead>
+                    <tr>
+                      <th>時間</th>
+                      <th>裝置</th>
+                      <th>事件</th>
+                      <th>風險</th>
+                      <th>GPS</th>
+                      <th>通訊鏈路</th>
+                      <th>封包</th>
+                      <th>同步狀態</th>
+                    </tr>
+                  </thead>
+                  <tbody id="syncEventRows">
+                    <tr><td colspan="8">尚無資料</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
           </section>
 
           <section class="script-status" aria-label="展示模式狀態">
@@ -682,6 +792,10 @@ function updateUserStateFromMobileAction(action) {
     <script src="./communicationEngine.js?v=starrylink-paged-20260703a"></script>
     <script src="./lowDataPacket.js?v=starrylink-paged-20260703a"></script>
     <script src="./sharedSchema.js?v=starrylink-paged-20260706"></script>
+    <script src="./persistenceRepositories.js?v=starrylink-sync-20260710"></script>
+    <script src="./networkSimulationService.js?v=starrylink-sync-20260710"></script>
+    <script src="./packetMetricsService.js?v=starrylink-sync-20260710"></script>
+    <script src="./syncService.js?v=starrylink-sync-20260710"></script>
     <script src="./demoStore.js?v=starrylink-paged-20260703a"></script>
     <script src="./app.js?v=starrylink-paged-20260703a"></script>
   </body>

@@ -4,6 +4,7 @@
   const CLIENT_ID_KEY = "xingye-sea-ground-space-client-id";
   const lowData = global.XY_LOW_DATA;
   const communicationEngine = global.XY_COMMUNICATION;
+  const syncService = global.XY_SYNC_SERVICE;
 
   const actionLabels = {
     MONITOR: "持續觀察",
@@ -47,6 +48,17 @@
     gpsStatus: "locked",
     activeRoute: "ground_primary",
     activeLayer: "GROUND",
+    selectedRoute: "ground",
+    groundAvailable: true,
+    airAvailable: true,
+    seaBackboneHealthy: true,
+    satelliteAvailable: true,
+    moduleStatuses: {
+      ground: "可用／主要路徑",
+      air: "待命中",
+      sea: "監測中",
+      space: "備援待命",
+    },
     alertTriggered: false,
     lowDataMode: false,
     fallbackChannel: "BLE Relay",
@@ -83,6 +95,7 @@
   let eventSource = null;
   let acceptedServerState = false;
   const listeners = new Set();
+  const persistedPacketKeys = new Set();
   const transport = {
     serverAvailable: false,
     connectedClients: 0,
@@ -480,6 +493,7 @@
           backbonePacketLossPercent: 31,
           groundCongestion: 86,
           mobileAvailable: true,
+          airAvailable: true,
           satelliteAvailable: true,
           disasterMode: true,
         },
@@ -522,6 +536,7 @@
     if (!next.selectedTargetId) next.selectedTargetId = next.activeTargetId;
     if (!next.event) next.event = createInitialState().event;
     if (!next.event.network) next.event.network = createInitialState().event.network;
+    if (next.event.network.airAvailable === undefined) next.event.network.airAvailable = true;
     if (!next.event.script) {
       next.event.script = { running: false, startedAt: null, elapsedSeconds: 0, label: "尚未啟動展示模式" };
     }
@@ -649,6 +664,42 @@
     return "GROUND";
   }
 
+  function publicRouteDecision(target = {}, network = {}, starryBase = {}) {
+    // Ground is primary, Air is the simulated middle relay layer, Sea is backbone health, Space is reserved fallback.
+    const packetLoss = Number(network.backbonePacketLossPercent || target.communication?.packetLossRate || 0);
+    const signal = Number(target.signalQuality || 0);
+    const risk = String(target.risk?.level || "").toUpperCase();
+    const highRisk = risk === "RED" || starryBase.riskLevel === "critical" || starryBase.victimStatus === "sos";
+    const groundDown = network.groundBackboneStatus === "down" || network.mobileAvailable === false;
+    const groundWeak = network.groundBackboneStatus === "unstable" || packetLoss >= 20 || signal < 45;
+    const groundAvailable = !groundDown && packetLoss < 45 && signal >= 35;
+    const groundHealthy = groundAvailable && !groundWeak;
+    const airAvailable = network.airAvailable !== false;
+    const seaBackboneHealthy = network.seaCableStatus !== "degraded" && packetLoss < 20;
+    const satelliteAvailable = network.satelliteAvailable !== false;
+    let selectedRoute = "queued";
+
+    if (groundHealthy) selectedRoute = "ground";
+    else if (airAvailable && (groundWeak || groundDown)) selectedRoute = "air";
+    else if (highRisk && satelliteAvailable) selectedRoute = "satellite";
+
+    const moduleStatuses = {
+      ground: groundDown ? "節點不可用" : groundWeak ? "弱網／切換評估" : "可用／主要路徑",
+      air: groundDown && airAvailable ? "空中中繼啟用" : groundWeak && airAvailable ? "空中中繼評估中" : airAvailable ? "待命中" : "節點不可用",
+      sea: seaBackboneHealthy ? "監測中" : highRisk && !airAvailable ? "骨幹異常或監測中" : "持續監測",
+      space: selectedRoute === "satellite" ? "衛星備援模擬" : "備援待命",
+    };
+
+    return {
+      selectedRoute,
+      groundAvailable,
+      airAvailable,
+      seaBackboneHealthy,
+      satelliteAvailable,
+      moduleStatuses,
+    };
+  }
+
   function buildStarryState(draft) {
     const target = getActiveTarget(draft) || draft.targets?.[0] || {};
     const network = draft.event?.network || {};
@@ -688,6 +739,7 @@
     };
     base.activeRoute = publicActiveRoute(target, base);
     base.activeLayer = publicActiveLayer(base.activeRoute, groundNetwork);
+    Object.assign(base, publicRouteDecision(target, network, base));
     return base;
   }
 
@@ -847,6 +899,7 @@
   }
 
   function emit(meta = {}) {
+    recordPersistentReportsFromState(demoState, meta.reason || "store-emit");
     listeners.forEach((listener) => listener(demoState, { ...meta, transport: { ...transport } }));
   }
 
@@ -872,6 +925,7 @@
     transport.applyingRemote = true;
     demoState = normalizeState(clone(incoming));
     saveLocalState(demoState);
+    recordPersistentReportsFromState(demoState, reason);
     transport.applyingRemote = false;
     emit({ reason });
   }
@@ -969,6 +1023,82 @@
       targetPatches: state.targets.map(targetPatch),
       starryState: clone(state.starryState || buildStarryState(state)),
     };
+  }
+
+  function recordPersistentReport(payload = {}) {
+    if (!syncService?.recordStatusReport) return;
+    Promise.resolve(
+      syncService.recordStatusReport({
+        state: payload.state || demoState,
+        target: payload.target,
+        replyCode: payload.replyCode,
+        packetEntry: payload.packetEntry,
+        source: payload.source,
+        seq: payload.seq,
+      })
+    ).catch((error) => {
+      syncService.setNotice?.(`資料持久化失敗：${error.message}`, "warn");
+    });
+  }
+
+  function replyCodeFromPacketLog(packet = {}) {
+    if (packet.replyCode) return packet.replyCode;
+    const statusMap = {
+      OK: "SAFE",
+      CLEAR: "STATUS_CLEAR",
+      NEED_HELP: "NEED_HELP",
+      INJURED: "INJURED",
+      TRAPPED: "TRAPPED",
+      SICK: "NEED_MEDICAL",
+      STOP: "TRAPPED",
+      "LOC?": "LOCATION_UNKNOWN",
+      LOCATION_UPDATE: "LOCATION_UPDATE",
+      NORES: "NO_RESPONSE",
+    };
+    try {
+      const parsed = typeof packet.packet === "string" ? JSON.parse(packet.packet) : packet.packet;
+      return statusMap[parsed?.statusCode] || statusMap[parsed?.s] || parsed?.statusCode || parsed?.s || null;
+    } catch (error) {
+      return packet.decodeResult?.answerCode || packet.decodeResult?.actionCode || null;
+    }
+  }
+
+  function packetSeqFromPacketLog(packet = {}) {
+    return Number(packet.seq || packet.packetSeq || packet.decodeResult?.seq || packet.decodeResult?.packetSeq || 0);
+  }
+
+  function recordPersistentReportsFromState(state, reason = "remote-state") {
+    if (!syncService?.recordStatusReport || !Array.isArray(state?.packetLog)) return;
+    state.packetLog
+      .map((packet) => ({
+        packet,
+        seq: packetSeqFromPacketLog(packet),
+        replyCode: replyCodeFromPacketLog(packet),
+      }))
+      .filter(({ packet, seq, replyCode }) => packet?.targetId && seq && replyCode && Number(packet.bytes || 0) > 0)
+      .slice(0, 8)
+      .forEach(({ packet, seq, replyCode }) => {
+        const target = state.targets.find((item) => item.id === packet.targetId);
+        if (!target) return;
+        const source = String(replyCode || "").startsWith("LOCATION") ? "location-update" : "mobile-reply";
+        const key = `${packet.targetId}:${seq}:${source}:${replyCode}`;
+        if (persistedPacketKeys.has(key)) return;
+        persistedPacketKeys.add(key);
+        recordPersistentReport({
+          state,
+          target: targetPatch(target),
+          replyCode,
+          packetEntry: {
+            ...packet,
+            seq,
+            replyCode,
+            replyLabel: lowData.replyLabels[replyCode] || replyCode,
+          },
+          source,
+          seq,
+          reason,
+        });
+      });
   }
 
   async function postAction(bucket, actionType, payload = {}, options = {}) {
@@ -1255,6 +1385,14 @@
         idempotencyKey: `${clientId()}:${actionPayload.targetId}:location:${actionPayload.source}:${Math.floor(nowMs / 1200)}`,
         baseRevision: Number(nextState.revision || 0) - 1,
       });
+      recordPersistentReport({
+        state: nextState,
+        target: actionPayload.targetPatch,
+        replyCode: kind === "confirmed" ? "LOCATION_UPDATE" : "LOCATION_UNKNOWN",
+        packetEntry: actionPayload.packetLogEntry,
+        source: "location-update",
+        seq: actionPayload.seq,
+      });
     }
   }
 
@@ -1409,6 +1547,14 @@
         seq,
         idempotencyKey: `${clientId()}:${actionPayload.targetId}:reply:${code}:${idempotencyWindow}`,
         baseRevision: Number(nextState.revision || 0) - 1,
+      });
+      recordPersistentReport({
+        state: nextState,
+        target: actionPayload.targetPatch,
+        replyCode: actionPayload.replyCode,
+        packetEntry: actionPayload.packetLogEntry,
+        source: "mobile-reply",
+        seq,
       });
     }
 
@@ -1615,6 +1761,7 @@
       draft.event.network.backbonePacketLossPercent = 64;
       draft.event.network.groundCongestion = 98;
       draft.event.network.mobileAvailable = false;
+      draft.event.network.airAvailable = true;
       draft.targets.forEach((target) => {
         target.signalQuality = Math.min(Number(target.signalQuality || 0), target.id === "U-DEMO" ? 28 : 38);
         target.risk = calculateRisk(target, nowMs);
@@ -1667,6 +1814,7 @@
     const nextState = commit((draft) => {
       draft.event.status = "高風險衛星備援啟用";
       draft.event.network.satelliteAvailable = true;
+      draft.event.network.airAvailable = false;
       draft.event.network.disasterMode = true;
       draft.event.network.groundBackboneStatus = "down";
       draft.event.network.backbonePacketLossPercent = Math.max(Number(draft.event.network.backbonePacketLossPercent || 0), 58);
@@ -1689,6 +1837,32 @@
     postAction("network", "network", { ...actionPatchFromState(nextState), operation: "satellite-fallback", seq: Number(target.communication.packetSeq || 0) }, {
       seq: Number(target.communication.packetSeq || 0),
       idempotencyKey: `${clientId()}:network:satellite-fallback:${Math.floor(Date.now() / 1000)}`,
+      baseRevision: Number(nextState.revision || 0) - 1,
+    });
+  }
+
+  function restoreGroundNetwork() {
+    const nextState = commit((draft) => {
+      const nowMs = Date.now();
+      draft.event.status = "地面網路恢復";
+      draft.event.network.disasterMode = false;
+      draft.event.network.seaCableStatus = "normal";
+      draft.event.network.groundBackboneStatus = "normal";
+      draft.event.network.backboneLatencyMs = 220;
+      draft.event.network.backbonePacketLossPercent = 2;
+      draft.event.network.groundCongestion = 18;
+      draft.event.network.mobileAvailable = true;
+      draft.event.network.airAvailable = true;
+      draft.targets.forEach((target) => {
+        if (target.id === draft.activeTargetId) target.signalQuality = Math.max(Number(target.signalQuality || 0), 78);
+        target.risk = calculateRisk(target, nowMs);
+        applyCommunicationDecision(target, draft.event.network);
+      });
+      addEvent(draft, "system", "恢復地面網路", "Wi-Fi / 5G 權重恢復，系統開始補傳本地同步佇列。", "network");
+    }, "ground-network-restore");
+    postAction("network", "network", { ...actionPatchFromState(nextState), operation: "ground-network-restore", seq: 0 }, {
+      seq: 0,
+      idempotencyKey: `${clientId()}:network:restore:${Math.floor(Date.now() / 1000)}`,
       baseRevision: Number(nextState.revision || 0) - 1,
     });
   }
@@ -1780,6 +1954,7 @@
       fresh.event.network.groundBackboneStatus = "unstable";
       fresh.event.network.backboneLatencyMs = 1880;
       fresh.event.network.backbonePacketLossPercent = 36;
+      fresh.event.network.airAvailable = true;
       fresh.event.script = {
         running: true,
         startedAt: Date.now(),
@@ -1952,6 +2127,7 @@
       simulatePacketLoss,
       simulateGroundNetworkDown,
       enableSatelliteFallback,
+      restoreGroundNetwork,
       refreshRiskTick,
     },
   };

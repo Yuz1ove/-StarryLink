@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "npm --prefix demo run build",
+    "test": "npm --prefix demo test"
+  }
+}
