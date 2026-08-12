@@ -1293,8 +1293,10 @@
 
   function shouldRunInitialLoading() {
     const query = new URLSearchParams(global.location.search);
-    if (query.get("boot") === "skip") return false;
-    if (["matrix", "signal", "relay", "cinematic"].includes(query.get("boot"))) return true;
+    const bootMode = query.get("boot");
+    if (bootMode === "skip") return false;
+    if (["matrix", "signal", "relay", "cinematic"].includes(bootMode)) return true;
+    if (bootMode !== "auto") return false;
     try {
       return global.sessionStorage.getItem(SESSION_KEY) !== "complete";
     } catch (_error) {

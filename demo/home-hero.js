@@ -944,6 +944,7 @@
     if (!transitionSuspended || destroyed) return;
     transitionSuspended = false;
     root.removeAttribute("data-transition-suspended");
+    if (pageActive) replayBrandEntrance();
     syncAnimationState();
   }
 

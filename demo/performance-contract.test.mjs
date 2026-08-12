@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 
 const source = async (file) => readFile(new URL(file, import.meta.url), "utf8");
 
-const [transitions, hologram, architecture, matrix, matrixContract, starfield, store, app, server, packageJson, styles] = await Promise.all([
+const [transitions, homeHero, hologram, architecture, matrix, matrixContract, starfield, store, app, server, packageJson, styles] = await Promise.all([
   source("./starrylink-transitions.js"),
+  source("./home-hero.js"),
   source("./demo-hologram.js"),
   source("./architecture-page.js"),
   source("./matrix-compute-console.js"),
@@ -175,6 +176,7 @@ assert.match(transitions, /document\.fonts\?\.ready/, "real font readiness gate 
 assert.match(transitions, /typeof (?:image|probe)\.decode === "function"/, "critical image decode gate is missing");
 assert.match(transitions, /Promise\.allSettled\(tasks\)/, "fault-tolerant asset gate is missing");
 assert.match(transitions, /sessionStorage\.getItem\(SESSION_KEY\)/, "session cache guard is missing");
+assert.match(transitions, /if \(bootMode !== "auto"\) return false;/, "normal entry must show the home wordmark instead of the loading transition");
 assert.doesNotMatch(transitions, /FOUR-LAYER|slt-relay|layer-label|scanline|SYSTEM READY|INITIALIZING|ACCESS GRANTED/, "retired HUD or four-layer relay UI returned");
 assert.doesNotMatch(transitions, /document\.startViewTransition/, "native snapshot transition must not bypass the GSAP director");
 assert.doesNotMatch(transitions, /setInterval\(/, "route transitions must not introduce a permanent timer");
@@ -187,6 +189,7 @@ assert.match(styles, /max-width:\s*760px[\s\S]*width:\s*min\(74vw, 280px\)/, "mo
 assert.match(styles, /prefers-reduced-motion:\s*reduce[\s\S]*\.slt-matrix-object[\s\S]*display:\s*none/, "reduced-motion must remove complex 3D motion");
 assert.match(styles, /\.slt-matrix-sweep[\s\S]*linear-gradient/, "cyan line-reveal styling is missing");
 assert.match(styles, /has-starry-transition-director[\s\S]*\.architecture-entry/, "legacy Architecture route aperture must be disabled by the signal-matrix director");
+assert.match(homeHero, /function resumeAfterTransition\(\)[\s\S]*if \(pageActive\) replayBrandEntrance\(\);[\s\S]*syncAnimationState\(\);/, "home wordmark entrance must replay after the transition overlay is removed");
 
 assert.match(hologram, /1000\s*\/\s*30/, "hologram frame rate should remain capped at 30fps");
 assert.match(hologram, /Math\.min\(1\.25,\s*global\.devicePixelRatio/, "hologram DPR cap regressed");
