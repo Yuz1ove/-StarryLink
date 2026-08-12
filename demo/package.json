@@ -1,6 +1,18 @@
 {
   "scripts": {
-    "build": "node --check persistenceRepositories.js && node --check networkSimulationService.js && node --check packetMetricsService.js && node --check syncService.js && node --check demoStore.js && node --check app.js && node --check homepage-air-smoke-test.mjs && node communicationEngine.test.js && node routeDecisionEngine.test.js && node syncService.test.js",
-    "test": "node communicationEngine.test.js && node routeDecisionEngine.test.js && node syncService.test.js"
+    "preview": "python3 api_server.py",
+    "build": "node --check persistenceRepositories.js && node --check networkSimulationService.js && node --check packetMetricsService.js && node --check syncService.js && node --check demoStore.js && node --check starrylink-transitions.js && node --check matrix-score-contract.js && node --check runtime-page.js && node --check runtime-page-smoke-test.mjs && node --check runtime-design-qa.mjs && node --check app.js && node --check home-hero-data.js && node --check home-hero.js && node --check architecture-page.js && node --check demo-hologram.js && node --check matrix-command.js && node --check matrix-compute-console.js && node --check matrix-holographic.js && node --check matrix-structure.js && node --check homepage-air-smoke-test.mjs && node communicationEngine.test.js && node routeDecisionEngine.test.js && node syncService.test.js && node matrix-score-contract.test.js && node performance-contract.test.mjs",
+    "test": "node communicationEngine.test.js && node routeDecisionEngine.test.js && node syncService.test.js && node matrix-score-contract.test.js && node performance-contract.test.mjs",
+    "smoke:home": "node homepage-air-smoke-test.mjs",
+    "smoke:runtime": "node runtime-page-smoke-test.mjs",
+    "qa:runtime-design": "node runtime-design-qa.mjs"
+  },
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.25",
+    "three": "^0.185.1"
   }
 }

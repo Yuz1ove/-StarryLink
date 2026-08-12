@@ -20,6 +20,15 @@ Mobile:
 http://<LAN_IP>:8765/?view=mobile&target=U-DEMO
 ```
 
+## Homepage Route Study
+
+The homepage is currently in `routes` study mode on the `codex/starrylink-route-study` branch.
+
+- `home-hero-data.js` is the immutable source for the preserved Hero copy, relay labels, desktop/mobile path geometry, node coordinates, and playback order.
+- `index.html` keeps only the render structure and selects the study mode with `data-study-mode="routes"`.
+- `home-hero.js` hydrates the content and geometry before playback. In route-study mode, the designed primary title stays in the composition; supporting copy, actions, and node labels remain available in data but stay outside the visual stage and keyboard order.
+- To restore the preserved copy after the route composition is approved, change the Hero's `data-study-mode` from `routes` to `content`; no copy needs to be reconstructed.
+
 ## Canonical Data Model
 
 The runtime model is `targets`.

@@ -7,15 +7,29 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23167c80'/%3E%3Cpath d='M32 8l5.5 17.4H56L41 36.2 46.5 56 32 44 17.5 56 23 36.2 8 25.4h18.5L32 8z' fill='white'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=starrylink-starfield-20260711" />
+    <link href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="preload" href="./assets/fonts/inter-tight-500-starrylink.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./assets/fonts/noto-serif-tc-400-xingye.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./assets/relay/starrylink-relay-node-shell.png" as="image" />
+    <link rel="preload" href="./assets/architecture/starship-command-room.png" as="image" />
+    <link rel="stylesheet" href="./styles.css?v=starrylink-signal-matrix-20260809a" />
+    <link rel="stylesheet" href="./home-hero.css?v=starrylink-home-hero-20260722b" />
+    <link rel="stylesheet" href="./architecture-page.css?v=starrylink-command-deck-20260722h" />
+    <link rel="stylesheet" href="./demo-hologram.css?v=starrylink-hologram-20260722h" />
+    <link rel="stylesheet" href="./matrix-command.css?v=starrylink-priority-compute-20260723f" />
+    <link rel="stylesheet" href="./matrix-adjudication.css?v=starrylink-100point-adjudication-20260723a" />
+    <link rel="stylesheet" href="./matrix-dual-deck.css?v=starrylink-dual-deck-20260724a" />
+    <link rel="stylesheet" href="./matrix-holographic.css?v=starrylink-physical-hologram-20260724a" />
+    <link rel="stylesheet" href="./matrix-structure.css?v=starrylink-decision-structure-20260809b" />
+    <link rel="stylesheet" href="./runtime-page.css?v=starrylink-runtime-matrix-aligned-20260809c" />
   </head>
-  <body>
+  <body class="home-hero-active">
     <div class="app-shell">
       <header class="topbar" aria-label="星夜展示導覽">
         <button class="brand brand-block" type="button" data-page-target="intro" aria-label="回到作品介紹">
           <span class="brand-mark" aria-hidden="true">✦</span>
-          <span>
+          <img class="brand-home-logo" src="./assets/brand/starrylink-orbital-monolith-cropped.png" alt="" width="1871" height="453" decoding="async" aria-hidden="true" />
+          <span class="brand-copy">
             <strong>星夜 StarryLink</strong>
             <small>星・海・地・空多路徑災害韌性通訊助理</small>
           </span>
@@ -37,11 +51,192 @@
       </aside>
 
       <main class="page-stage" aria-live="polite">
-        <section class="page-panel intro-panel active" data-page="intro" aria-labelledby="introTitle">
+        <section class="page-panel intro-panel active" data-page="intro" data-title-style="stellar" aria-labelledby="introTitle">
+          <section class="home-hero" data-home-hero data-study-mode="routes" aria-label="星夜 StarryLink 路徑研究">
+            <canvas class="home-hero-starfield" data-hero-starfield aria-hidden="true"></canvas>
+            <div class="home-hero-lightfield" aria-hidden="true"></div>
+
+            <svg class="home-hero-relay" data-hero-relay viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <defs>
+                <linearGradient id="homeRelayGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#5edbff" />
+                  <stop offset="1" stop-color="#8d79ff" />
+                </linearGradient>
+                <linearGradient id="homeAckGradient" x1="1" y1="0" x2="0" y2="0">
+                  <stop offset="0" stop-color="#f3fffb" />
+                  <stop offset="1" stop-color="#c8ffe9" />
+                </linearGradient>
+                <linearGradient id="homeMeteorTailGradient" gradientUnits="userSpaceOnUse" x1="-78" y1="0" x2="0" y2="0">
+                  <stop offset="0" stop-color="#8edfff" stop-opacity="0" />
+                  <stop offset="0.42" stop-color="#aeeaff" stop-opacity="0.34" />
+                  <stop offset="0.78" stop-color="#dff7ff" stop-opacity="0.78" />
+                  <stop offset="1" stop-color="#ffffff" stop-opacity="1" />
+                </linearGradient>
+              </defs>
+
+              <g class="relay-map relay-map-desktop" data-relay-map="desktop">
+                <path class="relay-ghost relay-direct-future" data-route-path="directFuture" />
+                <path class="relay-direct" data-direct-path data-route-path="direct" />
+                <path class="relay-segment" data-segment="origin-ground" />
+                <path class="relay-segment" data-segment="ground-drone" />
+                <path class="relay-segment" data-segment="drone-satellite" />
+                <path class="relay-segment" data-segment="satellite-center" />
+
+                <path class="relay-ack-path" data-ack="origin-ground" />
+                <path class="relay-ack-path" data-ack="ground-drone" />
+                <path class="relay-ack-path" data-ack="drone-satellite" />
+                <path class="relay-ack-path" data-ack="satellite-center" />
+
+                <g class="relay-node relay-node-origin" data-node="origin">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core relay-node-core-sos" r="4.5" />
+                  <text x="0" y="34" text-anchor="middle" data-hero-content="relay.nodes.desktop.origin"></text>
+                </g>
+                <g class="relay-node" data-node="ground">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="4.5" />
+                  <text x="0" y="34" text-anchor="middle" data-hero-content="relay.nodes.desktop.ground"></text>
+                </g>
+                <g class="relay-node" data-node="drone">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="4.5" />
+                  <text x="0" y="-28" text-anchor="middle" data-hero-content="relay.nodes.desktop.drone"></text>
+                </g>
+                <g class="relay-node" data-node="satellite">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="4.5" />
+                  <text x="0" y="-28" text-anchor="middle" data-hero-content="relay.nodes.desktop.satellite"></text>
+                </g>
+                <g class="relay-node relay-node-center" data-node="center">
+                  <circle class="relay-node-ring" r="17" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="5" />
+                  <text class="relay-node-label" x="0" y="34" text-anchor="middle" data-hero-content="relay.nodes.desktop.center"></text>
+                  <text class="relay-delivery-note" x="0" y="55" text-anchor="middle" data-hero-content="relay.delivery"></text>
+                </g>
+                <g class="relay-signal-head" data-signal-head>
+                  <g class="relay-meteor-body" data-meteor-body>
+                    <g class="relay-meteor-plume">
+                      <path class="relay-meteor-tail relay-meteor-tail-primary" d="M -76 0 C -59 -8 -43 8 -28 -2 C -17 -7 -9 3 -2 0" />
+                      <path class="relay-meteor-tail relay-meteor-tail-wisp" d="M -64 2 C -49 12 -35 -9 -20 1 C -12 6 -7 -2 -2 0" />
+                    </g>
+                    <circle class="relay-meteor-halo" r="9" />
+                    <circle class="relay-meteor-core" r="3.8" />
+                  </g>
+                </g>
+                <circle class="relay-ack-head" data-ack-head r="3.2" />
+              </g>
+
+              <g class="relay-map relay-map-mobile" data-relay-map="mobile">
+                <path class="relay-ghost relay-direct-future" data-route-path="directFuture" />
+                <path class="relay-direct" data-direct-path data-route-path="direct" />
+                <path class="relay-segment" data-segment="origin-ground" />
+                <path class="relay-segment" data-segment="ground-drone" />
+                <path class="relay-segment" data-segment="drone-satellite" />
+                <path class="relay-segment" data-segment="satellite-center" />
+
+                <path class="relay-ack-path" data-ack="origin-ground" />
+                <path class="relay-ack-path" data-ack="ground-drone" />
+                <path class="relay-ack-path" data-ack="drone-satellite" />
+                <path class="relay-ack-path" data-ack="satellite-center" />
+
+                <g class="relay-node relay-node-origin" data-node="origin">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core relay-node-core-sos" r="4.5" />
+                  <text x="0" y="34" text-anchor="middle" data-hero-content="relay.nodes.mobile.origin"></text>
+                </g>
+                <g class="relay-node" data-node="ground">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="4.5" />
+                  <text x="0" y="34" text-anchor="middle" data-hero-content="relay.nodes.mobile.ground"></text>
+                </g>
+                <g class="relay-node" data-node="drone">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="4.5" />
+                  <text x="0" y="-28" text-anchor="middle" data-hero-content="relay.nodes.mobile.drone"></text>
+                </g>
+                <g class="relay-node" data-node="satellite">
+                  <circle class="relay-node-ring" r="15" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="4.5" />
+                  <text x="0" y="-28" text-anchor="middle" data-hero-content="relay.nodes.mobile.satellite"></text>
+                </g>
+                <g class="relay-node relay-node-center" data-node="center">
+                  <circle class="relay-node-ring" r="17" />
+                  <image class="relay-node-shell" href="./assets/relay/starrylink-relay-node-shell.png" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet" />
+                  <circle class="relay-node-core" r="5" />
+                  <text class="relay-node-label" x="0" y="34" text-anchor="middle" data-hero-content="relay.nodes.mobile.center"></text>
+                  <text class="relay-delivery-note" x="0" y="55" text-anchor="middle" data-hero-content="relay.delivery"></text>
+                </g>
+                <g class="relay-signal-head" data-signal-head>
+                  <g class="relay-meteor-body" data-meteor-body>
+                    <g class="relay-meteor-plume">
+                      <path class="relay-meteor-tail relay-meteor-tail-primary" d="M -76 0 C -59 -8 -43 8 -28 -2 C -17 -7 -9 3 -2 0" />
+                      <path class="relay-meteor-tail relay-meteor-tail-wisp" d="M -64 2 C -49 12 -35 -9 -20 1 C -12 6 -7 -2 -2 0" />
+                    </g>
+                    <circle class="relay-meteor-halo" r="9" />
+                    <circle class="relay-meteor-core" r="3.8" />
+                  </g>
+                </g>
+                <circle class="relay-ack-head" data-ack-head r="3.2" />
+              </g>
+            </svg>
+
+            <div class="home-hero-copy" data-hero-copy>
+              <h1 id="introTitle" class="home-hero-wordmark page-title page-title-home" data-page-title>
+                <span class="visually-hidden">StarryLink</span>
+                <span class="home-hero-wordmark-face" aria-hidden="true">
+                  <span class="home-hero-wordmark-stage">
+                    <img
+                      class="home-hero-wordmark-body home-hero-wordmark-body-base"
+                      src="./assets/brand/starrylink-orbital-monolith-body.png"
+                      alt=""
+                      width="1871"
+                      height="453"
+                      decoding="async"
+                    />
+                    <span class="home-hero-wordmark-slice home-hero-wordmark-slice-top">
+                      <img src="./assets/brand/starrylink-orbital-monolith-body.png" alt="" width="1871" height="453" decoding="async" />
+                    </span>
+                    <span class="home-hero-wordmark-slice home-hero-wordmark-slice-core">
+                      <img src="./assets/brand/starrylink-orbital-monolith-body.png" alt="" width="1871" height="453" decoding="async" />
+                    </span>
+                    <span class="home-hero-wordmark-slice home-hero-wordmark-slice-keel">
+                      <img src="./assets/brand/starrylink-orbital-monolith-body.png" alt="" width="1871" height="453" decoding="async" />
+                    </span>
+                    <span class="home-hero-wordmark-stroke">
+                      <img src="./assets/brand/starrylink-orbital-monolith-stroke.png" alt="" width="1871" height="453" decoding="async" />
+                    </span>
+                  </span>
+                </span>
+              </h1>
+              <p class="home-hero-signature" data-hero-content="signature"></p>
+              <p class="home-hero-statement" data-hero-content="statement"></p>
+              <p class="home-hero-support" data-hero-content="support"></p>
+              <div class="home-hero-actions">
+                <button class="home-hero-cta" type="button" data-page-target="demo">
+                  <span data-hero-content="actions.primary"></span><i aria-hidden="true">→</i>
+                </button>
+                <button class="home-hero-text-link" type="button" data-page-target="architecture">
+                  <span data-hero-content="actions.secondary"></span><span aria-hidden="true">↗</span>
+                </button>
+              </div>
+            </div>
+
+            <p class="home-hero-status visually-hidden" data-hero-status data-hero-content="relay.status.fallback"></p>
+          </section>
+
           <div class="intro-layout">
             <div class="intro-copy">
               <p class="eyebrow">StarryLink</p>
-              <h1 id="introTitle">星夜 StarryLink</h1>
+              <h1>星夜 StarryLink</h1>
               <h2>星・海・地・空多路徑災害韌性通訊助理</h2>
               <p>
                 面向地震、颱風、海纜異常、基地台中斷與偏遠地區弱網情境，星夜會將手機端的 GPS、SOS 與生命狀態壓縮成低資料量封包，依據網路品質、風險等級與通訊節點可用性，在地面網路、空中中繼、海纜骨幹與衛星備援間選擇適合的傳輸路徑，將重要資訊優先送達守望隊工作台。
@@ -139,183 +334,230 @@
           </div>
         </section>
 
-        <section class="page-panel architecture-panel" data-page="architecture" aria-labelledby="architectureTitle">
-          <div class="page-header">
-            <div>
-              <p class="eyebrow">Space・Sea・Ground・Air</p>
-              <h2 id="architectureTitle">星海地空通訊架構</h2>
-            </div>
-            <p>四層韌性架構分工：海纜與骨幹監測、地面弱網與守望隊調度、空中中繼模擬、衛星高風險備援。</p>
+        <section class="page-panel architecture-panel" data-page="architecture" data-title-style="orbit" aria-labelledby="architectureTitle">
+          <div class="architecture-entry" aria-hidden="true">
+            <div class="architecture-entry-aperture"></div>
+            <div class="architecture-entry-scan"></div>
           </div>
 
-          <div class="architecture-grid">
-            <section class="architecture-map" aria-label="多路徑通訊架構圖">
-              <div class="architecture-flow-rail" aria-hidden="true">
-                <span class="rail-label rail-top">高風險升級</span>
-                <span class="rail-label rail-bottom">健康監測</span>
+          <div class="architecture-experience" data-architecture-experience data-card-index="0">
+            <header class="architecture-command-header">
+              <div>
+                <p>02 / COMMUNICATION ARCHIVE</p>
+                <h2 id="architectureTitle" class="architecture-title-subtitle" data-page-title>星海地空通訊架構</h2>
+              </div>
+            </header>
+
+            <canvas class="architecture-handoff-field" data-architecture-handoff-field aria-hidden="true"></canvas>
+
+            <section class="architecture-map architecture-carousel-stage" data-architecture-carousel aria-roledescription="carousel" aria-label="星海地空五章旋轉展示">
+              <div class="architecture-stage-copy" aria-live="polite">
+                <span data-architecture-progress>01 / 05</span>
+                <strong data-architecture-stage-title>多路徑協作總述</strong>
               </div>
 
-              <article class="layer-card arch-layer space-layer">
-                <div class="layer-heading">
-                  <span class="layer-badge">星</span>
-                  <div>
-                    <p class="eyebrow">SPACE LAYER / 星空</p>
-                    <h3>高風險衛星備援</h3>
-                    <p>地面通道失效或 Red 風險時，將 GPS、SOS 與生命狀態升級到衛星備援。</p>
-                  </div>
-                </div>
-                <div class="arch-node-grid space-nodes">
-                  <article class="arch-node primary" data-arch-route="satellite_backup" data-arch-channel="Satellite Backup">
-                    <strong>Satellite Backup</strong>
-                    <span>災害備援主通道</span>
-                  </article>
-                  <article class="arch-node" data-arch-route="sos_escalation">
-                    <strong>Emergency Uplink</strong>
-                    <span>SOS escalation</span>
-                  </article>
-                  <article class="arch-node wide" data-arch-route="satellite_backup sos_escalation">
-                    <strong>High-Risk Priority Channel</strong>
-                    <span>Red risk packet only</span>
-                  </article>
-                </div>
-              </article>
+              <div class="architecture-card-orbit" data-architecture-orbit>
+                <article class="architecture-card arch-node architecture-card-overview is-current" data-architecture-card="overview" data-architecture-layer="all" data-arch-route="ground_primary ground_mesh gps_packet satellite_backup sos_escalation" aria-hidden="false">
+                  <button class="architecture-card-surface" type="button" aria-label="查看多路徑協作總述">
+                    <span class="architecture-card-index">00 / MASTER LINK</span>
+                    <div class="architecture-card-title"><small>OVERVIEW</small><strong>總述</strong></div>
+                    <h3>星、海、地、空<br />共同守住最後一段訊號</h3>
+                    <p>地面優先、空中補位、海纜監測、衛星備援；封包根據節點健康度自動改道，直到守望隊回傳 ACK。</p>
+                    <div class="architecture-card-route">
+                      <span>CURRENT ROUTE</span>
+                      <strong id="archActiveRoute">Satellite Backup</strong>
+                    </div>
+                  </button>
+                </article>
 
-              <div class="signal-route" aria-hidden="true">
-                <span class="packet-dot dot-wifi"></span>
-                <span class="packet-dot dot-sms"></span>
-                <span class="packet-dot dot-satellite"></span>
+                <article class="architecture-card arch-node architecture-card-space" data-architecture-card="space" data-architecture-layer="space" data-arch-route="satellite_backup sos_escalation" data-arch-channel="Satellite Backup" aria-hidden="true">
+                  <button class="architecture-card-surface" type="button" aria-label="查看衛星備援章節">
+                    <span class="architecture-card-index">01 / SPACE</span>
+                    <div class="architecture-card-title"><small>ORBITAL BACKUP</small><strong>星</strong></div>
+                    <h3>只讓最高風險的求救訊號升空</h3>
+                    <p>當地面與空中路徑失效，衛星承接 GPS、SOS 與生命狀態，避免一般同步流量佔用救命頻寬。</p>
+                    <div class="architecture-card-health space-health">
+                      <span>UPLINK <b id="archSpaceMetric">backup ready</b></span>
+                      <i><b id="archSpaceHealthBar"></b></i>
+                      <em id="archSatelliteStatus">待命</em>
+                    </div>
+                  </button>
+                </article>
+
+                <article class="architecture-card arch-node architecture-card-sea" data-architecture-card="sea" data-architecture-layer="sea" data-arch-route="ground_primary ground_mesh" data-arch-channel="SMS" aria-hidden="true">
+                  <button class="architecture-card-surface" type="button" aria-label="查看海纜骨幹章節">
+                    <span class="architecture-card-index">02 / SEA</span>
+                    <div class="architecture-card-title"><small>BACKBONE WATCH</small><strong>海</strong></div>
+                    <h3>讓海底骨幹持續承載跨區訊號</h3>
+                    <p>海纜維持完整骨幹角色，持續監測跨區閘道、延遲與丟包，並將陸地節點狀態交由決策層判斷。</p>
+                    <div class="architecture-card-health sea-health">
+                      <span>SEA CABLE <b id="archSeaMetric">31% loss</b></span>
+                      <i><b id="archSeaHealthBar"></b></i>
+                      <em id="archSeaStatus">健康監測中</em>
+                    </div>
+                  </button>
+                </article>
+
+                <article class="architecture-card arch-node architecture-card-ground" data-architecture-card="ground" data-architecture-layer="ground" data-arch-route="ground_primary ground_mesh" data-arch-channel="5G / LTE" aria-hidden="true">
+                  <button class="architecture-card-surface" type="button" aria-label="查看地面基地台章節">
+                    <span class="architecture-card-index">03 / GROUND</span>
+                    <div class="architecture-card-title"><small>GROUND FIRST</small><strong>地</strong></div>
+                    <h3>基地台是封包的第一選擇</h3>
+                    <p>優先使用 Wi-Fi、5G、LTE、SMS 與近距離 Mesh；若 ACK 遺失或連線中斷，再交由下一層接手。</p>
+                    <div class="architecture-card-health ground-health">
+                      <span>GROUND LINK <b id="archGroundMetric">ACK retry</b></span>
+                      <i><b id="archGroundHealthBar"></b></i>
+                      <em id="archGroundStatus">連線檢查中</em>
+                    </div>
+                  </button>
+                </article>
+
+                <article class="architecture-card arch-node architecture-card-air" data-architecture-card="air" data-architecture-layer="air" data-arch-route="gps_packet" data-arch-channel="Drone Relay" aria-hidden="true">
+                  <button class="architecture-card-surface" type="button" aria-label="查看空中臨時中繼章節">
+                    <span class="architecture-card-index">04 / AIR</span>
+                    <div class="architecture-card-title"><small>DRONE RELAY</small><strong>空</strong></div>
+                    <h3>以無人機銜接訊號網路</h3>
+                    <p>無人機飛抵斷訊區上方建立臨時中繼，接住手機送出的低資料封包，再銜接可用基地台、骨幹或衛星。</p>
+                    <div class="architecture-air-relay">
+                      <span>SIGNAL HANDOFF</span><strong>DRONE RELAY</strong><em>Aerial network bridge ready</em>
+                    </div>
+                  </button>
+                </article>
               </div>
 
-              <article class="layer-card arch-layer ground-layer">
-                <div class="layer-heading">
-                  <span class="layer-badge">地</span>
-                  <div>
-                    <p class="eyebrow">GROUND LAYER / 地</p>
-                    <h3>弱網封包與守望隊工作台</h3>
-                    <p>手機端封包先嘗試地面通道，再依 ACK、丟包率與風險矩陣切換備援。</p>
-                  </div>
+              <div class="architecture-carousel-controls" aria-label="章節輪播控制">
+                <button type="button" data-architecture-prev>PREV</button>
+                <div class="architecture-carousel-dots" role="tablist" aria-label="選擇通訊章節">
+                  <button class="active" type="button" role="tab" aria-selected="true" data-architecture-jump="0"><span>00</span>總述</button>
+                  <button type="button" role="tab" aria-selected="false" data-architecture-jump="1"><span>01</span>星</button>
+                  <button type="button" role="tab" aria-selected="false" data-architecture-jump="2"><span>02</span>海</button>
+                  <button type="button" role="tab" aria-selected="false" data-architecture-jump="3"><span>03</span>地</button>
+                  <button type="button" role="tab" aria-selected="false" data-architecture-jump="4"><span>04</span>空</button>
                 </div>
-                <div class="arch-node-grid ground-nodes">
-                  <article class="arch-node primary" data-arch-route="ground_primary ground_mesh gps_packet sos_escalation">
-                    <strong>Rescue Console</strong>
-                    <span>守望隊調度</span>
-                  </article>
-                  <article class="arch-node" data-arch-route="ground_primary" data-arch-channel="5G / LTE">
-                    <strong>5G / LTE</strong>
-                    <span>primary ground</span>
-                  </article>
-                  <article class="arch-node" data-arch-route="ground_primary" data-arch-channel="Wi-Fi">
-                    <strong>Wi-Fi</strong>
-                    <span>local access</span>
-                  </article>
-                  <article class="arch-node" data-arch-route="ground_mesh" data-arch-channel="SMS">
-                    <strong>SMS</strong>
-                    <span>low bandwidth</span>
-                  </article>
-                  <article class="arch-node" data-arch-route="ground_mesh" data-arch-channel="BLE Relay">
-                    <strong>BLE Relay</strong>
-                    <span>nearby relay</span>
-                  </article>
-                  <article class="arch-node" data-arch-route="ground_mesh">
-                    <strong>Local Mesh</strong>
-                    <span>community hop</span>
-                  </article>
-                  <article class="arch-node wide" data-arch-route="gps_packet">
-                    <strong>GPS Status Packet</strong>
-                    <span>GPS + SOS + Health Status</span>
-                  </article>
-                </div>
-              </article>
+                <button type="button" data-architecture-next>NEXT</button>
+              </div>
 
-              <article class="layer-card arch-layer sea-layer">
-                <div class="layer-heading">
-                  <span class="layer-badge">海</span>
-                  <div>
-                    <p class="eyebrow">SEA LAYER / 海</p>
-                    <h3>海纜與骨幹健康監測</h3>
-                    <p>這裡的海代表海纜、國際骨幹與跨區閘道，負責判斷底層通訊健康度。</p>
-                  </div>
+              <div class="architecture-scroll-cue" data-architecture-scroll-cue aria-hidden="true">
+                <span>SCROLL TO LIVE DEMO</span>
+                <strong>向下滾動，將架構匯入全息發射器</strong>
+              </div>
+
+              <div class="architecture-command-footer">
+                <div>
+                  <span>PACKET STRATEGY</span>
+                  <strong id="archStrategy">啟用低資料量封包</strong>
+                  <p id="archPacketHint">手機端封包優先嘗試地面路徑，失敗後切換空中、海纜或衛星備援。</p>
                 </div>
-                <div class="arch-node-grid sea-nodes">
-                  <article class="arch-node primary" data-arch-route="ground_primary ground_mesh gps_packet">
-                    <strong>Backbone Health Monitor</strong>
-                    <span>latency / loss watch</span>
-                  </article>
-                  <article class="arch-node">
-                    <strong>Submarine Cable</strong>
-                    <span>海纜狀態</span>
-                  </article>
-                  <article class="arch-node">
-                    <strong>International Backbone</strong>
-                    <span>國際骨幹</span>
-                  </article>
-                  <article class="arch-node wide">
-                    <strong>Regional Gateway</strong>
-                    <span>跨區閘道健康度</span>
-                  </article>
+                <div class="architecture-live-route">
+                  <span>SELECTED CHANNEL</span>
+                  <strong id="archSelectedChannel">SMS</strong>
+                  <small id="archRouteDetail">；高風險封包保留衛星備援。</small>
                 </div>
-              </article>
+                <button type="button" data-architecture-handoff-trigger>ENTER LIVE DEMO</button>
+              </div>
             </section>
-
-            <aside class="status-panel architecture-status-panel" aria-label="目前通訊狀態">
-              <div class="active-route-card">
-                <span>Active Route</span>
-                <strong id="archActiveRoute">Satellite Backup</strong>
-                <small><span>矩陣即時通道：</span><b id="archSelectedChannel">SMS</b><span id="archRouteDetail">；高風險封包保留衛星備援。</span></small>
-                <button class="button quiet architecture-jump" type="button" data-page-target="demo">查看 Demo 狀態</button>
-              </div>
-
-              <div class="route-health" aria-label="多路徑狀態條">
-                <div class="route-health-row sea-health">
-                  <div>
-                    <span><b></b>Sea</span>
-                    <strong id="archSeaStatus">異常 / 延遲升高</strong>
-                  </div>
-                  <small id="archSeaMetric">31% loss</small>
-                  <div class="health-track"><span id="archSeaHealthBar"></span></div>
-                </div>
-                <div class="route-health-row ground-health">
-                  <div>
-                    <span><b></b>Ground</span>
-                    <strong id="archGroundStatus">壅塞 / 丟包率上升</strong>
-                  </div>
-                  <small id="archGroundMetric">ACK retry</small>
-                  <div class="health-track"><span id="archGroundHealthBar"></span></div>
-                </div>
-                <div class="route-health-row space-health">
-                  <div>
-                    <span><b></b>Space</span>
-                    <strong id="archSatelliteStatus">待命</strong>
-                  </div>
-                  <small id="archSpaceMetric">backup ready</small>
-                  <div class="health-track"><span id="archSpaceHealthBar"></span></div>
-                </div>
-              </div>
-
-              <dl class="packet-strategy-list">
-                <div><dt>Priority</dt><dd>GPS + SOS + Health Status</dd></div>
-                <div><dt>Loss Control</dt><dd>ACK + Retry + Fallback</dd></div>
-                <div><dt>Sync Mode</dt><dd>Store-and-forward</dd></div>
-                <div><dt>Strategy</dt><dd id="archStrategy">啟用低資料量封包</dd></div>
-              </dl>
-              <dl class="architecture-live-grid" aria-label="Demo 即時狀態">
-                <div><dt>Last Report</dt><dd id="archLastReport">-</dd></div>
-                <div><dt>ACK</dt><dd id="archAckLive">-</dd></div>
-                <div><dt>packetSeq</dt><dd id="archSeqLive">-</dd></div>
-                <div><dt>GPS</dt><dd id="archGpsLive">-</dd></div>
-                <div><dt>Risk</dt><dd id="archRiskLive">-</dd></div>
-                <div><dt>Raw</dt><dd id="archRawRiskLive">-</dd></div>
-              </dl>
-              <p id="archPacketHint" class="panel-note">手機端封包先嘗試 Wi-Fi / 5G；地面通道丟包時評估空中中繼、SMS 模擬 / BLE Relay 模擬，高風險才升級 Satellite Backup 模擬。</p>
-            </aside>
           </div>
         </section>
 
-        <section class="page-panel demo-panel" data-page="demo" aria-labelledby="demoSectionTitle">
+        <section class="page-panel demo-panel hologram-demo-panel" data-page="demo" data-title-style="hologram" aria-labelledby="demoProjectionTitle">
+          <div class="hologram-demo" data-hologram-demo data-phase="0" data-running="true">
+            <header class="hologram-demo-header">
+              <div>
+                <p>03 / LIVE RELAY SIMULATION</p>
+                <h2 id="demoProjectionTitle" class="page-title page-title-demo" data-page-title aria-label="StarryLink 全息災害通訊模型">
+                  <button class="hologram-title-home" type="button" data-page-target="intro" aria-label="返回 StarryLink 首頁">
+                    <span class="hologram-title-wordmark" aria-hidden="true">
+                      <img class="hologram-title-wordmark-body" src="./assets/brand/starrylink-orbital-monolith-body.png" alt="" width="1871" height="453" decoding="async" />
+                      <img class="hologram-title-wordmark-stroke" src="./assets/brand/starrylink-orbital-monolith-stroke.png" alt="" width="1871" height="453" decoding="async" />
+                    </span>
+                  </button>
+                </h2>
+                <strong class="hologram-title-subtitle">全息災害通訊模型</strong>
+              </div>
+              <div class="hologram-demo-actions" aria-label="投影演示控制">
+                <button type="button" data-hologram-play>暫停演示</button>
+                <button type="button" data-hologram-restart>重新建構</button>
+              </div>
+            </header>
+
+            <section class="hologram-stage" aria-label="災害通訊全息地形投影">
+              <canvas class="hologram-particle-field" data-hologram-particles aria-hidden="true"></canvas>
+              <div class="hologram-exit-flare" data-hologram-exit-flare aria-hidden="true"></div>
+              <div class="hologram-orbit" aria-hidden="true"></div>
+              <img
+                class="hologram-emitter"
+                data-hologram-emitter
+                src="./assets/demo-hologram/projection-emitter-clean.png"
+                alt=""
+                width="1672"
+                height="941"
+                decoding="async"
+              />
+
+              <div
+                class="hologram-model-viewport"
+                data-hologram-viewport
+                role="img"
+                aria-label="由底部發射器建構的災害通訊全息地圖"
+              >
+                <div class="hologram-model" data-hologram-model>
+                  <img
+                    class="hologram-terrain hologram-terrain-primary"
+                    src="./assets/demo-hologram/terrain-hologram-v3-clean.png"
+                    alt="左右兩岸陸地、陸地基地台、完整海纜與右岸應變中心構成的透明全息通訊模型"
+                    width="1586"
+                    height="992"
+                    decoding="async"
+                  />
+                  <canvas class="hologram-route-canvas" data-hologram-canvas aria-hidden="true"></canvas>
+                  <img
+                    class="hologram-drone"
+                    data-hologram-drone
+                    src="./assets/demo-hologram/drone-relay.png"
+                    alt="低空接手訊號的無人機中繼"
+                    width="512"
+                    height="512"
+                    decoding="async"
+                  />
+                  <img
+                    class="hologram-satellite"
+                    data-hologram-satellite
+                    src="./assets/demo-hologram/satellite-relay-clean.png"
+                    alt="高空衛星中繼"
+                    width="1254"
+                    height="1254"
+                    decoding="async"
+                  />
+                  <div class="hologram-scan" aria-hidden="true"></div>
+                </div>
+              </div>
+
+              <div class="hologram-recovery-copy" data-hologram-recovery aria-live="polite">
+                <strong data-hologram-recovery-title>PRIMARY / SUBSEA FIBER</strong>
+                <span data-hologram-recovery-copy>基地台轉送 · 海纜承載</span>
+              </div>
+
+              <div class="hologram-status" aria-live="polite">
+                <strong data-hologram-message></strong>
+              </div>
+
+              <nav class="hologram-phase-ring" aria-label="投影演示階段">
+                <button class="active" type="button" data-hologram-phase="0">全息建模</button>
+                <button type="button" data-hologram-phase="1">海纜骨幹</button>
+                <button type="button" data-hologram-phase="2">基地台損壞</button>
+                <button type="button" data-hologram-phase="3">無人機接手</button>
+                <button type="button" data-hologram-phase="4">無人機故障</button>
+                <button type="button" data-hologram-phase="5">衛星升級</button>
+              </nav>
+
+            </section>
+          </div>
+
+          <div class="demo-legacy" hidden aria-hidden="true">
           <div class="demo-toolbar" aria-label="Demo 控制列">
             <div>
               <p class="eyebrow">Demo 展示</p>
-              <h2 id="demoSectionTitle">實際模擬展示</h2>
+              <h2 id="demoSectionTitle" class="page-title page-title-demo" data-page-title>實際模擬展示</h2>
               <p id="demoTitle" class="muted">地震後海纜與地面骨幹不穩情境</p>
               <p id="syncStatus" class="muted">Local single source of truth</p>
               <p id="desktopSyncTelemetry" class="muted">手機端最後回報時間 - / ACK - / 封包序號 -</p>
@@ -634,154 +876,267 @@
               <article id="workflowPanel" class="detail-block workflow-panel" aria-label="守望隊處理流程"></article>
             </section>
           </section>
+          </div>
         </section>
 
-        <section class="page-panel matrix-panel" data-page="matrix" aria-labelledby="matrixPageTitle">
-          <div class="page-header">
-            <div>
-              <p class="eyebrow">Decision Matrix</p>
-              <h2 id="matrixPageTitle">風險評估與通訊決策矩陣</h2>
-            </div>
-            <p id="selectedMatrixTarget">Demo 使用者 / GREEN 0</p>
-          </div>
-
-          <div class="matrix-grid">
-            <article class="matrix-card" aria-labelledby="riskMatrixTitle">
-              <div class="section-line">
-                <span id="riskMatrixTitle">受困者風險評估矩陣</span>
-                <strong id="riskSummary">0 / GREEN</strong>
+        <section class="page-panel matrix-panel" data-page="matrix" data-title-style="decision" aria-labelledby="matrixPageTitle">
+          <div class="priority-matrix priority-decision" data-priority-matrix data-matrix-version="decision-structure" data-matrix-state="idle" data-entry-complete="false">
+            <header class="matrix-structure-header">
+              <div class="matrix-title-block">
+                <p class="eyebrow">救援訊號裁決</p>
+                <h2 id="matrixPageTitle" class="page-title page-title-matrix" data-page-title>決策矩陣</h2>
+                <p>六項救援訊號共同換算為 100 分，決定本案的處理優先級與下一步行動。</p>
               </div>
-              <div class="risk-total">
-                <span id="riskScore">0</span>
+              <div class="matrix-case-summary" aria-label="目前判定案例">
+                <span>目前案例</span>
+                <strong id="selectedMatrixTarget">Demo 使用者 / 六項訊號已同步</strong>
+                <small>情境資料即時同步</small>
+              </div>
+            </header>
+
+            <main class="matrix-main-grid" aria-label="救援優先級評分與裁決結果">
+              <aside class="matrix-verdict-panel" aria-labelledby="matrixVerdictTitle">
+                <div class="matrix-verdict-heading">
+                  <p>裁決結果</p>
+                  <span id="riskLevel" class="level-pending">—</span>
+                </div>
+                <div class="matrix-total-score" aria-label="救援優先級總分">
+                  <strong id="riskScore">—</strong><span>/ 100</span>
+                </div>
+                <h3 id="matrixVerdictTitle">等待裁決</h3>
+                <p class="matrix-action-copy">處置等級：<strong id="riskAction">等待門檻判定</strong></p>
+
+                <section class="matrix-key-factors" aria-labelledby="matrixFactorsTitle">
+                  <h4 id="matrixFactorsTitle">推高優先級的關鍵因素</h4>
+                  <ol id="riskReasons"><li>等待六項訊號換算</li></ol>
+                </section>
+
+                <div class="matrix-recommendation">
+                  <span>建議行動</span>
+                  <p id="matrixRecommendation">完成裁決後顯示處置建議。</p>
+                </div>
+                <p id="matrixVerdictReason" class="matrix-threshold-note">依固定門檻判定處理優先級。</p>
+                <p id="matrixCauseSummary" class="visually-hidden">六項證據已就緒</p>
+              </aside>
+
+              <section class="matrix-score-composition" aria-labelledby="matrixEvidenceTitle">
+                <header>
+                  <div>
+                    <p>評分構成</p>
+                    <h3 id="matrixEvidenceTitle">六項訊號如何組成總分</h3>
+                  </div>
+                  <strong id="matrixScoreExpression">0 + 0 + 0 + 0 + 0 + 0 = 0</strong>
+                </header>
+                <div class="matrix-score-columns" aria-hidden="true">
+                  <span>指標與本次觀測</span><span>權重</span><span>本次得分</span>
+                </div>
+                <div id="matrixEvidenceList" class="matrix-score-list" aria-label="六項本案評分構成"></div>
+              </section>
+            </main>
+
+            <section class="matrix-control-layer" aria-labelledby="matrixControlsTitle">
+              <header>
                 <div>
-                  <strong id="riskLevel">GREEN</strong>
-                  <p id="riskAction">持續追蹤</p>
+                  <p>情境控制</p>
+                  <h3 id="matrixControlsTitle">調整訊號條件，立即重算裁決</h3>
+                </div>
+                <p id="matrixComputeHint">所有選項直接更新現有案例資料，不另建計分規則。</p>
+              </header>
+              <div class="matrix-control-body">
+                <div class="matrix-scenario-controls" aria-label="六項情境條件">
+                  <label><span>01 求救</span><select data-matrix-scenario="symptoms" aria-label="求救與症狀情境"><option value="critical">受困且無法說話</option><option value="help">需要協助</option><option value="clear">狀態清楚</option></select></label>
+                  <label><span>02 位置</span><select data-matrix-scenario="location" aria-label="位置證據情境"><option value="confirmed">定位已確認</option><option value="unknown">位置未知</option></select></label>
+                  <label><span>03 生命</span><select data-matrix-scenario="medical" aria-label="生命與受困情境"><option value="critical">呼吸困難／受困</option><option value="injury">受傷</option><option value="stable">生命徵象穩定</option></select></label>
+                  <label><span>04 訊號</span><select data-matrix-scenario="delivery" aria-label="送達與訊號情境"><option value="failed">弱訊／ACK 失敗</option><option value="stable">訊號穩定</option></select></label>
+                  <label><span>05 續航</span><select data-matrix-scenario="battery" aria-label="裝置續航情境"><option value="stable">電量充足</option><option value="low">電量 15%</option><option value="critical">電量 8%</option></select></label>
+                  <label><span>06 時效</span><select data-matrix-scenario="recency" aria-label="回覆時效情境"><option value="overdue">回覆逾時</option><option value="recent">剛完成回覆</option></select></label>
+                </div>
+                <div class="matrix-control-actions">
+                  <button class="matrix-primary-button" type="button" data-matrix-start aria-describedby="matrixComputeHint">
+                    <span data-matrix-start-label>啟動裁決</span>
+                  </button>
+                  <button class="matrix-secondary-button" type="button" data-matrix-details aria-expanded="false" aria-controls="matrixRationalePanel">查看裁決依據</button>
                 </div>
               </div>
-              <div id="riskReasons" class="risk-reasons"></div>
-              <div id="riskMatrix" class="risk-matrix"></div>
-            </article>
+            </section>
 
-            <article class="matrix-card" aria-labelledby="commMatrixTitle">
-              <div class="section-line">
-                <span id="commMatrixTitle">多路徑通訊決策矩陣</span>
-                <strong>channelScore</strong>
+            <aside class="matrix-rationale-drawer" id="matrixRationalePanel" data-matrix-rationale aria-hidden="true" aria-labelledby="matrixRationaleTitle">
+              <div class="matrix-rationale-header">
+                <div><span>計分契約明細</span><h3 id="matrixRationaleTitle">裁決依據</h3></div>
+                <button type="button" data-matrix-details-close aria-label="關閉裁決依據">關閉</button>
               </div>
-              <pre class="inline-code"><code>channelScore =
-packetSuccessRate * 0.35 +
-latencyScore * 0.20 +
-signalStrength * 0.15 +
-gpsAvailability * 0.15 +
-channelCost * 0.10 +
-batteryImpact * 0.05</code></pre>
-              <p class="matrix-note">channelCost 分數越高代表越適合使用，不是越昂貴。一般狀態 Wi-Fi / 5G / SMS 優先；Red 高風險且地面網路失敗時，Satellite Backup 才提高優先級。</p>
-              <p id="commReason" class="matrix-note">依封包成功率、延遲、訊號、GPS、成本與電量影響加權選路。</p>
-              <div class="table-wrap">
-                <table class="matrix-table comm-score-table">
-                  <thead>
-                    <tr>
-                      <th>通訊路徑</th>
-                      <th>總分</th>
-                      <th>為什麼</th>
-                      <th>packetSuccessRate</th>
-                      <th>latencyScore</th>
-                      <th>signalStrength</th>
-                      <th>gpsAvailability</th>
-                      <th>channelCost</th>
-                      <th>batteryImpact</th>
-                      <th>score breakdown</th>
-                    </tr>
-                  </thead>
-                  <tbody id="commScoreRows"></tbody>
-                </table>
-              </div>
-            </article>
-          </div>
-
-          <div class="matrix-relation">
-            <strong>風險分數不只決定救援優先順序，也會影響通訊路徑選擇。</strong>
-            <span>Green / Yellow：使用 Wi-Fi、5G、SMS。</span>
-            <span>Orange：啟用低資料量封包，增加重送頻率。</span>
-            <span>Red：優先傳送 GPS、求救狀態、生命狀態，必要時升級衛星備援。</span>
+              <ol id="matrixRationaleList"></ol>
+              <p><strong id="matrixRationaleEquation">0 + 0 + 0 + 0 + 0 + 0 = 0</strong><span id="matrixRationaleThreshold">等待門檻判定。</span></p>
+            </aside>
+            <p class="visually-hidden" data-matrix-live aria-live="polite" aria-atomic="true"></p>
           </div>
         </section>
 
-        <section class="page-panel runtime-panel" data-page="runtime" aria-labelledby="runtimeTitle">
-          <div class="page-header">
-            <div>
-              <p class="eyebrow">Runtime</p>
-              <h2 id="runtimeTitle">程式運行邏輯</h2>
+        <section class="page-panel runtime-panel" data-page="runtime" data-title-style="runtime" data-runtime-step="idle" aria-labelledby="runtimeTitle">
+          <header class="runtime-header">
+            <div class="runtime-heading">
+              <p class="eyebrow">RUNTIME / LIVE TRANSMISSION</p>
+              <h2 id="runtimeTitle" class="page-title page-title-runtime" data-page-title>一次求救訊號，如何抵達應變中心</h2>
+              <p>從低資料量封包、通道評分到 ACK 回報，全程可視化。</p>
             </div>
-            <p>流程圖、即時 log 與 pseudo code 共用 Demo 狀態，不會和手機端操作對不上。</p>
+            <div class="runtime-header-actions">
+              <span class="runtime-current-label">本次傳輸</span>
+              <span class="runtime-run-state" id="runtimeRunState" role="status">等待執行</span>
+              <button class="runtime-replay" id="runtimeReplay" type="button">
+                重新執行
+              </button>
+            </div>
+          </header>
+
+          <dl class="runtime-summary" aria-label="即時傳輸狀態摘要">
+            <div><dt>災害情境</dt><dd id="runtimeScenario">—</dd></div>
+            <div><dt>封包大小</dt><dd id="runtimePacketBytes">—</dd></div>
+            <div><dt>系統路徑</dt><dd id="runtimeSelectedPath">—</dd></div>
+            <div><dt>ACK 狀態</dt><dd id="runtimeAckSummary">—</dd></div>
+            <div><dt>延遲 / 重試</dt><dd id="runtimeLatencyRetry">—</dd></div>
+          </dl>
+
+          <div class="runtime-main">
+            <section class="runtime-stage" aria-labelledby="runtimeStageTitle">
+              <div class="runtime-section-title">
+                <div>
+                  <span>訊號處理</span>
+                  <h3 id="runtimeStageTitle">訊號處理主流程</h3>
+                </div>
+                <strong id="runtimeStageProgress">0 / 9</strong>
+              </div>
+
+              <div class="runtime-flow-track" aria-label="求救訊號處理流程">
+                <article class="runtime-node tone-input" data-runtime-node="phone" data-status="waiting">
+                  <span class="runtime-node-index">01</span>
+                  <i class="runtime-status-mark" aria-hidden="true"></i>
+                  <h4>手機端求救</h4>
+                  <strong id="runtimeNodePhoneValue">—</strong>
+                  <small data-runtime-node-status>等待</small>
+                </article>
+                <article class="runtime-node tone-packet" data-runtime-node="packet" data-status="waiting">
+                  <span class="runtime-node-index">02</span>
+                  <i class="runtime-status-mark" aria-hidden="true"></i>
+                  <h4>低資料量封包</h4>
+                  <strong id="runtimeNodePacketValue">—</strong>
+                  <small data-runtime-node-status>等待</small>
+                </article>
+                <article class="runtime-node tone-alert" data-runtime-node="analysis" data-status="waiting">
+                  <span class="runtime-node-index">03</span>
+                  <i class="runtime-status-mark" aria-hidden="true"></i>
+                  <h4>通道狀態分析</h4>
+                  <strong id="runtimeNodeAnalysisValue">—</strong>
+                  <small data-runtime-node-status>等待</small>
+                </article>
+                <article class="runtime-node tone-matrix" data-runtime-node="matrix" data-status="waiting">
+                  <span class="runtime-node-index">04</span>
+                  <i class="runtime-status-mark" aria-hidden="true"></i>
+                  <h4>通訊矩陣評分</h4>
+                  <strong id="runtimeNodeMatrixValue">—</strong>
+                  <small data-runtime-node-status>等待</small>
+                </article>
+                <article class="runtime-node tone-backup" data-runtime-node="route" data-status="waiting">
+                  <span class="runtime-node-index">05</span>
+                  <i class="runtime-status-mark" aria-hidden="true"></i>
+                  <h4>備援路徑傳送</h4>
+                  <strong id="runtimeNodeRouteValue">—</strong>
+                  <small data-runtime-node-status>等待</small>
+                </article>
+                <article class="runtime-node tone-success" data-runtime-node="ack" data-status="waiting">
+                  <span class="runtime-node-index">06</span>
+                  <i class="runtime-status-mark" aria-hidden="true"></i>
+                  <h4>應變中心 ACK</h4>
+                  <strong id="runtimeNodeAckValue">—</strong>
+                  <small data-runtime-node-status>等待</small>
+                </article>
+                <article class="runtime-node tone-risk" data-runtime-node="risk" data-status="waiting">
+                  <span class="runtime-node-index">07</span>
+                  <i class="runtime-status-mark" aria-hidden="true"></i>
+                  <h4>風險分數更新</h4>
+                  <strong id="runtimeNodeRiskValue">—</strong>
+                  <small data-runtime-node-status>等待</small>
+                </article>
+              </div>
+            </section>
+
+            <aside class="runtime-result" aria-labelledby="runtimeResultTitle">
+              <div class="runtime-result-heading">
+                <span>傳輸結果</span>
+                <h3 id="runtimeResultTitle">處理結論</h3>
+                <i id="runtimeResultSignal" aria-hidden="true"></i>
+              </div>
+              <div class="runtime-result-score" aria-label="已選通道評分">
+                <span>已選通道評分</span>
+                <p><strong id="runtimeResultScore">—</strong><small>/ 100</small></p>
+              </div>
+              <div class="runtime-result-route">
+                <small>已選路徑</small>
+                <strong id="runtimeResultPath">—</strong>
+                <p id="runtimeResultReason">等待通訊矩陣完成評分。</p>
+              </div>
+              <dl class="runtime-result-grid">
+                <div><dt>封包序號</dt><dd id="runtimeResultSeq">—</dd></div>
+                <div><dt>風險分數</dt><dd id="runtimeResultRisk">—</dd></div>
+                <div><dt>ACK</dt><dd id="runtimeResultAck">—</dd></div>
+                <div><dt>傳送結果</dt><dd id="runtimeResultDelivery">—</dd></div>
+                <div><dt>重試次數</dt><dd id="runtimeResultRetry">—</dd></div>
+                <div><dt>端到端延遲</dt><dd id="runtimeResultLatency">—</dd></div>
+              </dl>
+              <div class="runtime-priority">
+                <span>後台處理優先序</span>
+                <strong id="runtimeResultPriority">—</strong>
+              </div>
+            </aside>
           </div>
 
-          <div class="runtime-grid">
-            <article class="runtime-flow" aria-label="程式流程圖">
-              <div class="flow-node">手機端產生狀態</div>
-              <div class="flow-node">壓縮成低資料量封包</div>
-              <div class="flow-node">通訊矩陣選擇路徑</div>
-              <div class="flow-node">傳送至守望隊後台</div>
-              <div class="flow-node">風險評估引擎更新分數</div>
-              <div class="flow-node">升級救援優先級或通訊路徑</div>
-            </article>
-
-            <article class="runtime-log-card">
-              <div class="section-line">
-                <span>即時 log</span>
-                <strong>最近 12 筆</strong>
+          <section class="runtime-channel-matrix" id="runtimeChannelMatrix" aria-labelledby="runtimeChannelTitle">
+            <div class="runtime-channel-heading">
+              <div>
+                <span>通道評估</span>
+                <h4 id="runtimeChannelTitle">通訊矩陣候選通道</h4>
               </div>
-              <div id="runtimeLog" class="event-log"></div>
-            </article>
+              <p id="runtimeChannelDecision">等待矩陣展開</p>
+            </div>
+            <div class="runtime-channel-list" id="runtimeChannelList"></div>
+          </section>
 
-            <article class="code-card">
-              <div class="code-card-title">
-                <span>{ }</span>
-                <h3>Pseudo Code</h3>
-              </div>
-              <pre class="code-block"><code>function calculateRiskScore(userState) {
-  rawRiskScore = selectedButtons + reply + gps + retry + battery + medical + lastSync
-  displayRiskScore = clamp(rawRiskScore, 0, 100)
-  return { rawRiskScore, displayRiskScore }
-}
+          <details class="runtime-evidence-shell" id="runtimeEvidence">
+            <summary>技術佐證 <span>決策、時間線與演算法</span></summary>
+            <div class="runtime-tabs" role="tablist" aria-label="技術佐證">
+              <button id="runtimeTabDecision" type="button" role="tab" aria-selected="true" aria-controls="runtimePanelDecision" tabindex="0" data-runtime-tab="decision">決策依據</button>
+              <button id="runtimeTabTimeline" type="button" role="tab" aria-selected="false" aria-controls="runtimePanelTimeline" tabindex="-1" data-runtime-tab="timeline">事件時間線</button>
+              <button id="runtimeTabAlgorithm" type="button" role="tab" aria-selected="false" aria-controls="runtimePanelAlgorithm" tabindex="-1" data-runtime-tab="algorithm">演算法摘要</button>
+            </div>
+            <div class="runtime-tab-panels">
+              <section id="runtimePanelDecision" role="tabpanel" aria-labelledby="runtimeTabDecision" data-runtime-panel="decision">
+                <div class="runtime-evidence-grid" id="runtimeDecisionEvidence"></div>
+              </section>
+              <section id="runtimePanelTimeline" role="tabpanel" aria-labelledby="runtimeTabTimeline" data-runtime-panel="timeline" hidden>
+                <ol class="runtime-timeline" id="runtimeTimeline"></ol>
+              </section>
+              <section id="runtimePanelAlgorithm" role="tabpanel" aria-labelledby="runtimeTabAlgorithm" data-runtime-panel="algorithm" hidden>
+                <div class="runtime-algorithm-summary">
+                  <p><strong>通道評分</strong><span>成功率 35% + 延遲 20% + 訊號 15% + GPS 15% + 成本 10% + 電量 5%，再套用風險與骨幹狀態調整。</span></p>
+                  <p><strong>風險更新</strong><span>回覆、求救、定位、重試、電量與醫療訊號共同更新顯示分數與處理優先序。</span></p>
+                </div>
+                <details class="runtime-code-drawer">
+                  <summary>查看完整演算法</summary>
+                  <pre><code>packet = encodeLowDataPacket(demoTarget)
+channels = scoreAvailableChannels(network, risk)
+selected = selectBestChannel(channels)
 
-function getRiskLevel(score) {
-  if (score &gt;= 80) return "RED"
-  if (score &gt;= 55) return "ORANGE"
-  if (score &gt;= 25) return "YELLOW"
-  return "GREEN"
-}
+if primaryPath.failed:
+  selected = selectFallback(channels)
+  retry(packet, selected)
 
-function calculateChannelScore(channelState, userRisk) {
-  return weightedScore(channelState) + riskAdjustment(userRisk)
-}
+ack = await responseCenter.receive(packet)
+updateRiskAndPriority(demoTarget, ack)</code></pre>
+                </details>
+              </section>
+            </div>
+          </details>
 
-function selectBestChannel(channels, userRisk) {
-  return channels.sort(byScoreDesc)[0]
-}
-
-function encodeLowDataPacket(userState) {
-  return { userId, gps, statusCode, batteryLevel, packetSeq, retryCount, checksum }
-}
-
-function simulatePacketLoss(networkCondition) {
-  return Math.random() &lt; networkCondition.packetLossRate
-}
-
-function runDisasterScenario() {
-  clearExistingTimer()
-  startDisasterMode()
-  schedulePacketEventEvery1500To3000ms()
-}
-
-function updateUserStateFromMobileAction(action) {
-  updateDemoUser(action)
-  encodeLowDataPacket()
-  selectBestChannel()
-  appendLog()
-  updateRescueConsole()
-}</code></pre>
-            </article>
-          </div>
+          <p class="visually-hidden" id="runtimeLive" aria-live="polite" aria-atomic="true"></p>
         </section>
       </main>
 
@@ -792,7 +1147,9 @@ function updateUserStateFromMobileAction(action) {
       </footer>
     </div>
 
-    <script src="./starfield.js?v=starrylink-starfield-20260711"></script>
+    <script src="./starfield.js?v=starrylink-starfield-performance-20260723"></script>
+    <script src="./home-hero-data.js?v=starrylink-route-study-20260722"></script>
+    <script src="./home-hero.js?v=starrylink-route-study-20260722b"></script>
     <script src="./communicationEngine.js?v=starrylink-paged-20260703a"></script>
     <script src="./lowDataPacket.js?v=starrylink-paged-20260703a"></script>
     <script src="./sharedSchema.js?v=starrylink-paged-20260706"></script>
@@ -800,7 +1157,14 @@ function updateUserStateFromMobileAction(action) {
     <script src="./networkSimulationService.js?v=starrylink-sync-20260710"></script>
     <script src="./packetMetricsService.js?v=starrylink-sync-20260710"></script>
     <script src="./syncService.js?v=starrylink-sync-20260710"></script>
-    <script src="./demoStore.js?v=starrylink-paged-20260703a"></script>
-    <script src="./app.js?v=starrylink-paged-20260703a"></script>
+    <script src="./demoStore.js?v=starrylink-decision-structure-20260809a"></script>
+    <script src="./assets/vendor/gsap.min.js?v=3.15.0"></script>
+    <script src="./starrylink-transitions.js?v=starrylink-signal-matrix-20260809a"></script>
+    <script src="./matrix-score-contract.js?v=starrylink-100point-contract-20260723a"></script>
+    <script src="./runtime-page.js?v=starrylink-runtime-transmission-20260809d"></script>
+    <script src="./app.js?v=starrylink-decision-structure-20260809a"></script>
+    <script src="./matrix-structure.js?v=starrylink-decision-structure-20260809b"></script>
+    <script src="./architecture-page.js?v=starrylink-command-deck-performance-20260723"></script>
+    <script src="./demo-hologram.js?v=starrylink-hologram-performance-20260723b"></script>
   </body>
 </html>

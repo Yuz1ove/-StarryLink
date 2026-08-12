@@ -67,14 +67,12 @@
       this.mobileQuery.addEventListener?.("change", this.handleMobileChange);
 
       const stage = document.querySelector(".page-stage");
+      this.stage = stage;
       this.observer = new MutationObserver(this.syncPresentationState);
       if (stage) {
         this.observer.observe(stage, {
           attributes: true,
-          attributeFilter: ["class"],
-          childList: true,
-          characterData: true,
-          subtree: true,
+          attributeFilter: ["data-active-page"],
         });
       }
 
@@ -176,17 +174,9 @@
     }
 
     syncPresentationState() {
-      const activePanel = document.querySelector(".page-panel.active");
-      const nextScene = activePanel?.dataset.page || "intro";
+      const nextScene = this.stage?.dataset.activePage || document.querySelector(".page-panel.active")?.dataset.page || "intro";
       if (SCENE_CONFIG[nextScene]) this.scene = nextScene;
       this.canvas.dataset.scene = this.scene;
-
-      const architectureMap = document.querySelector(".architecture-map");
-      const gpsNode = document.querySelector('.arch-node[data-arch-route="gps_packet"]');
-      const gpsText = document.getElementById("archGpsLive")?.textContent || "";
-      const gpsDisconnected = /DENIED|UNAVAILABLE|待確認/i.test(gpsText);
-      architectureMap?.classList.toggle("gps-disconnected", gpsDisconnected);
-      gpsNode?.classList.toggle("gps-node-disconnected", gpsDisconnected);
 
       if (this.reducedMotion && !document.hidden) this.renderStatic();
     }

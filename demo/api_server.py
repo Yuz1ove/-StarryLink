@@ -312,6 +312,90 @@ def clone_json(value):
     return json.loads(json.dumps(value, ensure_ascii=False))
 
 
+def compact_action_packet(packet):
+    if not isinstance(packet, dict):
+        return packet[:4096] if isinstance(packet, str) else packet
+    compact = {}
+    scalar_keys = (
+        "clientId",
+        "targetId",
+        "recipientId",
+        "actionType",
+        "seq",
+        "sequence",
+        "idempotencyKey",
+        "baseRevision",
+        "clientTimestamp",
+        "packet",
+    )
+    for key in scalar_keys:
+        value = packet.get(key)
+        if isinstance(value, str):
+            compact[key] = value[:4096]
+        elif isinstance(value, (int, float, bool)) or value is None:
+            if key in packet:
+                compact[key] = value
+    payload = packet.get("payload")
+    if isinstance(payload, dict):
+        compact_payload = {}
+        for key in (
+            "targetId",
+            "recipientId",
+            "actionType",
+            "seq",
+            "packetSeq",
+            "code",
+            "replyCode",
+            "operation",
+            "source",
+            "baseRevision",
+        ):
+            value = payload.get(key)
+            if isinstance(value, str):
+                compact_payload[key] = value[:1024]
+            elif isinstance(value, (int, float, bool)) or value is None:
+                if key in payload:
+                    compact_payload[key] = value
+        incoming_state = payload.get("state")
+        if isinstance(incoming_state, dict):
+            compact_payload["stateSummary"] = {
+                "app": incoming_state.get("app"),
+                "revision": incoming_state.get("revision"),
+                "activeTargetId": incoming_state.get("activeTargetId"),
+                "targetCount": len(incoming_state.get("targets", [])) if isinstance(incoming_state.get("targets"), list) else 0,
+                "packetLogOmitted": len(incoming_state.get("packetLog", [])) if isinstance(incoming_state.get("packetLog"), list) else 0,
+            }
+        if isinstance(payload.get("targetPatches"), list):
+            compact_payload["targetPatchCount"] = len(payload["targetPatches"])
+        compact["payload"] = compact_payload
+    return compact
+
+
+def sanitize_packet_log(entries):
+    sanitized = []
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        compact = {key: value for key, value in entry.items() if key not in {"state", "publicState"}}
+        if "packet" in compact:
+            compact["packet"] = compact_action_packet(compact["packet"])
+        sanitized.append(compact)
+        if len(sanitized) >= 80:
+            break
+    return sanitized
+
+
+def recent_seen_events(events, limit=500):
+    if not isinstance(events, dict):
+        return {}
+    ranked = sorted(
+        events.items(),
+        key=lambda item: float(item[1].get("seenTs", 0)) if isinstance(item[1], dict) else 0,
+        reverse=True,
+    )
+    return dict(ranked[:limit])
+
+
 def ensure_target_shape(target):
     if not isinstance(target, dict):
         return None
@@ -556,18 +640,24 @@ def load_store():
     with store_lock:
         store["state"] = data.get("state")
         if store["state"]:
+            store["state"].pop("packetLog", None)
             ensure_state_defaults(store["state"])
-        store["packetLog"] = data.get("packetLog", [])
+        store["packetLog"] = sanitize_packet_log(data.get("packetLog", []))
         store["seenPackets"] = data.get("seenPackets", {})
-        store["seenMobileEvents"] = data.get("seenMobileEvents", {})
+        store["seenMobileEvents"] = recent_seen_events(data.get("seenMobileEvents", {}))
         store["lastSeqByRecipient"] = data.get("lastSeqByRecipient", {})
         store["lastSeqByTarget"] = data.get("lastSeqByTarget", data.get("lastSeqByRecipient", {}))
         store["version"] = int(data.get("version", 0))
         if store["state"]:
             sync_state_runtime_lists(store["state"])
+        persist_store()
 
 
 def persist_store():
+    store["packetLog"] = sanitize_packet_log(store["packetLog"])
+    store["seenMobileEvents"] = recent_seen_events(store["seenMobileEvents"])
+    if store["state"]:
+        sync_state_runtime_lists(store["state"])
     payload = {
         "state": store["state"],
         "packetLog": store["packetLog"][:80],
@@ -2615,6 +2705,33 @@ def normalize_action_body(body, bucket):
 
 def apply_client_action(body, handler, bucket):
     payload, target_id, action_type, sequence, idempotency_key = normalize_action_body(body, bucket)
+    if action_type in {"healthcheck", "deployment-health"}:
+        state = store.get("state")
+        target = find_target(state, target_id) if state and target_id else None
+        server_revision = int((state or {}).get("revision") or store.get("version") or 0)
+        ack = {
+            "ok": True,
+            "ackId": f"ack-health-{int(time.time() * 1000)}-{target_id or 'system'}-{sequence}",
+            "duplicate": False,
+            "dedupeStatus": "accepted",
+            "message": "deployment healthcheck ok",
+            "targetId": target_id,
+            "packetSeq": sequence,
+            "seq": sequence,
+            "actionType": action_type,
+            "baseRevision": int(body.get("baseRevision") or payload.get("baseRevision") or 0),
+            "serverRevision": server_revision,
+            "receivedAt": utc_now(),
+        }
+        return {
+            "serverAck": ack,
+            "newRevision": store["version"],
+            "stateSummary": {
+                "targetCount": len(state_targets(state)) if state else 0,
+                "version": store["version"],
+            },
+        }, False
+
     incoming_state = payload.get("state")
     if not store.get("state") and isinstance(incoming_state, dict):
         store["state"] = clone_json(incoming_state)
@@ -2635,38 +2752,6 @@ def apply_client_action(body, handler, bucket):
     duplicate = bool(previous)
     now = utc_now()
     updated_target = clone_json(target) if target else None
-
-    if action_type in {"healthcheck", "deployment-health"}:
-        if not duplicate:
-            store["seenMobileEvents"][idempotency_key] = {
-                "seenTs": time.time(),
-                "action": action_type,
-                "targetId": target_id,
-                "sequence": sequence,
-                "baseRevision": base_revision,
-                "idempotencyKey": idempotency_key,
-            }
-        ack = {
-            "ok": True,
-            "ackId": f"ack-health-{int(time.time() * 1000)}-{target_id or 'system'}-{sequence}",
-            "duplicate": duplicate,
-            "dedupeStatus": "duplicate ignored" if duplicate else "accepted",
-            "message": "deployment healthcheck ok",
-            "targetId": target_id,
-            "packetSeq": sequence,
-            "seq": sequence,
-            "actionType": action_type,
-            "baseRevision": base_revision,
-            "serverRevision": server_revision,
-            "receivedAt": now,
-        }
-        return {
-            "serverAck": ack,
-            "newRevision": store["version"],
-            "updatedTarget": updated_target,
-            "stateSummary": state_summary(state),
-            "state": state,
-        }, duplicate
 
     if duplicate:
         label = target.get("name", target_id) if target else target_id or "system"
@@ -2788,6 +2873,7 @@ def apply_client_action(body, handler, bucket):
 
 
 def packet_response(packet, decoded=None, error=None, duplicate=False, message="accepted"):
+    compact_packet = compact_action_packet(packet)
     return {
         "serverAck": {
             "ok": error is None,
@@ -2803,8 +2889,8 @@ def packet_response(packet, decoded=None, error=None, duplicate=False, message="
             "recipientId": decoded.get("recipientId") if decoded else None,
             "targetId": decoded.get("recipientId") if decoded else None,
         },
-        "packet": packet,
-        "bytes": len(str(packet).encode("utf-8")),
+        "packet": compact_packet,
+        "bytes": len(str(compact_packet).encode("utf-8")),
         "targetId": decoded.get("recipientId") if decoded else None,
         "packetSeq": decoded.get("sequence") if decoded else None,
         "decodeResult": decoded,
@@ -3004,13 +3090,17 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def handle_client_action(self, body, action_bucket):
+        action_type = normalize_action_body(body, action_bucket)[2]
+        is_healthcheck = action_type in {"healthcheck", "deployment-health"}
         try:
             with store_lock:
                 response, duplicate = apply_client_action(body, self, action_bucket)
-                bump_version()
-                response["newRevision"] = store["version"]
-                response["publicState"] = public_state()
-            self.json(response, status=202 if duplicate else 200)
+                if is_healthcheck:
+                    response["newRevision"] = store["version"]
+                else:
+                    bump_version()
+                    response["newRevision"] = store["version"]
+                    response["publicState"] = public_state()
         except Exception as exc:
             with store_lock:
                 response = packet_response(body, error=str(exc), message="action failed")
@@ -3018,6 +3108,8 @@ class Handler(SimpleHTTPRequestHandler):
                 del store["packetLog"][80:]
                 bump_version()
             self.json(response, status=400)
+            return
+        self.json(response, status=202 if duplicate else 200)
 
     def handle_packet(self, body):
         packet = body.get("packet", "")
@@ -3179,11 +3271,14 @@ class Handler(SimpleHTTPRequestHandler):
 
     def json(self, payload, status=200):
         body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
 
 def main():

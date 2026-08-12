@@ -5,14 +5,19 @@ const syncService = window.XY_SYNC_SERVICE;
 const networkSimulation = window.XY_NETWORK_SIMULATION;
 const query = new URLSearchParams(window.location.search);
 const isMobileView = query.get("view") === "mobile";
+const pages = ["intro", "architecture", "demo", "matrix", "runtime"];
+const requestedPage = query.get("page");
 let scriptTimers = [];
 let simulationTimer = null;
-let activePage = isMobileView ? "demo" : "intro";
+let activePage = isMobileView ? "demo" : pages.includes(requestedPage) ? requestedPage : "intro";
 let activeFilter = "all";
 let audioContext = null;
 let alarmEnabled = false;
 const persistedAppPacketKeys = new Set();
-const pages = ["intro", "architecture", "demo", "matrix", "runtime"];
+const pageMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+let activeViewTransition = null;
+let fallbackTransitionTimer = 0;
+let pageTransitionToken = 0;
 const deploymentHealth = {
   frontendLoaded: { status: "ok", detail: "DOM + app.js loaded" },
   apiHealth: { status: "checking", detail: "not checked" },
@@ -191,13 +196,83 @@ function pageIndex(page = activePage) {
   return Math.max(0, pages.indexOf(page));
 }
 
-function setActivePage(page) {
-  if (!pages.includes(page)) return;
-  activePage = page;
-  renderPageState();
+function setActivePage(page, options = {}) {
+  if (!pages.includes(page) || page === activePage) return;
+  const previousPage = activePage;
+  const direction = pages.indexOf(page) > pages.indexOf(previousPage) ? "forward" : "backward";
+  const stage = document.querySelector(".page-stage");
+  const commit = () => {
+    activePage = page;
+    if (!options.skipHistory && !isMobileView) {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("page", page);
+      window.history.pushState({ page }, "", nextUrl);
+    }
+    renderPageState();
+  };
+
+  document.documentElement.dataset.pageDirection = direction;
+  stage?.setAttribute("data-transition-from", previousPage);
+  stage?.setAttribute("data-transition-to", page);
+  activeViewTransition?.skipTransition?.();
+  const transitionToken = ++pageTransitionToken;
+
+  if (window.STARRYLINK_TRANSITIONS?.run) {
+    window.STARRYLINK_TRANSITIONS.run({
+      from: previousPage,
+      to: page,
+      direction,
+      commit,
+      trigger: options.trigger || null,
+    });
+    return;
+  }
+
+  if (typeof document.startViewTransition === "function" && !pageMotionQuery.matches) {
+    document.documentElement.classList.add("is-page-transitioning");
+    const transition = document.startViewTransition(commit);
+    activeViewTransition = transition;
+    transition.finished
+      .catch(() => {})
+      .finally(() => {
+        if (transitionToken !== pageTransitionToken) return;
+        activeViewTransition = null;
+        document.documentElement.classList.remove("is-page-transitioning");
+        stage?.removeAttribute("data-transition-from");
+        stage?.removeAttribute("data-transition-to");
+      });
+    return;
+  }
+
+  commit();
+  activeViewTransition = null;
+  document.documentElement.classList.remove("is-page-transitioning");
+  const panel = document.querySelector(`[data-page="${page}"]`);
+  panel?.classList.remove("is-page-entering");
+  void panel?.offsetWidth;
+  panel?.classList.add("is-page-entering");
+  clearTimeout(fallbackTransitionTimer);
+  fallbackTransitionTimer = setTimeout(() => {
+    if (transitionToken !== pageTransitionToken) return;
+    panel?.classList.remove("is-page-entering");
+    stage?.removeAttribute("data-transition-from");
+    stage?.removeAttribute("data-transition-to");
+  }, 900);
 }
 
+window.STARRYLINK_NAVIGATION = {
+  go(page, options = {}) {
+    setActivePage(page, options);
+  },
+  getActivePage() {
+    return activePage;
+  },
+};
+
 function renderPageState() {
+  const stage = document.querySelector(".page-stage");
+  if (stage) stage.dataset.activePage = activePage;
+  document.body.dataset.activePage = activePage;
   document.querySelectorAll("[data-page]").forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.page === activePage);
   });
@@ -209,11 +284,13 @@ function renderPageState() {
   if ($("pageProgress")) $("pageProgress").textContent = `${pageIndex() + 1} / ${pages.length}`;
   if ($("prevPage")) $("prevPage").disabled = pageIndex() === 0;
   if ($("nextPage")) $("nextPage").disabled = pageIndex() === pages.length - 1;
+  window.STARRYLINK_TRANSITIONS?.syncPage?.(activePage);
+  window.XY_RUNTIME_PAGE?.setActive?.(activePage === "runtime");
 }
 
-function gotoRelativePage(offset) {
+function gotoRelativePage(offset, trigger = null) {
   const next = pages[pageIndex() + offset];
-  if (next) setActivePage(next);
+  if (next) setActivePage(next, { trigger });
 }
 
 function render() {
@@ -513,7 +590,6 @@ async function runDeploymentHealthCheck() {
         targetId: target.id,
         actionType: "healthcheck",
         seq,
-        state: current,
       },
     };
     const action = await readJsonResponse(
@@ -603,7 +679,11 @@ function renderArchitecture(state, active, starry = starrySnapshot(state)) {
   if ($("archLastReport")) $("archLastReport").textContent = timeText(active.lastUpdatedAt || active.communication.lastAckAt);
   if ($("archAckLive")) $("archAckLive").textContent = ackLabel(active.communication.ackStatus);
   if ($("archSeqLive")) $("archSeqLive").textContent = active.communication.packetSeq || "-";
-  if ($("archGpsLive")) $("archGpsLive").textContent = gpsStatusLabel(starry.gpsStatus);
+  const architectureGpsLabel = gpsStatusLabel(starry.gpsStatus);
+  if ($("archGpsLive")) $("archGpsLive").textContent = architectureGpsLabel;
+  const gpsDisconnected = /DENIED|UNAVAILABLE|待確認/i.test(architectureGpsLabel);
+  document.querySelector(".architecture-map")?.classList.toggle("gps-disconnected", gpsDisconnected);
+  document.querySelector('.arch-node[data-arch-route~="gps_packet"]')?.classList.toggle("gps-node-disconnected", gpsDisconnected);
   if ($("archRiskLive")) $("archRiskLive").textContent = `${starryRiskLabel(starry.riskLevel)} / ${starry.displayRiskScore ?? starry.riskScore ?? 0}`;
   if ($("archRawRiskLive")) $("archRawRiskLive").textContent = String(starry.rawRiskScore ?? active.risk?.rawRiskScore ?? active.risk?.score ?? 0);
   if ($("archActiveRoute")) {
@@ -810,21 +890,7 @@ function packetChecksum(packet) {
 }
 
 function renderRuntime(state) {
-  if (!$("runtimeLog")) return;
-  const events = state.events.slice(0, 12);
-  $("runtimeLog").innerHTML = events.length
-    ? events
-        .map(
-          (event) => `
-            <article class="event-item">
-              <strong>[${timeText(event.timestamp)}] ${escapeHtml(event.title)}</strong>
-              <span>${escapeHtml(event.detail)}</span>
-              <small>${escapeHtml(event.kind || "event")}${event.seq ? ` / packetSeq #${event.seq}` : ""}</small>
-            </article>
-          `
-        )
-        .join("")
-    : `<p class="empty">尚無 runtime 事件</p>`;
+  window.XY_RUNTIME_PAGE?.render?.(state);
 }
 
 function phoneSendStatus(target) {
@@ -1028,60 +1094,261 @@ function formatPacket(packet) {
   }
 }
 
+const matrixRuleDescriptions = {
+  "使用者回覆": "依回覆代碼 −8～+54",
+  "受困者按鍵區": "依症狀選項 −8～+82",
+  "是否按下求救": "需要救援 +20",
+  "心率異常": "HR < 50 或 > 120：+12",
+  "血氧偏低": "SpO₂ < 92%：+18",
+  "受傷": "受傷／需要醫療：+24",
+  "呼吸困難": "命中：+28",
+  "被困/無法移動": "命中：+28",
+  "失溫": "疑似失溫：+24",
+  "GPS": "高可信定位：−5",
+  "GPS 精準度": "≤150m：+6；其餘：+12",
+  "GPS 未確認": "無可信定位：+25",
+  "使用者表示位置不明": "命中：+20",
+  "GPS 長時間靜止": "靜止 ≥10 分鐘：+20",
+  "訊號品質": "≥70：0；40–69：+8；<40：+16",
+  "ACK pending 超過 20 秒": "pending >20 秒：+10",
+  "封包連續失敗": "retry ≥2：+12；失敗／≥3：+24",
+  "NO_RESPONSE 且 ACK failed": "複合條件命中：+20",
+  "手機電量": "≥30：0；20–29：+8；10–19：+16；<10：+24",
+  "最後回覆時間": "5–9 分：+8；10–15 分：+16；>15 分：+22",
+  "最後成功同步時間": "8–15 分：+10；>15 分：+20",
+};
+
+function matrixEvidenceRows(target) {
+  const contract = window.STARRYLINK_MATRIX_SCORE;
+  if (!contract) throw new Error("StarryLink Matrix score contract is unavailable.");
+  return contract.scoreTarget(target, { nowMs: Date.now() });
+}
+
+function matrixRecommendationFor(level) {
+  const recommendations = {
+    GREEN: "維持訊號監測，依既定節奏確認使用者狀態。",
+    YELLOW: "提高確認頻率，請守望隊主動回聯並補齊缺失資訊。",
+    ORANGE: "優先派遣守望隊，同步保留可用的備援通訊路徑。",
+    RED: "立即推入最高處理隊列，優先派遣並升級通訊通道。",
+  };
+  return recommendations[level] || recommendations.GREEN;
+}
+
+function matrixScenarioValue(target, metric) {
+  const symptoms = new Set(Array.isArray(target.selectedSymptoms) ? target.selectedSymptoms : []);
+  const nowMs = Date.now();
+  const timeMinutes = (value) => {
+    const time = typeof value === "number" ? value : new Date(value || 0).getTime();
+    return Number.isFinite(time) && time > 0 ? Math.max(0, (nowMs - time) / 60000) : Infinity;
+  };
+  if (metric === "symptoms") {
+    if (symptoms.has("TRAPPED") && symptoms.has("CANNOT_TALK")) return "critical";
+    return symptoms.size ? "help" : "clear";
+  }
+  if (metric === "location") return target.location?.confirmed ? "confirmed" : "unknown";
+  if (metric === "medical") {
+    if (target.medical?.trapped || target.medical?.cannotMove || target.medical?.breathingDifficulty) return "critical";
+    if (target.medical?.injury) return "injury";
+    return "stable";
+  }
+  if (metric === "delivery") {
+    return Number(target.signalQuality || 0) < 40 || target.communication?.ackStatus === "failed" || Number(target.communication?.retryCount || 0) >= 3
+      ? "failed"
+      : "stable";
+  }
+  if (metric === "battery") {
+    const battery = Number(target.battery || 0);
+    return battery < 10 ? "critical" : battery < 20 ? "low" : "stable";
+  }
+  if (metric === "recency") {
+    const replyAge = timeMinutes(target.latestReply?.timestamp);
+    const syncAge = timeMinutes(target.communication?.lastAckAt || target.lastUpdatedAt);
+    return replyAge > 15 || syncAge > 15 ? "overdue" : "recent";
+  }
+  return "";
+}
+
 function renderRisk(target) {
-  $("riskSummary").textContent = `${target.risk.level} / ${riskDisplayText(target.risk)}`;
-  $("riskScore").textContent = target.risk.displayRiskScore ?? target.risk.score;
-  $("riskLevel").textContent = target.risk.level;
-  $("riskLevel").className = levelClass(target.risk.level);
-  $("riskAction").textContent = actionText(target.risk.action);
+  const contractResult = matrixEvidenceRows(target);
+  const displayScore = contractResult.score;
+  const evidenceRows = contractResult.indicators;
+  const priorityMatrix = document.querySelector("[data-priority-matrix]");
+  if (priorityMatrix) {
+    priorityMatrix.dataset.targetScore = String(displayScore);
+    priorityMatrix.dataset.targetLevel = contractResult.level;
+    priorityMatrix.dataset.targetName = target.name;
+    priorityMatrix.dataset.contractVersion = contractResult.version;
+    priorityMatrix.dataset.contractSignature = contractResult.signature;
+    priorityMatrix.dataset.maxTotal = String(contractResult.maxScore);
+  }
+  if ($("riskSummary")) $("riskSummary").textContent = `${contractResult.level} / ${displayScore} / 100`;
+  const matrixState = priorityMatrix?.dataset.matrixState || "idle";
+  const matrixAnimationOwnsReadout = ["arming", "calculating", "thresholding", "resetting"].includes(matrixState);
+  if (!matrixAnimationOwnsReadout && matrixState === "result") {
+    $("riskScore").textContent = displayScore;
+    $("riskLevel").textContent = contractResult.level;
+    $("riskLevel").className = levelClass(contractResult.level);
+    $("riskAction").textContent = contractResult.action;
+  } else if (!matrixAnimationOwnsReadout) {
+    $("riskScore").textContent = "—";
+    $("riskLevel").textContent = "—";
+    $("riskLevel").className = "level-pending";
+    $("riskAction").textContent = "等待門檻判定";
+  }
 
-  $("riskReasons").innerHTML = target.risk.reason.length
-    ? target.risk.reason.map((reason) => `<span>${escapeHtml(reason)}</span>`).join("")
-    : `<span>目前沒有加分風險因素</span>`;
+  const priorityRail = $("matrixPriorityRail");
+  if (priorityRail) {
+    priorityRail.setAttribute("aria-label", `救援優先級門檻尺；本案 ${displayScore} 分，落在 ${contractResult.level}`);
+  }
 
-  $("riskMatrix").innerHTML = target.risk.items
-    .map(
-      (item) => `
-        <div class="risk-row ${item.score > 0 ? "adds-risk" : item.score < 0 ? "reduces-risk" : ""}">
-          <span>${escapeHtml(item.label)}</span>
-          <strong>${signedScoreText(item.score)}</strong>
-          <small>${escapeHtml(item.detail)}</small>
-        </div>
-      `
-    )
-    .join("");
+  if ($("matrixScoreExpression")) {
+    $("matrixScoreExpression").textContent =
+      `${evidenceRows.map((item) => item.earnedPoints).join(" + ")} = ${displayScore}`;
+  }
+
+  if ($("matrixCauseSummary") && matrixState === "result") {
+    $("matrixCauseSummary").textContent =
+      `六項證據完成 → 總分 ${displayScore}/100 → ${contractResult.level} ${contractResult.action}`;
+  } else if ($("matrixCauseSummary") && !matrixAnimationOwnsReadout) {
+    $("matrixCauseSummary").textContent = "六項證據已就緒";
+  }
+  if ($("matrixVerdictReason") && matrixState === "result") {
+    $("matrixVerdictReason").textContent =
+      `六項得分直接加總；${displayScore} 分落入 ${contractResult.level} ${contractResult.action}門檻。`;
+  } else if ($("matrixVerdictReason") && !matrixAnimationOwnsReadout) {
+    $("matrixVerdictReason").textContent = "啟動後依固定上限加總並判定處理門檻。";
+  }
+
+  if ($("matrixVerdictTitle")) {
+    $("matrixVerdictTitle").textContent = matrixState === "result"
+      ? (contractResult.level === "RED" ? "最高處理優先級" : `${contractResult.action}處理優先級`)
+      : "等待裁決";
+  }
+  if ($("matrixRecommendation")) {
+    $("matrixRecommendation").textContent = matrixRecommendationFor(contractResult.level);
+  }
+
+  if ($("riskReasons")) {
+    $("riskReasons").innerHTML = [...evidenceRows]
+      .filter((item) => item.earnedPoints > 0)
+      .sort((left, right) => right.earnedPoints - left.earnedPoints || left.order - right.order)
+      .slice(0, 3)
+      .map((item) => `<li><span>0${item.order}</span><span>${escapeHtml(item.label)}</span><strong>${item.earnedPoints} / ${item.maxPoints}</strong></li>`)
+      .join("") || `<li><span>—</span><span>目前六項指標皆為 0 分</span><strong>0</strong></li>`;
+  }
+
+  if ($("riskMatrix")) {
+    $("riskMatrix").innerHTML = evidenceRows
+      .map(
+        (item) => `
+          <div class="risk-row ${item.earnedPoints > 0 ? "adds-risk" : "is-neutral"}" data-matrix-row="${item.order - 1}">
+            <span class="matrix-row-scan" aria-hidden="true"></span>
+            <span class="risk-factor"><i>0${item.order}</i>${escapeHtml(item.label)} <small>MAX ${item.maxPoints}</small></span>
+            <span class="risk-observation">${escapeHtml(item.rawStatus)}</span>
+            <small>${escapeHtml(item.rationale)}</small>
+            <strong data-score-contribution>${item.earnedPoints}/${item.maxPoints}</strong>
+          </div>
+        `
+      )
+      .join("");
+  }
+
+  if ($("matrixEvidenceList")) {
+    const evidenceList = $("matrixEvidenceList");
+    const evidenceSignature = evidenceRows
+      .map((item) => `${item.id}|${item.rawStatus}|${item.earnedPoints}|${item.maxPoints}`)
+      .join("::");
+    if (evidenceList.dataset.evidenceSignature !== evidenceSignature) {
+      evidenceList.dataset.evidenceSignature = evidenceSignature;
+      evidenceList.innerHTML = evidenceRows
+        .map((item, index) => `
+          <article
+            class="matrix-metric-row ${item.earnedPoints > 0 ? "adds-risk" : "is-neutral"}"
+            data-evidence-track="${index}"
+            data-evidence-order="${item.order}"
+            data-earned-points="${item.earnedPoints}"
+            data-max-points="${item.maxPoints}"
+            style="--metric-ratio:${item.maxPoints ? item.earnedPoints / item.maxPoints : 0}"
+            tabindex="0"
+            aria-label="${escapeHtml(item.label)}：${escapeHtml(item.rawStatus)}；本次得分 ${item.earnedPoints}，滿分 ${item.maxPoints}"
+          >
+            <span class="matrix-metric-index">0${item.order}</span>
+            <div class="matrix-metric-copy">
+              <strong>${escapeHtml(item.label)}</strong>
+              <span class="matrix-metric-observation">${escapeHtml(item.rawStatus)}</span>
+              <span class="matrix-contribution-track" aria-hidden="true"><i class="matrix-contribution-fill"></i></span>
+            </div>
+            <span class="matrix-metric-weight">滿分 ${item.maxPoints}</span>
+            <span class="matrix-metric-score"><strong data-evidence-value>${item.earnedPoints}</strong><small> / ${item.maxPoints}</small></span>
+          </article>
+        `)
+        .join("");
+    }
+  }
+
+  if ($("matrixRationaleList")) {
+    $("matrixRationaleList").innerHTML = evidenceRows
+      .map((item) => `<li><span>0${item.order}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.rawStatus)} · ${escapeHtml(item.rationale)}</small><b>${item.earnedPoints} / ${item.maxPoints}</b></li>`)
+      .join("");
+  }
+  const equation = `${evidenceRows.map((item) => item.earnedPoints).join(" + ")} = ${displayScore}`;
+  if ($("matrixRationaleEquation")) $("matrixRationaleEquation").textContent = equation;
+  if ($("matrixRationaleThreshold")) {
+    $("matrixRationaleThreshold").textContent = `${displayScore} 分落入 ${contractResult.level} ${contractResult.action}門檻。`;
+  }
+
+  document.querySelectorAll("[data-matrix-scenario]").forEach((control) => {
+    const nextValue = matrixScenarioValue(target, control.dataset.matrixScenario);
+    if (nextValue && control.value !== nextValue) control.value = nextValue;
+  });
 }
 
 function renderCommunication(target) {
   if (!$("commBest")) return;
   const communication = target.communication || {};
-  $("commBest").textContent = routeName(communication.primaryRoute);
-  $("commFallback").textContent = routeName(communication.fallbackRoute);
-  $("commSuccess").textContent = `${communication.packetSuccessRate || 0}%`;
-  $("commLatency").textContent = msText(communication.averageLatencyMs);
-  $("commLoss").textContent = `${communication.packetLossRate || 0}%`;
-  $("commLowData").textContent = communication.lowDataMode ? "是" : "否";
-  $("commSatellite").textContent = communication.satelliteRecommended ? "建議保留 / 必要時啟用" : "暫不啟用";
+  const primaryRoute = routeName(communication.primaryRoute);
+  const fallbackRoute = routeName(communication.fallbackRoute);
+  const successRate = `${communication.packetSuccessRate || 0}%`;
+  const averageLatency = msText(communication.averageLatencyMs);
+  const packetLoss = `${communication.packetLossRate || 0}%`;
+  const lowDataMode = communication.lowDataMode ? "是" : "否";
+  const satelliteState = communication.satelliteRecommended ? "建議保留 / 必要時啟用" : "暫不啟用";
+  $("commBest").textContent = primaryRoute;
+  $("commFallback").textContent = fallbackRoute;
+  $("commSuccess").textContent = successRate;
+  $("commLatency").textContent = averageLatency;
+  $("commLoss").textContent = packetLoss;
+  $("commLowData").textContent = lowDataMode;
+  $("commSatellite").textContent = satelliteState;
+  if ($("matrixCommBest")) $("matrixCommBest").textContent = primaryRoute;
+  if ($("matrixCommFallback")) $("matrixCommFallback").textContent = fallbackRoute;
+  if ($("matrixCommSuccess")) $("matrixCommSuccess").textContent = successRate;
+  if ($("matrixCommLatency")) $("matrixCommLatency").textContent = averageLatency;
+  if ($("matrixCommLoss")) $("matrixCommLoss").textContent = packetLoss;
+  if ($("matrixCommLowData")) $("matrixCommLowData").textContent = lowDataMode;
+  if ($("matrixCommSatellite")) $("matrixCommSatellite").textContent = satelliteState;
   if ($("commReason")) $("commReason").textContent = communication.decisionReason || "依封包成功率、延遲、訊號、GPS、成本與電量影響加權選路。";
 
-  $("commScoreRows").innerHTML = (communication.channelScores || [])
-    .map(
-      (channel) => `
-        <tr>
-          <td>${escapeHtml(channel.name)}</td>
-          <td>${channel.score}</td>
-          <td>${escapeHtml(channel.reason || channel.scoreBreakdown?.text || "-")}</td>
-          <td>${channel.packetSuccessRate}%</td>
-          <td>${channel.latencyScore}</td>
-          <td>${channel.signalStrength}</td>
-          <td>${channel.gpsAvailability}</td>
-          <td>${channel.channelCost}</td>
-          <td>${channel.batteryImpact}</td>
-          <td>${escapeHtml(scoreBreakdownText(channel.scoreBreakdown))}</td>
-        </tr>
-      `
-    )
-    .join("");
+  if ($("commScoreRows")) {
+    $("commScoreRows").innerHTML = (communication.channelScores || [])
+      .map(
+        (channel) => `
+          <tr>
+            <td>${escapeHtml(channel.name)}</td>
+            <td>${channel.score}</td>
+            <td>${escapeHtml(channel.reason || channel.scoreBreakdown?.text || "-")}</td>
+            <td>${channel.packetSuccessRate}%</td>
+            <td>${channel.latencyScore}</td>
+            <td>${channel.signalStrength}</td>
+            <td>${channel.gpsAvailability}</td>
+            <td>${channel.channelCost}</td>
+            <td>${channel.batteryImpact}</td>
+            <td>${escapeHtml(scoreBreakdownText(channel.scoreBreakdown))}</td>
+          </tr>
+        `
+      )
+      .join("");
+  }
 }
 
 function scoreBreakdownText(breakdown = {}) {
@@ -1093,7 +1360,14 @@ function scoreBreakdownText(breakdown = {}) {
 
 function renderMatrixOverview(target) {
   if (!$("selectedMatrixTarget")) return;
-  $("selectedMatrixTarget").textContent = `${target.name} / ${target.risk.level} ${riskDisplayText(target.risk)}`;
+  const matrixRoot = document.querySelector("[data-priority-matrix]");
+  const matrixState = matrixRoot?.dataset.matrixState;
+  const contractScore = Number(matrixRoot?.dataset.targetScore || 0);
+  const contractLevel = matrixRoot?.dataset.targetLevel || "GREEN";
+  $("selectedMatrixTarget").textContent =
+    matrixState === "result"
+      ? `${target.name} / ${contractLevel} ${contractScore} / 100`
+      : `${target.name} / 六項訊號已同步`;
 }
 
 function requestCurrentLocation() {
@@ -1147,21 +1421,29 @@ function runSyncTask(task) {
 
 function bindEvents() {
   document.querySelectorAll("[data-nav-page]").forEach((button) => {
-    button.addEventListener("click", () => setActivePage(button.dataset.navPage));
+    button.addEventListener("click", (event) => setActivePage(button.dataset.navPage, { trigger: event.currentTarget }));
   });
 
   document.querySelectorAll("[data-page-target]").forEach((button) => {
-    button.addEventListener("click", () => setActivePage(button.dataset.pageTarget));
+    button.addEventListener("click", (event) => setActivePage(button.dataset.pageTarget, { trigger: event.currentTarget }));
   });
 
-  $("prevPage")?.addEventListener("click", () => gotoRelativePage(-1));
-  $("nextPage")?.addEventListener("click", () => gotoRelativePage(1));
+  $("prevPage")?.addEventListener("click", (event) => gotoRelativePage(-1, event.currentTarget));
+  $("nextPage")?.addEventListener("click", (event) => gotoRelativePage(1, event.currentTarget));
   document.addEventListener("keydown", (event) => {
     if (event.altKey || event.metaKey || event.ctrlKey) return;
     const tagName = event.target?.tagName;
     if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") return;
     if (event.key === "ArrowRight") gotoRelativePage(1);
     if (event.key === "ArrowLeft") gotoRelativePage(-1);
+  });
+
+  window.addEventListener("popstate", () => {
+    const requested = new URLSearchParams(window.location.search).get("page");
+    const destination = pages.includes(requested) ? requested : "intro";
+    if (destination !== activePage) {
+      setActivePage(destination, { skipHistory: true, skipDemoExit: true });
+    }
   });
 
   document.querySelectorAll("[data-reply]").forEach((button) => {
@@ -1432,15 +1714,13 @@ store.startSync();
 runSyncTask(() => syncService?.autoSeedIfNeeded?.(store.getState()));
 render();
 runDeploymentHealthCheck();
-setInterval(runDeploymentHealthCheck, 30000);
 setInterval(() => {
+  if (document.hidden) return;
   const state = store.getState();
   const hasInFlightPacket = state.targets.some(
     (target) => target.latestReply && ["pending", "retrying"].includes(target.communication.ackStatus)
   );
   if (state.event.script.running || hasInFlightPacket) {
     store.actions.refreshRiskTick();
-  } else {
-    render();
   }
 }, 1000);

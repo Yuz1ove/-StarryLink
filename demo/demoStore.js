@@ -1139,6 +1139,10 @@
       const response = await fetch("/api/state", { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
+      const transportChanged =
+        !transport.serverAvailable ||
+        transport.connectedClients !== (payload.connectedClients || 0) ||
+        transport.liveMode !== (eventSource ? "sse" : "poll");
       transport.serverAvailable = true;
       transport.connectedClients = payload.connectedClients || 0;
       transport.lastError = null;
@@ -1151,14 +1155,29 @@
         scheduleServerSave("initialize-mvp-store");
       } else {
         acceptedServerState = true;
-        emit({ reason: "server-poll" });
+        if (transportChanged) emit({ reason: "server-transport" });
       }
     } catch (error) {
+      const transportChanged = transport.serverAvailable || transport.lastError !== error.message;
       transport.serverAvailable = false;
       transport.lastError = error.message;
       transport.liveMode = "local";
-      emit({ reason: "server-unavailable" });
+      if (transportChanged) emit({ reason: "server-unavailable" });
     }
+  }
+
+  function stopPolling() {
+    if (!pollTimer) return;
+    global.clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  function startPolling() {
+    if (pollTimer || global.location?.protocol === "file:") return;
+    loadServerState();
+    pollTimer = global.setInterval(() => {
+      if (!global.document?.hidden) loadServerState();
+    }, 8000);
   }
 
   function startEventStream() {
@@ -1168,39 +1187,46 @@
       return;
     }
     eventSource = new EventSource("/api/events");
+    eventSource.addEventListener("open", stopPolling);
     eventSource.addEventListener("state", (event) => {
       try {
         const payload = JSON.parse(event.data || "{}");
+        const transportChanged =
+          !transport.serverAvailable ||
+          transport.connectedClients !== (payload.connectedClients || 0) ||
+          transport.liveMode !== "sse";
         transport.serverAvailable = true;
         transport.connectedClients = payload.connectedClients || 0;
         transport.lastError = null;
         transport.liveMode = "sse";
+        stopPolling();
         const incoming = payload.state;
         if (shouldAcceptRemote(incoming, acceptedServerState ? "server-sse" : "server-initial")) {
           acceptedServerState = true;
           applyRemoteState(incoming, "server-sse");
         } else {
           acceptedServerState = true;
-          emit({ reason: "server-sse" });
+          if (transportChanged) emit({ reason: "server-transport" });
         }
       } catch (error) {
         transport.lastError = error.message;
       }
     });
     eventSource.onerror = () => {
+      eventSource?.close();
+      eventSource = null;
       transport.serverAvailable = false;
       transport.liveMode = "poll";
       transport.lastError = "SSE disconnected; polling fallback active";
       emit({ reason: "server-sse-error" });
+      startPolling();
     };
   }
 
   function startSync() {
     startEventStream();
     loadServerState({ initial: true });
-    if (!pollTimer && global.location?.protocol !== "file:") {
-      pollTimer = global.setInterval(loadServerState, 500);
-    }
+    if (!eventSource) startPolling();
   }
 
   function addEvent(draft, targetId, title, detail, kind = "event", seq = null) {
@@ -2097,6 +2123,111 @@
     }, "risk-tick", { remote: false });
   }
 
+  function updateMatrixScenario(metric, value) {
+    const nowMs = Date.now();
+    commit((draft) => {
+      const target = getSelectedTarget(draft);
+      if (!target) return;
+
+      if (metric === "symptoms") {
+        target.selectedSymptoms = value === "critical"
+          ? normalizeSymptoms(["TRAPPED", "CANNOT_TALK", "NEED_HELP"])
+          : value === "help"
+            ? normalizeSymptoms(["NEED_HELP"])
+            : [];
+        syncMedicalFromSymptoms(target);
+        const code = replyCodeFromSymptoms(target.selectedSymptoms);
+        target.latestReply = code === "STATUS_CLEAR"
+          ? null
+          : { code, label: replyLabel(code), timestamp: nowMs };
+      } else if (metric === "location") {
+        target.location = value === "confirmed"
+          ? {
+              ...target.location,
+              lat: target.location?.lat ?? 25.035,
+              lng: target.location?.lng ?? 121.564,
+              accuracy: "high",
+              confirmed: true,
+              staticMinutes: 0,
+              source: "GPS",
+              updatedAt: nowIso(nowMs),
+            }
+          : {
+              ...target.location,
+              lat: null,
+              lng: null,
+              accuracy: "unknown",
+              confirmed: false,
+              staticMinutes: 0,
+              source: "MANUAL_UNKNOWN",
+              updatedAt: nowIso(nowMs),
+            };
+      } else if (metric === "medical") {
+        if (value === "critical") {
+          Object.assign(target.medical, {
+            heartRate: 118,
+            spo2: 92,
+            injury: false,
+            trapped: true,
+            cannotMove: true,
+            breathingDifficulty: true,
+          });
+        } else if (value === "injury") {
+          Object.assign(target.medical, {
+            heartRate: 112,
+            spo2: 95,
+            injury: true,
+            trapped: false,
+            cannotMove: false,
+            breathingDifficulty: false,
+          });
+        } else {
+          target.selectedSymptoms = normalizeSymptoms(target.selectedSymptoms.filter(
+            (code) => !["TRAPPED", "CANNOT_TALK", "NEED_MEDICAL", "INJURED"].includes(code)
+          ));
+          Object.assign(target.medical, {
+            heartRate: 82,
+            spo2: 98,
+            discomfort: false,
+            injury: false,
+            trapped: false,
+            cannotMove: false,
+            breathingDifficulty: false,
+            hypothermia: false,
+          });
+        }
+      } else if (metric === "delivery") {
+        if (value === "failed") {
+          target.signalQuality = 18;
+          target.communication.ackStatus = "failed";
+          target.communication.retryCount = 4;
+          target.communication.ackPendingSince = nowMs - 30000;
+        } else {
+          target.signalQuality = 78;
+          target.communication.ackStatus = "received";
+          target.communication.retryCount = 0;
+          target.communication.ackPendingSince = null;
+          target.communication.lastAckAt = nowIso(nowMs);
+        }
+      } else if (metric === "battery") {
+        target.battery = value === "critical" ? 8 : value === "low" ? 15 : 72;
+      } else if (metric === "recency") {
+        const timestamp = value === "overdue" ? nowMs - 18 * 60000 : nowMs - 60000;
+        target.latestReply = target.latestReply
+          ? { ...target.latestReply, timestamp }
+          : { code: "STATUS_CLEAR", label: replyLabel("STATUS_CLEAR"), timestamp };
+        target.communication.lastAckAt = nowIso(timestamp);
+        target.lastUpdatedAt = nowIso(timestamp);
+      } else {
+        return;
+      }
+
+      target.risk = calculateRisk(target, nowMs);
+      applyCommunicationDecision(target, draft.event.network);
+      addEvent(draft, target.id, "更新決策矩陣情境", `${metric} = ${value}`, "matrix");
+    }, "matrix-scenario");
+  }
+
   global.XY_DEMO_STORE = {
     actionLabels,
     getState,
@@ -2129,6 +2260,7 @@
       enableSatelliteFallback,
       restoreGroundNetwork,
       refreshRiskTick,
+      updateMatrixScenario,
     },
   };
 })(typeof window !== "undefined" ? window : globalThis);
