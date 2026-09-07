@@ -5,11 +5,11 @@ const syncService = window.XY_SYNC_SERVICE;
 const networkSimulation = window.XY_NETWORK_SIMULATION;
 const query = new URLSearchParams(window.location.search);
 const isMobileView = query.get("view") === "mobile";
-const pages = ["intro", "architecture", "demo", "matrix", "runtime"];
+const pages = ["platform", "intro", "architecture", "demo", "matrix", "runtime"];
 const requestedPage = query.get("page");
 let scriptTimers = [];
 let simulationTimer = null;
-let activePage = isMobileView ? "demo" : pages.includes(requestedPage) ? requestedPage : "intro";
+let activePage = isMobileView ? "demo" : pages.includes(requestedPage) ? requestedPage : "platform";
 let activeFilter = "all";
 let audioContext = null;
 let alarmEnabled = false;
@@ -197,6 +197,11 @@ function pageIndex(page = activePage) {
 }
 
 function setActivePage(page, options = {}) {
+  // These two entries share the current site's replacements; the engineering pages stay here.
+  if (page === "intro" || page === "architecture") {
+    window.location.assign(`./?page=${page}`);
+    return;
+  }
   if (!pages.includes(page) || page === activePage) return;
   const previousPage = activePage;
   const direction = pages.indexOf(page) > pages.indexOf(previousPage) ? "forward" : "backward";
@@ -218,14 +223,14 @@ function setActivePage(page, options = {}) {
   const transitionToken = ++pageTransitionToken;
 
   if (window.STARRYLINK_TRANSITIONS?.run) {
-    window.STARRYLINK_TRANSITIONS.run({
+    const handled = window.STARRYLINK_TRANSITIONS.run({
       from: previousPage,
       to: page,
       direction,
       commit,
       trigger: options.trigger || null,
     });
-    return;
+    if (handled) return;
   }
 
   if (typeof document.startViewTransition === "function" && !pageMotionQuery.matches) {
@@ -301,8 +306,6 @@ function render() {
   renderPageState();
   renderToolbar(state, active);
   renderDisasterBanner(state);
-  renderArchitecture(state, active, starry);
-  renderHomeArchitecture(starry);
   renderPhone(active, state, starry);
   renderTargets(state, selected);
   renderDetail(state, selected);
@@ -653,122 +656,6 @@ function renderDisasterBanner(state) {
     </div>
     <small id="alertSoundStatus">${alarmEnabled ? "警報音已啟用" : "若瀏覽器擋住自動播放，請點啟用警報音。"}</small>
   `;
-}
-
-function renderArchitecture(state, active, starry = starrySnapshot(state)) {
-  if ($("archSeaStatus")) {
-    $("archSeaStatus").textContent = starry.groundNetwork === "normal" ? "正常監測" : "異常 / 延遲升高";
-  }
-  if ($("archGroundStatus")) {
-    const groundStatus = {
-      failed: "失效 / 切換地面備援",
-      weak: "壅塞 / 丟包率上升",
-      normal: "可用",
-    };
-    $("archGroundStatus").textContent = groundStatus[starry.groundNetwork] || groundStatus.normal;
-  }
-  if ($("archSatelliteStatus")) {
-    $("archSatelliteStatus").textContent =
-      starry.activeLayer === "SPACE" || starry.activeRoute === "satellite_backup" || starry.activeRoute === "sos_escalation"
-        ? "高風險備援啟用"
-        : "待命";
-  }
-  if ($("archStrategy")) {
-    $("archStrategy").textContent = starry.lowDataMode ? "啟用低資料量封包" : "一般低流量同步";
-  }
-  if ($("archLastReport")) $("archLastReport").textContent = timeText(active.lastUpdatedAt || active.communication.lastAckAt);
-  if ($("archAckLive")) $("archAckLive").textContent = ackLabel(active.communication.ackStatus);
-  if ($("archSeqLive")) $("archSeqLive").textContent = active.communication.packetSeq || "-";
-  const architectureGpsLabel = gpsStatusLabel(starry.gpsStatus);
-  if ($("archGpsLive")) $("archGpsLive").textContent = architectureGpsLabel;
-  const gpsDisconnected = /DENIED|UNAVAILABLE|待確認/i.test(architectureGpsLabel);
-  document.querySelector(".architecture-map")?.classList.toggle("gps-disconnected", gpsDisconnected);
-  document.querySelector('.arch-node[data-arch-route~="gps_packet"]')?.classList.toggle("gps-node-disconnected", gpsDisconnected);
-  if ($("archRiskLive")) $("archRiskLive").textContent = `${starryRiskLabel(starry.riskLevel)} / ${starry.displayRiskScore ?? starry.riskScore ?? 0}`;
-  if ($("archRawRiskLive")) $("archRawRiskLive").textContent = String(starry.rawRiskScore ?? active.risk?.rawRiskScore ?? active.risk?.score ?? 0);
-  if ($("archActiveRoute")) {
-    $("archActiveRoute").textContent = activeRouteLabel(starry.activeRoute);
-  }
-  if ($("archSelectedChannel")) {
-    $("archSelectedChannel").textContent = starry.selectedChannel || routeName(active.communication.primaryRoute);
-  }
-  if ($("archRouteDetail")) {
-    $("archRouteDetail").textContent = `；${victimStatusLabel(starry.victimStatus)} / ${starryRiskLabel(starry.riskLevel)} / ${gpsStatusLabel(starry.gpsStatus)}。`;
-  }
-  if ($("archSeaMetric")) {
-    $("archSeaMetric").textContent = `${starry.packetLoss || 0}% loss`;
-  }
-  if ($("archGroundMetric")) {
-    $("archGroundMetric").textContent = starryAckLabel(starry.ackStatus);
-  }
-  if ($("archSpaceMetric")) {
-    $("archSpaceMetric").textContent =
-      starry.activeRoute === "sos_escalation" ? "sos uplink" : starry.activeLayer === "SPACE" ? "uplink active" : "backup ready";
-  }
-  if ($("archSeaHealthBar")) {
-    $("archSeaHealthBar").style.width = clampPercent(100 - Number(starry.packetLoss || 0));
-  }
-  if ($("archGroundHealthBar")) {
-    const value = starry.groundNetwork === "failed" ? 18 : starry.groundNetwork === "weak" ? 48 : 86;
-    $("archGroundHealthBar").style.width = clampPercent(value);
-  }
-  if ($("archSpaceHealthBar")) {
-    $("archSpaceHealthBar").style.width = clampPercent(starry.activeLayer === "SPACE" ? 92 : 68);
-  }
-  if ($("archPacketHint")) {
-    $("archPacketHint").textContent = `${active.name} 的封包從手機端送往守望隊；目前 ${starry.selectedChannel}，丟包 ${starry.packetLoss}%，${starryAckLabel(starry.ackStatus)}，失敗時重送並切換 ${starry.fallbackChannel}。`;
-  }
-  const map = document.querySelector(".architecture-map");
-  if (map) {
-    map.classList.toggle("satellite-active", starry.activeLayer === "SPACE");
-    map.classList.toggle("ground-down", starry.groundNetwork === "failed");
-    map.classList.toggle("layer-ground-active", starry.activeLayer === "GROUND");
-    map.classList.toggle("layer-sea-active", starry.activeLayer === "SEA");
-    map.classList.toggle("layer-space-active", starry.activeLayer === "SPACE");
-    map.classList.toggle("sos-active", starry.activeRoute === "sos_escalation");
-    map.dataset.activeRoute = starry.activeRoute || "ground_primary";
-  }
-  syncArchitectureNodes(starry);
-  document.querySelectorAll(".route-health-row").forEach((row) => row.classList.remove("active"));
-  document.querySelector(`.${String(starry.activeLayer || "GROUND").toLowerCase()}-health`)?.classList.add("active");
-}
-
-function renderHomeArchitecture(starry = {}) {
-  const statuses = starry.moduleStatuses || {};
-  setText("missionGroundStatus", statuses.ground || "可用／主要路徑");
-  setText("missionAirStatus", statuses.air || "待命中");
-  setText("missionSeaStatus", statuses.sea || "監測中");
-  setText("missionSpaceStatus", statuses.space || "備援待命");
-
-  const selectedRoute = starry.selectedRoute || "ground";
-  document.querySelectorAll("[data-home-module]").forEach((card) => {
-    const module = card.dataset.homeModule;
-    const active =
-      module === selectedRoute ||
-      (module === "space" && selectedRoute === "satellite") ||
-      (module === "sea" && starry.seaBackboneHealthy === false);
-    card.classList.toggle("active", Boolean(active));
-  });
-  document.querySelectorAll("[data-home-route]").forEach((chip) => {
-    const route = chip.dataset.homeRoute;
-    chip.classList.toggle("active", route === selectedRoute);
-  });
-  const routeSelector = $("introRouteSelector");
-  if (routeSelector) routeSelector.dataset.selectedRoute = selectedRoute;
-}
-
-function syncArchitectureNodes(starry = {}) {
-  const selectedChannel = String(starry.selectedChannel || "");
-  const fallbackChannel = String(starry.fallbackChannel || "");
-  document.querySelectorAll("[data-arch-route], [data-arch-channel]").forEach((node) => {
-    const routes = String(node.dataset.archRoute || "").split(/\s+/).filter(Boolean);
-    const channel = String(node.dataset.archChannel || "");
-    const routeActive = routes.includes(starry.activeRoute);
-    const channelSelected = Boolean(channel && channel === selectedChannel);
-    const channelFallback = Boolean(channel && channel === fallbackChannel && !channelSelected);
-    node.classList.toggle("active", routeActive || channelSelected);
-    node.classList.toggle("fallback", channelFallback);
-  });
 }
 
 function renderPhone(target, state, starry = starrySnapshot(state)) {
@@ -1440,7 +1327,7 @@ function bindEvents() {
 
   window.addEventListener("popstate", () => {
     const requested = new URLSearchParams(window.location.search).get("page");
-    const destination = pages.includes(requested) ? requested : "intro";
+    const destination = pages.includes(requested) ? requested : "platform";
     if (destination !== activePage) {
       setActivePage(destination, { skipHistory: true, skipDemoExit: true });
     }
@@ -1506,10 +1393,6 @@ function bindEvents() {
   });
 
   $("startDemo").addEventListener("click", startDisasterDemo);
-  $("startDemoTop").addEventListener("click", () => {
-    setActivePage("demo");
-    startDisasterDemo();
-  });
   $("pauseDemo")?.addEventListener("click", pauseDisasterDemo);
   $("simulatePacketLoss")?.addEventListener("click", () => store.actions.simulatePacketLoss());
   $("simulateGroundDown")?.addEventListener("click", () => {

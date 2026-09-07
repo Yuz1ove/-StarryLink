@@ -4,3 +4,22 @@ __pycache__/
 *.test.js
 online-smoke-test.mjs
 README.md
+
+# Local QA and development files are not deployment assets.
+.design-qa/
+output/
+qa/
+.playwright-cli/
+.DS_Store
+docs/
+tests/
+node_modules/
+.env
+.env.*
+*.pem
+*.key
+*.test.mjs
+*-test.mjs
+*-smoke.py
+runtime-design-qa.mjs
+assets/opening/opening.mp4

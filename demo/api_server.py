@@ -2,12 +2,17 @@
 import json
 import os
 import socket
+import sys
 import threading
 import time
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
+from platform_core import ENGINE_VERSION as RESILIENCE_ENGINE_VERSION
+from platform_core import platform as resilience_platform
+from engine.mission_engine import run_mission
 
 
 ROOT = Path(__file__).resolve().parent
@@ -697,6 +702,7 @@ def public_state():
             "connectedClients": len(store["connectedClients"]),
             "startedAt": store["startedAt"],
             "savedAt": utc_now(),
+            "resilience": resilience_platform.current(),
         }
 
 
@@ -2923,30 +2929,26 @@ def public_origin(handler):
 
 
 def plan_route(event):
-    snapshot = event.get("network_snapshot", {})
-    bandwidth = snapshot.get("bandwidth_kbps", 64)
-    severity = event.get("severity", 1)
-    if bandwidth < 16:
-        payload_mode = "CODE"
-        payload_bytes = 42
-    elif bandwidth < 64:
-        payload_mode = "SMS160"
-        payload_bytes = min(140, event.get("message_bytes", 120))
-    else:
-        payload_mode = "BRIEF"
-        payload_bytes = min(420, max(180, event.get("message_bytes", 160)))
-    primary = "SMS" if bandwidth < 64 else "App Push"
-    fallback = ["Voice IVR", "Satellite Relay", "Manual Call"] if severity >= 4 else ["SMS", "Manual Call"]
+    snapshot = resilience_platform.current()
+    selected_id = snapshot["decision"]["selectedCandidateId"]
+    selected = next(item for item in snapshot["candidates"] if item["id"] == selected_id)
+    selected_simulation = next(item for item in snapshot["simulations"] if item["candidateId"] == selected_id)
+    fallbacks = [item["candidateId"] for item in snapshot["decision"]["ranking"][1:] if item["eligible"]]
     return {
-        "primary_channel": primary,
-        "primary_score": 88 if primary == "SMS" else 82,
-        "fallback_order": fallback,
-        "payload_mode": payload_mode,
-        "payload_bytes": payload_bytes,
-        "estimated_reach_rate": 0.86,
-        "ack_deadline_minutes": 5 if severity >= 4 else 30,
-        "ranked_channels": [],
-        "operator_actions": ["低頻寬模式，改寫為 SMS160 或 CODE payload"] if bandwidth < 64 else [],
+        "primary_channel": selected_id,
+        "primary_score": snapshot["decision"]["score"],
+        "fallback_order": fallbacks,
+        "payload_mode": "SLV1_BINARY",
+        "payload_bytes": snapshot["emergencyMessage"]["payloadBytes"],
+        "estimated_reach_rate": selected_simulation["deliveryProbability"],
+        "ack_deadline_minutes": max(1, round(snapshot["scenario"]["incident"]["severity"])),
+        "ranked_channels": snapshot["decision"]["ranking"],
+        "operator_actions": ["Execute selected digital-twin candidate", "Verify ACK and observed delivery", "Replan only when bounded threshold fails"],
+        "route_nodes": selected["nodes"],
+        "route_links": selected["links"],
+        "seed": snapshot["seed"],
+        "engineVersion": snapshot["engineVersion"],
+        "provenance": snapshot["provenance"],
     }
 
 
@@ -2968,7 +2970,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path == "/api/health":
+        if parsed.path == "/api/v2/scenario":
+            try:
+                self.json(run_mission({"scenarioId": parse_qs(parsed.query).get("scenarioId", ["disaster"])[0]}))
+            except (ValueError, TypeError) as exc:
+                self.json({"error": str(exc)}, status=400)
+        elif parsed.path == "/api/health":
             remember_client(self, "health")
             self.json(
                 {
@@ -2980,6 +2987,8 @@ class Handler(SimpleHTTPRequestHandler):
                     "persistence": "volatile-tmp" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "local-json-file",
                     "crossDeviceSync": "not-guaranteed" if os.environ.get("VERCEL") or os.environ.get("STARRY_SERVERLESS") else "available-on-same-server",
                     "stateFile": str(STATE_FILE),
+                    "resilienceEngine": RESILIENCE_ENGINE_VERSION,
+                    "resilienceAuthority": "backend-deterministic",
                 }
             )
         elif parsed.path == "/api/state":
@@ -3005,6 +3014,12 @@ class Handler(SimpleHTTPRequestHandler):
             )
         elif parsed.path == "/api/events":
             self.stream_events()
+        elif parsed.path == "/api/decision":
+            self.json(resilience_platform.current()["decision"])
+        elif parsed.path == "/api/audit":
+            self.json({"audit": resilience_platform.current()["audit"]})
+        elif parsed.path == "/api/resilience":
+            self.json(resilience_platform.current())
         else:
             super().do_GET()
 
@@ -3016,9 +3031,35 @@ class Handler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self.json({"error": f"invalid json: {exc}"}, status=400)
             return
-
+        if parsed.path == "/api/v2/scenario":
+            try:
+                self.json(run_mission(body))
+            except (ValueError, TypeError, KeyError) as exc:
+                self.json({"error": str(exc)}, status=400)
+            return
         if parsed.path == "/api/route/plan":
             self.json(plan_route(body))
+            return
+
+        if parsed.path in {"/api/scenario", "/api/simulate", "/api/failure"}:
+            try:
+                current = resilience_platform.current()
+                scenario_id = body.get("scenarioId") or current["scenario"]["id"]
+                seed = body.get("seed") or current["seed"]
+                runs = int(body.get("runs", current.get("runs", 240)))
+                controls = body.get("controls", {})
+                if parsed.path == "/api/failure":
+                    controls = {**current.get("controls", {}), **controls}
+                payload = resilience_platform.run(
+                    scenario_id,
+                    seed=seed,
+                    runs=runs,
+                    controls=controls,
+                    weights=body.get("weights"),
+                )
+                self.json(payload)
+            except (KeyError, TypeError, ValueError) as exc:
+                self.json({"error": str(exc)}, status=400)
             return
 
         if parsed.path == "/api/state":
@@ -3281,10 +3322,23 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
 
+class ResilientThreadingHTTPServer(ThreadingHTTPServer):
+    """Keep normal browser disconnects from polluting operator logs."""
+
+    daemon_threads = True
+    request_queue_size = 64
+
+    def handle_error(self, request, client_address):
+        error = sys.exc_info()[1]
+        if isinstance(error, (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def main():
     load_store()
     port = int(os.environ.get("PORT", "8765"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    server = ResilientThreadingHTTPServer(("0.0.0.0", port), Handler)
     ip = local_ip()
     print(f"星夜 demo admin: http://127.0.0.1:{port}/")
     print(f"同 Wi-Fi 手機: http://{ip}:{port}/?view=mobile&target=U-DEMO")

@@ -1,0 +1,19 @@
+{
+  "source": "docs/intro-audio-repair-20260907/music/source/AKindOfHope.mp3",
+  "sourceSHA256": "d0dc554c0db9ea208b4f59e4f0c1b4446aa7ef622c7bfeffca278130a46c51f1",
+  "excerptSeconds": [
+    314,
+    336
+  ],
+  "fadeInSeconds": 0.4,
+  "fadeOutSeconds": 1.2,
+  "gainDB": -5.58,
+  "durationSeconds": 22,
+  "sampleRate": 48000,
+  "channels": 2,
+  "asset": "demo/assets/opening/opening-score-2a2ac414bcb5.mp4",
+  "assetSHA256": "2a2ac414bcb531da0b32c82a1ba79764a61b161dd4b617fedf1234569cd15eec",
+  "credit": "A Kind Of Hope by Scott Buckley - CC BY 4.0 - www.scottbuckley.com.au; StarryLink excerpt 314-336s, fades and gain edit.",
+  "videoEncoding": "stream copy; original 528 H.264 frames retained",
+  "listeningReview": "HUMAN_REVIEW_REQUIRED"
+}
