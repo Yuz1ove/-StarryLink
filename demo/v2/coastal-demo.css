@@ -15,7 +15,7 @@
 @media(max-width:700px){.coastal-heading{margin:18px 0 14px;display:block}.coastal-heading h1{font-size:24px;line-height:1.5}.coastal-heading>p{font-size:10px;line-height:1.6;margin-top:8px}.coastal-heading>p br{display:none}.coastal-stage{height:410px;min-height:0}.coastal-view-controls{top:10px;left:10px;max-width:calc(100% - 20px);gap:4px}.coastal-view-controls button{font-size:10px;padding:7px 8px;min-height:36px}.coastal-place{top:56px;left:13px}.coastal-place span{font-size:12px}.coastal-place small{font-size:7px}.coastal-pin{font-size:9px!important;max-width:142px}.coastal-focus{bottom:42px;right:10px;left:10px;max-width:none;gap:4px}.coastal-focus button{font-size:10px;padding:5px 8px;min-height:36px}.coastal-key{font-size:8px;gap:12px;bottom:10px;left:10px;right:10px;max-width:calc(100% - 20px)}.coastal-transport{gap:12px;padding:12px 0}.coastal-clock strong{font-size:19px}.coastal-play{margin-left:auto}.coastal-play button{min-height:42px;padding:6px 12px}.coastal-demo .primary{min-width:66px}.coastal-disclosures{width:100%;margin:0;justify-content:space-between}.coastal-disclosures button{flex:1;min-height:40px}.coastal-timeline button{min-width:70px;min-height:44px}.coastal-result{display:block;padding-top:12px}.coastal-result h2{font-size:19px}.coastal-region-results{justify-content:start;margin-top:18px}.coastal-dialog{max-height:88dvh}.coastal-dialog [data-coastal-detail]{padding:14px}.coastal-demo select,.coastal-dialog button{min-height:42px}.coastal-boundary{font-size:9px!important}.coastal-fallback{inset:100px 12px 100px;padding:15px}.coastal-fallback p{font-size:12px}}
 @media(max-height:500px) and (orientation:landscape){.coastal-stage{height:390px;min-height:0}.coastal-heading{margin:10px 0}.coastal-heading h1{font-size:22px}.coastal-heading>p{display:none}}
 @media(prefers-reduced-motion:reduce){.coastal-demo *{scroll-behavior:auto!important;transition:none!important}}
-.coastal-stage{height:clamp(380px,52vh,620px)}
+.coastal-stage{height:clamp(440px,60vh,700px)}
 .coastal-heading{margin-top:20px;margin-bottom:16px}
 .coastal-pin[data-coastal-node=users-b]{transform:translate(-5%,-100%)}
 .coastal-pin[data-coastal-node=emergency-center]{transform:translate(-80%,10%)}
@@ -23,3 +23,7 @@
 @media(max-width:700px){.coastal-demo{margin:0 16px}.coastal-stage{height:410px}.coastal-pin[data-coastal-node=emergency-center]{transform:translate(-85%,10%)}.coastal-pin[data-coastal-node=users-b]{transform:translate(5%,-110%)}}
 .coastal-now{position:absolute;top:20px;right:20px;background:#172b31df;color:#e1dfce;padding:8px 12px;border-radius:3px;font-size:11px;z-index:2}
 @media(max-width:700px){.coastal-now{top:84px;right:12px;font-size:10px;padding:6px 8px}}
+
+/* R3 node labels leave the admitted route endpoints visible. */
+.coastal-pin[data-coastal-node=ground-bs-01]{transform:translate(-95%,-170%)}
+.coastal-pin[data-coastal-node=citizen-01]{transform:translate(10%,-130%)}

@@ -18,7 +18,7 @@
     "coastAmplitude": 35,
     "riverWidthM": 38,
     "riverBaseZ": 70,
-    "riverAmplitude": 32,
+    "riverAmplitude": 60,
     "hills": [
       {
         "x": 920,

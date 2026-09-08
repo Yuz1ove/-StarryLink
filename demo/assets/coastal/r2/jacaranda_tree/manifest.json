@@ -1,0 +1,184 @@
+{
+  "id": "jacaranda_tree",
+  "title": "Jacaranda Tree",
+  "authors": {
+    "Rob Tuytel": "guidance",
+    "Rico Cilliers": "All"
+  },
+  "sourceURL": "https://polyhaven.com/a/jacaranda_tree",
+  "providerLicenseURL": "https://polyhaven.com/license",
+  "license": "CC0-1.0",
+  "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "retrievedAtUTC": "2026-09-08T09:15:57.026205+00:00",
+  "sourceDimensionMillimetersXYZ": [
+    24169.849395751953,
+    18028.766632080078,
+    19829.095542430878
+  ],
+  "licenseVerification": "Official asset page and provider license page identify CC0. Download was free, public and no-login.",
+  "whatUsed": "Replace exactly two saplings with mature trees scaled from 19.4363m to 13.2m / 13.9m; leaf Prune disabled and runtime alphaHash preserves mip-level coverage.",
+  "runtimeStatus": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+  "files": [
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_branches_nor_gl_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_nor_gl_1k.jpg",
+      "bytes": 819101,
+      "sha256": "2d67393ba76a0f49cf965fa0c99d8c16268e71e87b1203d35539bfdb971a514e",
+      "upstreamMd5": "789084affb01f4a22290a848558f5e12"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_branches_diff_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_diff_1k.jpg",
+      "bytes": 531544,
+      "sha256": "5a4fe735f0c346cec83b6b444a0169fc14d2b31bbb7b26e26b1b6c726b6e06f6",
+      "upstreamMd5": "e5bacbfd3e7ce397bdd34b0bac6669ca"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_branches_arm_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_arm_1k.jpg",
+      "bytes": 484806,
+      "sha256": "9e3f82263247ce4f619692cea4c4f6fe9936ff465a86623481849062642c7d05",
+      "upstreamMd5": "5b6f5b3838f4a8f60fea14fa3a3fef9f"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_trunk_nor_gl_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_nor_gl_1k.jpg",
+      "bytes": 1096100,
+      "sha256": "b2ad4e5daf8ec3fb87ba6c5f38e6a6924c9a6adebec20389f503e42da5d04587",
+      "upstreamMd5": "af34d3a054b498f153e4793f7520a630"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_trunk_diff_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_diff_1k.jpg",
+      "bytes": 896938,
+      "sha256": "e5582fba664a9255252d1ee8088f75ad557f07360aa7f4513f2b2f1577e90be9",
+      "upstreamMd5": "c3edc2e76157023e7a5c35cd13867498"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_trunk_arm_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_arm_1k.jpg",
+      "bytes": 895975,
+      "sha256": "4a12e238cf3b8ba860626e99bf128e56ab41642fa4c2502a77df41a338689b78",
+      "upstreamMd5": "7232b4514e9412725a6a8e65a69f4ed4"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_nor_gl_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_nor_gl_1k.jpg",
+      "bytes": 700843,
+      "sha256": "61520be2529ffe8e3d93d4361892134833bb4657117e121749089769067914c1",
+      "upstreamMd5": "7cbd82c0dd4b8c8a4ab314338f50404d"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_diff_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_diff_1k.jpg",
+      "bytes": 533896,
+      "sha256": "6fe80c1f514ef690cccefb90b7e559fbd1aa9c8935fdc02523cc8ab83c22f7c2",
+      "upstreamMd5": "8ae91737f39567629768a255817d80be"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_arm_1k.jpg",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_arm_1k.jpg",
+      "bytes": 332762,
+      "sha256": "577eab0a07279fb4afd24522e85e0f188058c88db4b35eb0b330005b0d745b7a",
+      "upstreamMd5": "fabee050680fd173032acf003ef61191"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/jacaranda_tree.bin",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/jacaranda_tree/jacaranda_tree.bin",
+      "bytes": 208307808,
+      "sha256": "4310d1e25db8ac63d6d345afc8154a1df7e85b301dfad228be66d85d6c52bbfc",
+      "upstreamMd5": "ae25eacd5e67ea2e9bbbaa2854b6ed99"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/jacaranda_tree_1k.gltf",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/jacaranda_tree/jacaranda_tree_1k.gltf",
+      "bytes": 9526,
+      "sha256": "ba4aa8ab4c3e3741ce3699604d6ec1607cd6b126ae2d32abbcc0d98e8edb3be4",
+      "upstreamMd5": "8fed93ff7cbdaac0f5c199ef1fd0f694"
+    },
+    {
+      "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_alpha_1k.png",
+      "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/jacaranda_tree/jacaranda_tree_leaves_alpha_1k.png",
+      "bytes": 506043,
+      "sha256": "c708a7e928a2e4d26981b021a22deeefc0ebb0e467f60b53cfa636a7e24d68f7",
+      "upstreamMd5": "740214de7b900e30737009ff4ee2c01a"
+    }
+  ],
+  "derivedRuntimeCandidate": {
+    "status": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+    "path": "demo/assets/coastal/r2/jacaranda_tree/jacaranda_tree_r2.glb",
+    "bytes": 10694488,
+    "sha256": "5975f7e983b3fa696af7d5208c52567c4ad8d9cd2e4a6ad3f926ff3d5a16f983",
+    "records": [
+      {
+        "part": "branches",
+        "triangles": 9336,
+        "geometry": "Copied exactly from prior runtime accessors; no further simplification"
+      },
+      {
+        "part": "leaves",
+        "triangles": 160000,
+        "vertices": 357387,
+        "maxPositionErrorMeters": 0.00031949390621460456,
+        "maxUvError": 7.654205015805715e-06,
+        "maxNormalAngleErrorDegrees": 0.3837316180974764,
+        "encoding": "KHR_mesh_quantization POSITION int16 uniform node scale; NORMAL normalized int8; UV normalized uint16",
+        "leafSimplifierFlags": [
+          "Permissive"
+        ],
+        "excludedFlag": "Prune"
+      },
+      {
+        "part": "trunk",
+        "triangles": 2585,
+        "geometry": "Copied exactly from prior runtime accessors; no further simplification"
+      }
+    ],
+    "triangles": 171921,
+    "imagesReusedWithoutReencoding": 9,
+    "extensionsUsed": [
+      "KHR_materials_specular",
+      "KHR_materials_ior",
+      "EXT_texture_webp",
+      "KHR_mesh_quantization"
+    ],
+    "elapsedSeconds": 0.09223599988035858,
+    "visualAcceptance": "NOT_RUN for new 160k + alphaHash candidate; prior capture03 had visible bare branches and is FAIL",
+    "runtimeStatus": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+    "candidatePath": "docs/coastal-realism-r2-20260908/assets/candidates/jacaranda_tree_r2_leaf160k.glb",
+    "source": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/jacaranda_tree_1k.gltf",
+    "sourceURL": "https://polyhaven.com/a/jacaranda_tree",
+    "license": "CC0-1.0",
+    "sourceHeightMeters": 19.468875035643578,
+    "derivedHeightMeters": 19.43626923393458,
+    "intendedPlacedHeightMeters": [
+      13.2,
+      13.9
+    ],
+    "trianglesBefore": 3863832,
+    "trianglesAfter": 171921,
+    "tool": "Existing meshoptimizer 1.1.1 WASM + local Python / NumPy GLB packaging; no new runtime decoder",
+    "operations": [
+      "Retain previous branches and trunk accessor values without further simplification",
+      "Simplify original leaves with weighted normals/UV and Permissive; Prune disabled; 160000 leaf triangles",
+      "Remove constant-white COLOR_0 and unused leaf COLOR_1",
+      "Quantize leaf POSITION to int16 with uniform node scale, normal to normalized int8, UV to normalized uint16",
+      "Preserve all nine previous embedded WebP images byte for byte",
+      "Decode position/normal attributes to Float32 before node transform in runtime",
+      "Runtime mature foliage and depth/distance materials use alphaHash with alphaTest=0 to retain subpixel leaf coverage"
+    ],
+    "geometryValidation": "docs/coastal-realism-r2-20260908/assets/candidates/leaf-runtime-validation.json",
+    "projectedCoverageEvidence": "docs/coastal-realism-r2-20260908/assets/candidates/leaf-projected-coverage.json",
+    "coverageScope": "Six-view offline mip0 alpha-tested silhouette pixel union, before sub-millimeter attribute quantization; not browser evidence",
+    "sourceProjectedPixelCoverageRetentionRange": [
+      0.9134266948512758,
+      0.9300273095028307
+    ],
+    "previousRejectedCandidate": {
+      "path": "docs/coastal-realism-r2-20260908/assets/candidates/jacaranda_tree_r2_capture03_rejected.glb",
+      "bytes": 6221440,
+      "reason": "Capture03 fixed primary and closer browser view show bare branches; reduced effective alpha leaf area retained only 27%; fixed MASK mip levels removed subpixel leaf coverage",
+      "evidence": "docs/coastal-realism-r2-20260908/after-detail/demo-detail-t0-1440-canvas.png"
+    }
+  }
+}

@@ -1,0 +1,578 @@
+{
+  "retrievedAtUTC": "2026-09-08T08:50:29.290653+00:00",
+  "provider": "Poly Haven",
+  "license": "CC0 1.0 Universal",
+  "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "providerLicenseURL": "https://polyhaven.com/license",
+  "licenseVerified": "Official asset pages link to CC0; official license page confirms assets may be copied, modified, redistributed and used commercially. No login or payment was used.",
+  "networkUse": "One-off public downloads. Runtime uses local files and does not call the Poly Haven API.",
+  "assets": [
+    {
+      "id": "shrub_03",
+      "title": "Shrub 03",
+      "authors": {
+        "Rico Cilliers": "All"
+      },
+      "sourceURL": "https://polyhaven.com/a/shrub_03",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "providerLicenseURL": "https://polyhaven.com/license",
+      "whatUsed": "Four original herbaceous shrub variants for local riverbank undergrowth; use individual meshes, not the arranged demonstration group.",
+      "status": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+      "files": [
+        {
+          "path": "demo/assets/coastal/r2/shrub_03/shrub_03.bin",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/shrub_03/shrub_03.bin",
+          "bytes": 238684,
+          "sha256": "bf4df21e6d2a2bc5f00b4c9142f776171fe7da00cf960001825748067af542b6",
+          "upstreamMd5": "c26c6ed23b0034664eab5a0e3ee00f6a"
+        },
+        {
+          "path": "demo/assets/coastal/r2/shrub_03/textures/shrub_03_arm_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/shrub_03/shrub_03_arm_1k.jpg",
+          "bytes": 396238,
+          "sha256": "3e2b16812a623037138eedace958210c5f3443a827bbe69663045bba5612f815",
+          "upstreamMd5": "67faf4c5c213589b41a3bd18d378fa7d"
+        },
+        {
+          "path": "demo/assets/coastal/r2/shrub_03/textures/shrub_03_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/shrub_03/shrub_03_diff_1k.jpg",
+          "bytes": 481841,
+          "sha256": "3cadc7aba46d3aabbd7d6d2b1d04aa32e2a7da0bc87c2d38ef3cb1ee42cb03ec",
+          "upstreamMd5": "5da9190b7c2837a9e209a3fe774dba3c"
+        },
+        {
+          "path": "demo/assets/coastal/r2/shrub_03/textures/shrub_03_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/shrub_03/shrub_03_nor_gl_1k.jpg",
+          "bytes": 504734,
+          "sha256": "ff856bacfce859b8a7555dd9a3b92fbd36b2e775d486be71df485afb4235d6c9",
+          "upstreamMd5": "38956b2171644cfefda2ef542e055100"
+        },
+        {
+          "path": "demo/assets/coastal/r2/shrub_03/shrub_03_1k.gltf",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/shrub_03/shrub_03_1k.gltf",
+          "bytes": 7296,
+          "sha256": "b76d7c14bc027e834e82d3f984c32b5d060e62908aa90ff9420a637ca253a8ea",
+          "upstreamMd5": "2c1ef10ff17e23f81d29c851d1409c9a"
+        },
+        {
+          "path": "demo/assets/coastal/r2/shrub_03/textures/shrub_03_alpha_1k.png",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/shrub_03/shrub_03_alpha_1k.png",
+          "bytes": 79069,
+          "sha256": "daef00278879a024fd05216aaa1376067a5f25f1b911d08d9bbdc50fda4a0d66",
+          "upstreamMd5": "57a2d0fd7ea02ebeb8de321652f9f58a"
+        }
+      ],
+      "runtimePaths": [
+        "demo/assets/coastal/r2/shrub_03/shrub_03.bin",
+        "demo/assets/coastal/r2/shrub_03/textures/shrub_03_arm_1k.jpg",
+        "demo/assets/coastal/r2/shrub_03/textures/shrub_03_diff_1k.jpg",
+        "demo/assets/coastal/r2/shrub_03/textures/shrub_03_nor_gl_1k.jpg",
+        "demo/assets/coastal/r2/shrub_03/shrub_03_1k.gltf",
+        "demo/assets/coastal/r2/shrub_03/textures/shrub_03_alpha_1k.png"
+      ]
+    },
+    {
+      "id": "shrub_04",
+      "title": "Shrub 04",
+      "authors": {
+        "Rico Cilliers": "All"
+      },
+      "sourceURL": "https://polyhaven.com/a/shrub_04",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "providerLicenseURL": "https://polyhaven.com/license",
+      "whatUsed": "Textured woody shrub branches, optional pilot ground-cover detail; bounded count only.",
+      "status": "ACQUIRED_NOT_USED_SOURCE_ONLY",
+      "files": [
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/shrub_04/textures/shrub_04_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/shrub_04/shrub_04_nor_gl_1k.jpg",
+          "bytes": 449241,
+          "sha256": "200d791e0474495bfc876ba1c289dade669c6a5b124647c55bc840a875f6b51c",
+          "upstreamMd5": "b08f500d19ee9b29d7da06fc0e874bb2"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/shrub_04/textures/shrub_04_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/shrub_04/shrub_04_diff_1k.jpg",
+          "bytes": 373350,
+          "sha256": "0b0fa0a474753d13f3093858cea79d0de05da1e6a0c5d6e181cd351080980b6c",
+          "upstreamMd5": "b2b4682a82f44be10b8d4b4d481a4fe8"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/shrub_04/textures/shrub_04_arm_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/shrub_04/shrub_04_arm_1k.jpg",
+          "bytes": 332957,
+          "sha256": "d1085df021928b29b0f38dde7e58e9a2e304c4e8d838e390b37cf57f8aa492e8",
+          "upstreamMd5": "65e414abd3533b7157f05aed63f5f329"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/shrub_04/shrub_04.bin",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/shrub_04/shrub_04.bin",
+          "bytes": 749084,
+          "sha256": "cb442c39682e54cc63f912aa78ab17a03566f947a61adbbbaaa6473166744f01",
+          "upstreamMd5": "987a672e598f9dc04b6d23cb8f36d697"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/shrub_04/shrub_04_1k.gltf",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/shrub_04/shrub_04_1k.gltf",
+          "bytes": 2882,
+          "sha256": "782832cbc57e96686b78c6ef9df6234c25f564f78421c8ed4bd42c3631f5aeae",
+          "upstreamMd5": "eba22f7e018dd3d9ed951150c2092f17"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/shrub_04/textures/shrub_04_alpha_1k.png",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/shrub_04/shrub_04_alpha_1k.png",
+          "bytes": 42906,
+          "sha256": "6ddd60dcdbdcf55d7258ae747866f68f5acc9d88a7735c9eb05b02d6dec527e3",
+          "upstreamMd5": "c899653f9884941bdb2ada187809f4c8"
+        }
+      ],
+      "runtimePaths": []
+    },
+    {
+      "id": "pine_sapling_small",
+      "title": "Pine Sapling Small",
+      "authors": {
+        "Rob Tuytel": "photography",
+        "Rico Cilliers": "modeling"
+      },
+      "sourceURL": "https://polyhaven.com/a/pine_sapling_small",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "providerLicenseURL": "https://polyhaven.com/license",
+      "whatUsed": "Four 2-3m saplings. The original source is stored under docs/source; only the derived GLB loads in the scene.",
+      "status": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+      "files": [
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/textures/pine_sapling_small_twig_arm_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_twig_arm_1k.jpg",
+          "bytes": 394056,
+          "sha256": "2eb0aa44124b5a4ae9401e00b23b3c916f4c3f421616ce1bb932f248fc061288",
+          "upstreamMd5": "b5062030fc42ec7bd12eb3f052054104"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/textures/pine_sapling_small_twig_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_twig_diff_1k.jpg",
+          "bytes": 477942,
+          "sha256": "54af7d6fb664b5a38bcb118b557bc50e01e86ec54d6f1a573c3e32c649a53362",
+          "upstreamMd5": "dacc918bb421968e9ccc1956d78a2dbe"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/textures/pine_sapling_small_bark_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_bark_nor_gl_1k.jpg",
+          "bytes": 1016849,
+          "sha256": "05c46455531781b6cf18cae0648cf627f60ee942adaa8bcbfd1592fc2506a9e0",
+          "upstreamMd5": "bb6e3a6eea777d992cef48fabfdc538c"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/pine_sapling_small.bin",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/pine_sapling_small/pine_sapling_small.bin",
+          "bytes": 17771796,
+          "sha256": "b4d2fc73d53f1d8717eb5ef9a2c66957d2a53152787e543aace88fcd6fca94ef",
+          "upstreamMd5": "76dd1802d8de128c812f2e124a258b35"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/textures/pine_sapling_small_bark_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_bark_diff_1k.jpg",
+          "bytes": 725265,
+          "sha256": "5c76836b01c3536fa0e24207b67bf4f3315b53ebe2b4ecc6f08dfcf3f8d74929",
+          "upstreamMd5": "7d3a558ed614c7e75594c7be3bf80311"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/textures/pine_sapling_small_bark_arm_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_bark_arm_1k.jpg",
+          "bytes": 801278,
+          "sha256": "336a4680cd571b6076b67afee2310b290b8900d9d126eb39ec1ae92e95be2ea9",
+          "upstreamMd5": "21d1abd15e40951825a4f3da110b20ea"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/textures/pine_sapling_small_twig_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_twig_nor_gl_1k.jpg",
+          "bytes": 692711,
+          "sha256": "76af87821d7ff00e25768d5d97a449394fe64a21ae55d099da7f5ed46d9098c8",
+          "upstreamMd5": "eebc5a81f8f6231d8e18ec4ad7292798"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/pine_sapling_small_1k.gltf",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/pine_sapling_small/pine_sapling_small_1k.gltf",
+          "bytes": 11442,
+          "sha256": "f358c01926861dd082f32dba60f7c9fba232b585a985cf38c0d2229eecf4bc48",
+          "upstreamMd5": "237a7672645631550ae571743aa9f55b"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/textures/pine_sapling_small_twig_alpha_1k.png",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/pine_sapling_small/pine_sapling_small_twig_alpha_1k.png",
+          "bytes": 159896,
+          "sha256": "b875969b9df9f9cbf56dca4e2809d8ed1916f5172f173b0389f050c834c5cbed",
+          "upstreamMd5": "9890eccee0444fd263dad2133338583f"
+        }
+      ],
+      "derivedRuntimeAsset": {
+        "tool": "5.2.0 LTS",
+        "source": "docs/coastal-realism-r2-20260908/assets/source/pine_sapling_small/pine_sapling_small_1k.gltf",
+        "sourceURL": "https://polyhaven.com/a/pine_sapling_small",
+        "license": "CC0-1.0",
+        "operations": [
+          "Retain only original variant pine_sapling_small_a",
+          "Keep 540-triangle trunk and branch geometry unchanged",
+          "Collapse-decimate foliage to ratio 0.135",
+          "Restore official twig alpha map omitted by upstream glTF JPEG diffuse",
+          "Embed PBR textures into GLB",
+          "Use MASK alpha cutoff 0.45 and double-sided foliage"
+        ],
+        "trianglesBeforeSingleVariant": 142506,
+        "meshes": [
+          {
+            "name": "pine_sapling_small_r2_foliage",
+            "beforeTriangles": 141966,
+            "afterTriangles": 19165
+          },
+          {
+            "name": "pine_sapling_small_r2_trunk",
+            "beforeTriangles": 540,
+            "afterTriangles": 540
+          }
+        ],
+        "trianglesAfter": 19705,
+        "dimensionsMetersBlenderXYZ": [
+          0.7875329554080963,
+          0.7275526225566864,
+          1.299023331142962
+        ],
+        "path": "demo/assets/coastal/r2/pine_sapling_small/pine_sapling_small_r2.glb",
+        "bytes": 6275532,
+        "sha256": "428a9095eb331a9fd8ac8f540899f23d54f552bee89f64d5b7bac5c2868c7c4f",
+        "visualAcceptance": "NOT_RUN: root must inspect actual browser integration; geometry and file validation do not establish visual acceptance"
+      },
+      "runtimePaths": [
+        "demo/assets/coastal/r2/pine_sapling_small/pine_sapling_small_r2.glb"
+      ]
+    },
+    {
+      "id": "river_small_rocks",
+      "title": "River Small Rocks",
+      "authors": {
+        "Rob Tuytel": "Photography, Processing",
+        "Rico Cilliers": "Minor adjustment"
+      },
+      "sourceURL": "https://polyhaven.com/a/river_small_rocks",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "providerLicenseURL": "https://polyhaven.com/license",
+      "whatUsed": "1K diffuse, OpenGL normal and roughness maps for the exposed river-margin gravel geometry.",
+      "status": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+      "files": [
+        {
+          "path": "demo/assets/coastal/r2/river_small_rocks/river_small_rocks_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/river_small_rocks/river_small_rocks_diff_1k.jpg",
+          "bytes": 1028735,
+          "sha256": "adbcaae1f1445d5b49797c71ea2c3f43ccaf7b109f933a427f0d0993d1dbbc51",
+          "upstreamMd5": "723ee7172c9d0e98d286473ef443033c"
+        },
+        {
+          "path": "demo/assets/coastal/r2/river_small_rocks/river_small_rocks_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/river_small_rocks/river_small_rocks_nor_gl_1k.jpg",
+          "bytes": 1365737,
+          "sha256": "983f99bd61cdcdeb3d2ebe0cbba851fd58f249d38f9e76a25084a558ee56e8e6",
+          "upstreamMd5": "e12850ba2aa71fe93a45ddd8ad03b6f4"
+        },
+        {
+          "path": "demo/assets/coastal/r2/river_small_rocks/river_small_rocks_rough_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/river_small_rocks/river_small_rocks_rough_1k.jpg",
+          "bytes": 642685,
+          "sha256": "c5cd1953e559339c588f01d21509eff8894cd49f03da193b1dbb3161483a8113",
+          "upstreamMd5": "29add24dad5c5bb8fa5d4cce4c4ced4a"
+        }
+      ],
+      "runtimePaths": [
+        "demo/assets/coastal/r2/river_small_rocks/river_small_rocks_diff_1k.jpg",
+        "demo/assets/coastal/r2/river_small_rocks/river_small_rocks_nor_gl_1k.jpg",
+        "demo/assets/coastal/r2/river_small_rocks/river_small_rocks_rough_1k.jpg"
+      ]
+    },
+    {
+      "id": "concrete_wall_006",
+      "title": "Concrete Wall 006",
+      "authors": {
+        "Dario Barresi": "Processing",
+        "Charlotte Baglioni": "Photography"
+      },
+      "sourceURL": "https://polyhaven.com/a/concrete_wall_006",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "providerLicenseURL": "https://polyhaven.com/license",
+      "whatUsed": "1K diffuse, OpenGL normal and roughness maps for reconstructed bridge abutments, piers and riverbank structures.",
+      "status": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+      "files": [
+        {
+          "path": "demo/assets/coastal/r2/concrete_wall_006/concrete_wall_006_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_006/concrete_wall_006_diff_1k.jpg",
+          "bytes": 769415,
+          "sha256": "fea247dd085cd05d8deb335234c834764d622029da351f8bcc8913935316bacd",
+          "upstreamMd5": "62ac61307a3321ecec26e1abd045f2ab"
+        },
+        {
+          "path": "demo/assets/coastal/r2/concrete_wall_006/concrete_wall_006_rough_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_006/concrete_wall_006_rough_1k.jpg",
+          "bytes": 255004,
+          "sha256": "ceee98c940b8f1e49169af880497aa60eaae5de0ac5b3603aa753b76f687c455",
+          "upstreamMd5": "660e38696f8c92d1585b17b7cc01cc06"
+        },
+        {
+          "path": "demo/assets/coastal/r2/concrete_wall_006/concrete_wall_006_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_006/concrete_wall_006_nor_gl_1k.jpg",
+          "bytes": 1195078,
+          "sha256": "4ff16bb96fc2df3ef71d22007151aff1d8bf7cb10a493d3f8e973213a99dd428",
+          "upstreamMd5": "337cf8d33598e1ecd036ef3727a4b36d"
+        }
+      ],
+      "runtimePaths": [
+        "demo/assets/coastal/r2/concrete_wall_006/concrete_wall_006_diff_1k.jpg",
+        "demo/assets/coastal/r2/concrete_wall_006/concrete_wall_006_rough_1k.jpg",
+        "demo/assets/coastal/r2/concrete_wall_006/concrete_wall_006_nor_gl_1k.jpg"
+      ]
+    },
+    {
+      "id": "jacaranda_tree",
+      "title": "Jacaranda Tree",
+      "authors": {
+        "Rob Tuytel": "guidance",
+        "Rico Cilliers": "All"
+      },
+      "sourceURL": "https://polyhaven.com/a/jacaranda_tree",
+      "providerLicenseURL": "https://polyhaven.com/license",
+      "license": "CC0-1.0",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "retrievedAtUTC": "2026-09-08T09:15:57.026205+00:00",
+      "sourceDimensionMillimetersXYZ": [
+        24169.849395751953,
+        18028.766632080078,
+        19829.095542430878
+      ],
+      "licenseVerification": "Official asset page and provider license page identify CC0. Download was free, public and no-login.",
+      "whatUsed": "Replace exactly two saplings with mature trees scaled from 19.4363m to 13.2m / 13.9m; leaf Prune disabled and runtime alphaHash preserves mip-level coverage.",
+      "runtimeStatus": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+      "files": [
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_branches_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_nor_gl_1k.jpg",
+          "bytes": 819101,
+          "sha256": "2d67393ba76a0f49cf965fa0c99d8c16268e71e87b1203d35539bfdb971a514e",
+          "upstreamMd5": "789084affb01f4a22290a848558f5e12"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_branches_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_diff_1k.jpg",
+          "bytes": 531544,
+          "sha256": "5a4fe735f0c346cec83b6b444a0169fc14d2b31bbb7b26e26b1b6c726b6e06f6",
+          "upstreamMd5": "e5bacbfd3e7ce397bdd34b0bac6669ca"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_branches_arm_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_arm_1k.jpg",
+          "bytes": 484806,
+          "sha256": "9e3f82263247ce4f619692cea4c4f6fe9936ff465a86623481849062642c7d05",
+          "upstreamMd5": "5b6f5b3838f4a8f60fea14fa3a3fef9f"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_trunk_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_nor_gl_1k.jpg",
+          "bytes": 1096100,
+          "sha256": "b2ad4e5daf8ec3fb87ba6c5f38e6a6924c9a6adebec20389f503e42da5d04587",
+          "upstreamMd5": "af34d3a054b498f153e4793f7520a630"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_trunk_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_diff_1k.jpg",
+          "bytes": 896938,
+          "sha256": "e5582fba664a9255252d1ee8088f75ad557f07360aa7f4513f2b2f1577e90be9",
+          "upstreamMd5": "c3edc2e76157023e7a5c35cd13867498"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_trunk_arm_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_arm_1k.jpg",
+          "bytes": 895975,
+          "sha256": "4a12e238cf3b8ba860626e99bf128e56ab41642fa4c2502a77df41a338689b78",
+          "upstreamMd5": "7232b4514e9412725a6a8e65a69f4ed4"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_nor_gl_1k.jpg",
+          "bytes": 700843,
+          "sha256": "61520be2529ffe8e3d93d4361892134833bb4657117e121749089769067914c1",
+          "upstreamMd5": "7cbd82c0dd4b8c8a4ab314338f50404d"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_diff_1k.jpg",
+          "bytes": 533896,
+          "sha256": "6fe80c1f514ef690cccefb90b7e559fbd1aa9c8935fdc02523cc8ab83c22f7c2",
+          "upstreamMd5": "8ae91737f39567629768a255817d80be"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_arm_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_arm_1k.jpg",
+          "bytes": 332762,
+          "sha256": "577eab0a07279fb4afd24522e85e0f188058c88db4b35eb0b330005b0d745b7a",
+          "upstreamMd5": "fabee050680fd173032acf003ef61191"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/jacaranda_tree.bin",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/jacaranda_tree/jacaranda_tree.bin",
+          "bytes": 208307808,
+          "sha256": "4310d1e25db8ac63d6d345afc8154a1df7e85b301dfad228be66d85d6c52bbfc",
+          "upstreamMd5": "ae25eacd5e67ea2e9bbbaa2854b6ed99"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/jacaranda_tree_1k.gltf",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/jacaranda_tree/jacaranda_tree_1k.gltf",
+          "bytes": 9526,
+          "sha256": "ba4aa8ab4c3e3741ce3699604d6ec1607cd6b126ae2d32abbcc0d98e8edb3be4",
+          "upstreamMd5": "8fed93ff7cbdaac0f5c199ef1fd0f694"
+        },
+        {
+          "path": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/textures/jacaranda_tree_leaves_alpha_1k.png",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/jacaranda_tree/jacaranda_tree_leaves_alpha_1k.png",
+          "bytes": 506043,
+          "sha256": "c708a7e928a2e4d26981b021a22deeefc0ebb0e467f60b53cfa636a7e24d68f7",
+          "upstreamMd5": "740214de7b900e30737009ff4ee2c01a"
+        }
+      ],
+      "derivedRuntimeCandidate": {
+        "status": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+        "path": "demo/assets/coastal/r2/jacaranda_tree/jacaranda_tree_r2.glb",
+        "bytes": 10694488,
+        "sha256": "5975f7e983b3fa696af7d5208c52567c4ad8d9cd2e4a6ad3f926ff3d5a16f983",
+        "records": [
+          {
+            "part": "branches",
+            "triangles": 9336,
+            "geometry": "Copied exactly from prior runtime accessors; no further simplification"
+          },
+          {
+            "part": "leaves",
+            "triangles": 160000,
+            "vertices": 357387,
+            "maxPositionErrorMeters": 0.00031949390621460456,
+            "maxUvError": 7.654205015805715e-06,
+            "maxNormalAngleErrorDegrees": 0.3837316180974764,
+            "encoding": "KHR_mesh_quantization POSITION int16 uniform node scale; NORMAL normalized int8; UV normalized uint16",
+            "leafSimplifierFlags": [
+              "Permissive"
+            ],
+            "excludedFlag": "Prune"
+          },
+          {
+            "part": "trunk",
+            "triangles": 2585,
+            "geometry": "Copied exactly from prior runtime accessors; no further simplification"
+          }
+        ],
+        "triangles": 171921,
+        "imagesReusedWithoutReencoding": 9,
+        "extensionsUsed": [
+          "KHR_materials_specular",
+          "KHR_materials_ior",
+          "EXT_texture_webp",
+          "KHR_mesh_quantization"
+        ],
+        "elapsedSeconds": 0.09223599988035858,
+        "visualAcceptance": "NOT_RUN for new 160k + alphaHash candidate; prior capture03 had visible bare branches and is FAIL",
+        "runtimeStatus": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+        "candidatePath": "docs/coastal-realism-r2-20260908/assets/candidates/jacaranda_tree_r2_leaf160k.glb",
+        "source": "docs/coastal-realism-r2-20260908/assets/source/jacaranda_tree/jacaranda_tree_1k.gltf",
+        "sourceURL": "https://polyhaven.com/a/jacaranda_tree",
+        "license": "CC0-1.0",
+        "sourceHeightMeters": 19.468875035643578,
+        "derivedHeightMeters": 19.43626923393458,
+        "intendedPlacedHeightMeters": [
+          13.2,
+          13.9
+        ],
+        "trianglesBefore": 3863832,
+        "trianglesAfter": 171921,
+        "tool": "Existing meshoptimizer 1.1.1 WASM + local Python / NumPy GLB packaging; no new runtime decoder",
+        "operations": [
+          "Retain previous branches and trunk accessor values without further simplification",
+          "Simplify original leaves with weighted normals/UV and Permissive; Prune disabled; 160000 leaf triangles",
+          "Remove constant-white COLOR_0 and unused leaf COLOR_1",
+          "Quantize leaf POSITION to int16 with uniform node scale, normal to normalized int8, UV to normalized uint16",
+          "Preserve all nine previous embedded WebP images byte for byte",
+          "Decode position/normal attributes to Float32 before node transform in runtime",
+          "Runtime mature foliage and depth/distance materials use alphaHash with alphaTest=0 to retain subpixel leaf coverage"
+        ],
+        "geometryValidation": "docs/coastal-realism-r2-20260908/assets/candidates/leaf-runtime-validation.json",
+        "projectedCoverageEvidence": "docs/coastal-realism-r2-20260908/assets/candidates/leaf-projected-coverage.json",
+        "coverageScope": "Six-view offline mip0 alpha-tested silhouette pixel union, before sub-millimeter attribute quantization; not browser evidence",
+        "sourceProjectedPixelCoverageRetentionRange": [
+          0.9134266948512758,
+          0.9300273095028307
+        ],
+        "previousRejectedCandidate": {
+          "path": "docs/coastal-realism-r2-20260908/assets/candidates/jacaranda_tree_r2_capture03_rejected.glb",
+          "bytes": 6221440,
+          "reason": "Capture03 fixed primary and closer browser view show bare branches; reduced effective alpha leaf area retained only 27%; fixed MASK mip levels removed subpixel leaf coverage",
+          "evidence": "docs/coastal-realism-r2-20260908/after-detail/demo-detail-t0-1440-canvas.png"
+        }
+      }
+    },
+    {
+      "id": "white_plaster_02",
+      "title": "White Plaster 02",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "sourceURL": "https://polyhaven.com/a/white_plaster_02",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "providerLicenseURL": "https://polyhaven.com/license",
+      "whatUsed": "Fine neutral off-white plaster PBR for four R2 pilot building facades; bridges retain concrete_wall_006.",
+      "status": "INTEGRATED_LOCAL_CANDIDATE_BROWSER_REVIEW_PENDING",
+      "files": [
+        {
+          "channel": "Diffuse",
+          "path": "demo/assets/coastal/r2/white_plaster_02/white_plaster_02_diff_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_diff_1k.jpg",
+          "finalURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_diff_1k.jpg",
+          "httpStatus": 200,
+          "bytes": 527219,
+          "sha256": "a1ebbe091bd1ae93d2abd5de8d69f9003a8d0ee6532bcf9a87c2492c97051f23",
+          "md5": "7b10c2686bcfd76d1f309a20fd06b57e",
+          "upstreamMd5": "7b10c2686bcfd76d1f309a20fd06b57e",
+          "upstreamMd5Match": true
+        },
+        {
+          "channel": "nor_gl",
+          "path": "demo/assets/coastal/r2/white_plaster_02/white_plaster_02_nor_gl_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_nor_gl_1k.jpg",
+          "finalURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_nor_gl_1k.jpg",
+          "httpStatus": 200,
+          "bytes": 652310,
+          "sha256": "eb572ca3630d5bfde72e2601b1f02412da23ca005cd19384dced8690be4cb783",
+          "md5": "55fc03203ebf1dc703a380fde93ff502",
+          "upstreamMd5": "55fc03203ebf1dc703a380fde93ff502",
+          "upstreamMd5Match": true
+        },
+        {
+          "channel": "Rough",
+          "path": "demo/assets/coastal/r2/white_plaster_02/white_plaster_02_rough_1k.jpg",
+          "downloadURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_rough_1k.jpg",
+          "finalURL": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_rough_1k.jpg",
+          "httpStatus": 200,
+          "bytes": 295900,
+          "sha256": "4ff1fe957cd161b07f721fe6c28a9459c8c2e8ec65627a26c16e483a07c80d85",
+          "md5": "8b28f263360b8c4ddbdc4f7c650c4eeb",
+          "upstreamMd5": "8b28f263360b8c4ddbdc4f7c650c4eeb",
+          "upstreamMd5Match": true
+        }
+      ],
+      "runtimePaths": [
+        "demo/assets/coastal/r2/white_plaster_02/white_plaster_02_diff_1k.jpg",
+        "demo/assets/coastal/r2/white_plaster_02/white_plaster_02_nor_gl_1k.jpg",
+        "demo/assets/coastal/r2/white_plaster_02/white_plaster_02_rough_1k.jpg"
+      ],
+      "tileMeters": [
+        1,
+        1
+      ],
+      "licenseVerification": "Official asset page states CC0; official provider license page independently confirms assets can be used, modified and redistributed including commercially. Verified with browser search/open 2026-09-08.",
+      "provenance": "docs/coastal-realism-r2-20260908/plaster-provenance/white-plaster-02-provenance.json"
+    }
+  ],
+  "runtimePolicy": "Only derived pine and Jacaranda GLBs, Shrub 03, and six PBR maps are public runtime assets. Large original sources and unused Shrub 04 are stored under docs/source."
+}

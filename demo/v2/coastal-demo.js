@@ -36,6 +36,7 @@ export class CoastalDemo {
   try{
    if(new URLSearchParams(location.search).get('webgl')==='off')throw Error('已選擇無 WebGL 文字模式');
    const {CoastalRenderer}=await import('./coastal-renderer.js');
+   await CoastalRenderer.prepare?.();
    if(this.disposed)return;
    this.renderer?.dispose();this.renderer=new CoastalRenderer(this.host,this.state,{reduced:this.reduced,quality:new URLSearchParams(location.search).get('quality')||'standard',select:id=>this.selectNode(id),onFree:()=>this.setGuide(false),onFailure:m=>this.fallback(m)});
    this.renderer.setFrame(this.frame||this.state.timeline.frames[0],this.time);this.query('[data-coastal-fallback]').hidden=true;this.boundaryError='';

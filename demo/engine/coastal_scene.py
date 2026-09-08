@@ -15,21 +15,58 @@ def layout():
     return json.loads((Path(__file__).parents[1] / 'assets/coastal/scene.json').read_text())
 
 
+def land_noise(x, z):
+    ix, iz = math.floor(x), math.floor(z)
+    u, v = smooth(x-ix), smooth(z-iz)
+    def lattice(a, b):
+        n = (a*374761393+b*668265263) & 0xffffffff
+        n = ((n ^ (n >> 13))*1274126177) & 0xffffffff
+        return (n ^ (n >> 16))/4294967295
+    a, b, c, d = lattice(ix,iz), lattice(ix+1,iz), lattice(ix,iz+1), lattice(ix+1,iz+1)
+    return (a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v
+
+
 def height(x, z):
     t = layout()['terrain']
-    coast = t['coastX'] + t['coastAmplitude'] * math.sin(z / 210)
-    if x < coast:
-        return max(-22, (x - coast) * .12)
-    river_z = t['riverBaseZ'] + t['riverAmplitude'] * math.sin(x / 180)
-    river_distance = abs(z - river_z)
-    h = 8 + 2 * math.sin(x / 140) * math.sin(z / 170)
+    coast = t['coastX'] + t['coastAmplitude']*math.sin(z/210) + 9*math.sin(z/57) + 5*math.sin(z/23) - 22*math.exp(-((z-35)/105)**2)
+    shore = x-coast
+    if shore < 0:
+        return max(-24, shore*(.055+.065*smooth((-shore-48)/210)) + .48*math.sin(z/81+shore/39)*smooth(-shore/18)*(1-smooth(-shore/190)))
+    foothill = 8 + 2*math.sin(x/140)*math.sin(z/170)
+    massif = 8
     for p in t['hills']:
-        h += p['height'] * math.exp(-((x-p['x'])/p['sx'])**2 - ((z-p['z'])/p['sz'])**2)
-    detail = max(0, min(1, (x-450)/350)) * max(0, min(1, (h-8)/80))
-    h += detail * (11*math.sin(x/34+z/60)*math.sin(z/42) + 6*math.sin(x/16+z/31))
-    valley = max(0, min(1, (river_distance - 18) / 85))
-    h = -1.5 + (h+1.5) * valley
-    return h * max(0, min(1, (x-coast)/50))
+        foothill += p['height']*math.exp(-(((x-p['x'])/p['sx'])**2+((z-p['z'])/p['sz'])**2))
+        warp = 66*math.sin(z/257)+28*math.sin(z/103+.4)
+        rx = (x-p['x']-warp)/(p['sx']*1.08)
+        rz = (z-p['z'])/(p['sz']*1.24)
+        massif += p['height']*.73*math.exp(-(abs(rx)**2.7+abs(rz)**3.2))
+    # Exact CPU counterpart of coastal-contract.js; rendering and LOS agree.
+    inland = smooth((x-430)/300)
+    spine = 1020+105*math.sin(z/410)+50*math.sin(z/173)
+    flank = smooth((spine-x+180)/480)
+    drainage = math.sin(z/143+(x-spine)/290+.67*math.sin(z/329))
+    ravine = math.exp(-((drainage+.16*math.sin(x/163))/.19)**2)
+    ribs = .5+.5*math.sin(z/79+(x-spine)/173+.4*math.cos(z/241))
+    rock_roughness = (land_noise(x/92,z/92)-.5)*52+(land_noise(x/37,z/37)-.5)*21+3.2*math.sin(x/43+z/71)*math.sin(z/61)
+    massif = massif*(1-.23*ravine*flank-.085*ribs)+rock_roughness*smooth((massif-35)/130)
+    h = foothill*(1-inland)+massif*inland
+    apron = math.exp(-((x-545-64*math.sin(z/187))/165)**2)*smooth((h-18)/90)
+    h += apron*(7+5*math.sin(z/96+x/190))*smooth((x-340)/190)
+    distant = smooth((x-1530)/670)
+    h += distant*(80*math.exp(-(((x-2500)/950)**2+((z+450)/2050)**2))+110*math.exp(-(((x-3600)/1050)**2+((z-850)/2450)**2))+150*math.exp(-(((x-5100)/1400)**2+((z+850)/2900)**2)))*(.73+.27*math.sin(z/381+.6*math.sin(x/317))**2)
+    river_side = z-t['riverBaseZ']-t['riverAmplitude']*math.sin(x/180)
+    river = abs(river_side)
+    lowland = 1-inland
+    estuary = (1-smooth((shore-20)/230))*lowland
+    inner_bend = .5-.5*(river_side/(river+.001))*math.sin(x/180)
+    channel_half = 18+lowland*(4.5*math.sin(x/97+.8)+3*math.sin(x/43))+estuary*15
+    valley_width = (85+inland*(64+22*math.sin(x/217)))*(1+lowland*((inner_bend-.5)*.52+.10*math.sin(x/119)))+estuary*22
+    bank = smooth((river-channel_half)/valley_width)
+    valley = bank*.84+smooth((river-channel_half)/(valley_width*1.8))*.16
+    deposition = lowland*(1.15*math.exp(-(((x+190)/92)**2+((river_side-channel_half-3)/13)**2))+1.05*math.exp(-(((x-255)/86)**2+((river_side+channel_half+4)/12)**2)))
+    beach = smooth(shore/54)
+    dune = .8*math.exp(-((shore-32)/18)**2)*(.5+.5*math.sin(z/63))
+    return (-1.5+(h+1.5)*valley+deposition)*beach+dune*beach*(1-smooth((90-river)/55))
 
 
 def smooth(t):
