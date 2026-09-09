@@ -55,3 +55,7 @@ html[data-motion=reduce] *,html[data-motion=reduce] *:before,html[data-motion=re
 .impact-summary{display:grid;gap:7px;margin-top:14px;color:#cfa783;font:9px/1.65 var(--mono)}.impact-summary span{border-left:1px solid #a0794e;padding-left:9px}
 .follow-wait{display:none;font-size:9px;color:#b6a283;flex-basis:100%;padding-top:3px}.cinematic-host[data-camera=FOLLOW][data-follow-status=WAITING] .follow-wait{display:block}
 .score-route-select{margin-top:13px;width:100%;background:#0b1822;border:1px solid #334959;padding:9px;color:#becad4;font:10px var(--mono);border-radius:2px}
+
+/* Preserve the mounted transmission visual, holding its veil until scene readiness. */
+.transmission.active{animation:transmission-enter .336s both;background:#080e15}
+@keyframes transmission-enter{from{opacity:0}to{opacity:1}}

@@ -20,11 +20,12 @@ const V=a=>new T.Vector3(...a);
 const STATUS={QUALIFIED:0x7d9f9c,REJECTED:0xdcad70,UNVERIFIED:0x999e9a,FAILED:0xb35e4e,WAITING:0xb8a77c};
 export class CoastalRenderer {
  static async prepare(){if(R2_API)R2_SOURCES=await R2_API.loadR2Sources();}
- constructor(host,state,{select,onFree,onFailure,reduced=false,quality='standard'}={}){
-  this.host=host;this.state=state;this.layout=state.sceneContract.layout;this.select=select;this.onFree=onFree;this.onFailure=onFailure;this.reduced=reduced;this.quality=quality;
+ constructor(host,state,{select,onFree,onFailure,reduced=false,quality='standard',initialFrame=state.timeline.frames[0],initialTime=0,topology=false,cutaway=false}={}){
+  this.firstDraw=new Promise(resolve=>{this.resolveFirstDraw=resolve;});this.topology=topology;this.cutaway=cutaway;this.host=host;this.state=state;this.layout=state.sceneContract.layout;this.select=select;this.onFree=onFree;this.onFailure=onFailure;this.reduced=reduced;this.quality=quality;
   this.pool=new AssetPool();this.m=palette(this.pool);if(R2_SOURCES)Object.assign(this.m,R2_API.createR2Materials(this.pool,R2_SOURCES));this.nodes=new Map();this.edges=new Map();this.labels=new Map();this.events=new AbortController();this.frameTimes=[];this.renderCount=0;
   this.canvas=document.createElement('canvas');this.canvas.className='coastal-canvas';this.canvas.tabIndex=0;this.canvas.setAttribute('aria-label','虛構星灣立體地景。拖曳旋轉、雙指縮放；方向鍵旋轉，另有定位與節點清單。');host.prepend(this.canvas);
   try{this.renderer=new T.WebGLRenderer({canvas:this.canvas,antialias:true,alpha:false,powerPreference:'high-performance'});}catch(e){this.pool.dispose();this.canvas.remove();throw e;}
+  this.renderer.debug.onShaderError=()=>{this.shaderError='WebGL shader compilation failed';};
   this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08;
   this.renderer.setPixelRatio(Math.min(devicePixelRatio,quality==='low'?1:1.5));this.renderer.shadowMap.enabled=quality!=='low';this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.shadowMap.autoUpdate=false;this.renderer.shadowMap.needsUpdate=true;
   this.scene=new T.Scene();const conflict=state.scenarioId==='conflict';this.scene.background=new T.Color(conflict?0x9fafb2:0xb1c5ca);this.scene.fog=new T.Fog(conflict?0x9fafb2:0xb1c5ca,42,90);
@@ -45,7 +46,7 @@ export class CoastalRenderer {
   this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(host);
   this.observer=new IntersectionObserver(es=>{this.visible=es[0].isIntersecting;});this.observer.observe(host);this.visible=true;this.resize();this.focus('overview',true);
   if(R2_REQUESTED&&new URLSearchParams(location.search).get('view')==='pilot'){this.camera.position.set(-4.5,4.7,9.8);this.controls.target.set(3.2,.25,1.9);this.camera.lookAt(this.controls.target);this.controls.update();}
-  this.setFrame(state.timeline.frames[0],0);this.render(0);host.dataset.render='ready';
+  try{this.setFrame(initialFrame,initialTime);this.render(initialTime);}catch(error){this.dispose();throw error;}
  }
  listen(type,fn){this.canvas.addEventListener(type,fn,{signal:this.events.signal});}
  point(a){return new T.Vector3(a[0]*.02,a[1]*.025,a[2]*.02);}
@@ -214,7 +215,8 @@ export class CoastalRenderer {
   for(const {group}of this.impactSites)a.push(group.visible);
   return a.join('|');
  }
- render(time){if(this.disposed||this.lost||!this.visible||document.hidden)return;
+ render(time){if(this.disposed||this.lost||!this.visible||document.hidden||!this.host.isConnected||!this.host.clientWidth||!this.host.clientHeight)return false;
+  if(this.renderer.getContext().isContextLost())throw Error('WebGL context lost');
   const now=performance.now();if(this.lastRender){const dt=now-this.lastRender;if(dt>2&&dt<200)this.frameTimes.push(dt);if(this.frameTimes.length>900)this.frameTimes.shift();}this.lastRender=now;
   if(!R2_REQUESTED&&this.shadowTime!==time){this.renderer.shadowMap.needsUpdate=true;this.shadowTime=time;}
   this.update(time);
@@ -227,16 +229,20 @@ export class CoastalRenderer {
   for(const lod of this.lods){const level=lod.getCurrentLevel();lod.update(this.camera);if(level!==lod.getCurrentLevel())this.renderer.shadowMap.needsUpdate=true;}
   for(const model of [...this.nodes.values(),this.ship]){const near=model.position.distanceTo(this.camera.position)<16;if(model.userData.near!==near){model.userData.near=near;this.renderer.shadowMap.needsUpdate=true;model.traverse(o=>{if(o.userData.fineDetail)o.visible=near;});}}
   const refresh=this.renderer.shadowMap.enabled&&this.renderer.shadowMap.needsUpdate;
-  this.renderer.render(this.scene,this.camera);this.renderCount++;
+  this.renderer.render(this.scene,this.camera);
+  if(this.shaderError||this.renderer.getContext().isContextLost())throw Error(this.shaderError||'WebGL context lost');
+  if(!this.renderer.info.render.calls)throw Error('3D frame contains no draw calls');
+  this.renderCount++;
+  if(!this.firstFrame){this.firstFrame={at:performance.now(),scenario:this.state.scenarioId,runId:this.state.runId,inputHash:this.state.inputHash,snapshotId:this.frame?.snapshotId,width:this.host.clientWidth,height:this.host.clientHeight};this.host.dataset.render='ready';this.resolveFirstDraw(this.firstFrame);}
   this.drawCallsTotal=(this.drawCallsTotal||0)+this.renderer.info.render.calls;this.trianglesTotal=(this.trianglesTotal||0)+this.renderer.info.render.triangles;
   if(refresh){this.lastShadowAt=now;this.shadowTime=time;this.lastShadowPose=pose;this.shadowRefreshes=(this.shadowRefreshes||0)+1;}
   for(const [id,el] of this.labels){const n=this.nodeData.get(id);const pos=this.point(n.layer==='air'?flightPosition(n,time):n.anchorM);pos.y+=.23;pos.project(this.camera);el.hidden=this.lost||pos.z>1||Math.abs(pos.x)>.93||Math.abs(pos.y)>.88||this.host.clientWidth<700&&['uav-spare-a','users-b'].includes(id);el.style.left=`${(pos.x*.5+.5)*100}%`;el.style.top=`${(-pos.y*.5+.5)*100}%`;el.dataset.status=n.operation;if(id==='backhaul-b')el.hidden=el.hidden||n.operation!=='failed';if(el.dataset.operation!==n.operation){el.dataset.operation=n.operation;el.textContent=n.label+(n.operation==='failed'?' · '+({structural_damage:'塔體受損',power_loss:'斷電',backhaul_lost:'回傳中斷',relay_fault:'中繼故障'}[n.failureMode]||'中斷'):n.operation==='deploying'?' · 部署中':'');}}
  }
- stats(){const a=[...this.frameTimes].sort((a,b)=>a-b),q=p=>a[Math.min(a.length-1,Math.floor(a.length*p))]??null;return {owner:'CoastalRenderer',revision:'R3',forestAtlas:this.canopyAtlas?.userData,settlement:this.town.r3,facilities:this.facilities?.stats(),ready:!this.lost,r2:R2_REQUESTED?{requested:true,ready:true,scope:'r3-full-coast-exhibition',assets:R2_SOURCES.stats,vegetation:this.r2Vegetation,banks:this.r2Banks?.userData,buildings:[...this.town.blocks].filter(([,g])=>g.userData.r2).map(([id,g])=>({id,...g.userData.r2})),errors:[]}:{requested:false},quality:this.quality,dpr:this.renderer.getPixelRatio(),renderCount:this.renderCount,
+ stats(){const a=[...this.frameTimes].sort((a,b)=>a-b),q=p=>a[Math.min(a.length-1,Math.floor(a.length*p))]??null;return {owner:'CoastalRenderer',revision:'R3',forestAtlas:this.canopyAtlas?.userData,settlement:this.town.r3,facilities:this.facilities?.stats(),ready:!!this.firstFrame&&!this.lost&&!this.disposed,firstFrame:this.firstFrame,r2:R2_REQUESTED?{requested:true,ready:true,scope:'r3-full-coast-exhibition',assets:R2_SOURCES.stats,vegetation:this.r2Vegetation,banks:this.r2Banks?.userData,buildings:[...this.town.blocks].filter(([,g])=>g.userData.r2).map(([id,g])=>({id,...g.userData.r2})),errors:[]}:{requested:false},quality:this.quality,dpr:this.renderer.getPixelRatio(),renderCount:this.renderCount,
   packet:{visible:this.packet.visible,position:this.packet.position.toArray(),flow:this.packet.userData.flow},water:{transparent:this.water.material.transparent,opacity:this.water.material.opacity},terrain:this.terrain?.userData,vegetation:this.vegetation,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,programs:this.renderer.info.programs.length,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,
   frameMs:{samples:a.length,p50:q(.5),p95:q(.95),max:a.at(-1)??null},shadow:{strategy:R2_REQUESTED?'caster-changes-20hz-with-immediate-events':'per-time-step',refreshes:this.shadowRefreshes||0,lastTime:this.shadowTime??null},drawCallsTotal:this.drawCallsTotal||0,trianglesTotal:this.trianglesTotal||0,camera:{eye:this.camera.position.toArray(),target:this.controls.target.toArray()},
   roadSurfaceMinNormalY:Math.min(...this.town.roadSurfaces.flatMap(m=>Array.from(m.geometry.attributes.normal.array).filter((_,i)=>i%3===1))),
   nodeIds:[...this.nodes.keys()],uavs:[...this.nodes].filter(([id])=>this.nodeData.get(id).layer==='air').map(([id,g])=>({id,operation:this.nodeData.get(id).operation,position:g.position.toArray()})),
   visibleEdges:[...this.edges.values()].filter(e=>e.visible).map(e=>({id:e.userData.linkId,active:this.active.has(e.userData.linkId)})),time:this.time,cutaway:!!this.cutaway,topology:!!this.topology};}
- dispose(){if(this.disposed)return;this.disposed=true;this.events.abort();this.resizeObserver?.disconnect();this.observer?.disconnect();this.controls?.dispose();for(const e of this.labels.values())e.remove();this.sun?.shadow.map?.dispose();this.dfgUniform?.value?.dispose();this.dfgUniform=null;this.pool.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.remove();this.scene.clear();}
+ dispose(){if(this.disposed)return;this.disposed=true;this.events.abort();this.resizeObserver?.disconnect();this.observer?.disconnect();this.controls?.dispose();for(const e of this.labels.values())e.remove();this.sun?.shadow.map?.dispose();this.dfgUniform?.value?.dispose();this.dfgUniform=null;this.pool.dispose();this.renderer.dispose();if(!this.renderer.getContext().isContextLost())this.renderer.forceContextLoss();this.canvas.remove();this.scene.clear();}
 }

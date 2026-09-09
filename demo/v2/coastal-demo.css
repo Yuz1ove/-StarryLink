@@ -1,6 +1,6 @@
 .coastal-demo{--coastal-border:#526064;--coastal-text:#e1e6df;max-width:1680px;margin:0 50px;color:var(--coastal-text)}
 .coastal-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;margin:26px 0 21px}.coastal-heading h1{font-size:clamp(23px,2.6vw,36px);letter-spacing:.025em;margin:7px 0 0;font-weight:500}.coastal-heading>p{font-size:12px;line-height:1.8;color:#a5b8b9;margin:0;flex-shrink:0}.coastal-heading .eyebrow{font-size:10px;color:#b6c6bd}
-.coastal-stage{height:clamp(420px,59vh,690px);position:relative;isolation:isolate;overflow:hidden;background:#9faaa7;border:1px solid #586567;border-radius:3px}.coastal-canvas{display:block;width:100%;height:100%;touch-action:none;outline-offset:-4px}.coastal-canvas:focus-visible{outline:3px solid #f6dc98}
+.coastal-stage{height:clamp(420px,59vh,690px);position:relative;isolation:isolate;overflow:hidden;background:#0b151e;border:1px solid #586567;border-radius:3px}.coastal-canvas{display:block;width:100%;height:100%;touch-action:none;outline-offset:-4px}.coastal-canvas:focus-visible{outline:3px solid #f6dc98}
 .coastal-demo button,.coastal-demo select{font:inherit;font-size:12px;min-height:36px;border:1px solid #52646a;background:#14232b;color:#e1e7e1;border-radius:3px;padding:7px 12px;cursor:pointer}.coastal-demo button:hover{background:#2b4147;border-color:#afc3bb}.coastal-demo button:focus-visible,.coastal-demo select:focus-visible{outline:2px solid #e9cb8d;outline-offset:3px}.coastal-demo button:disabled{opacity:.5;cursor:wait}.coastal-demo button[aria-pressed=true]{background:#e1e2d3;color:#203133;border-color:#e1e2d3}
 .coastal-view-controls{position:absolute;z-index:3;left:18px;top:18px;display:flex;gap:5px;flex-wrap:wrap;max-width:80%}.coastal-view-controls button{background:#15232be6;font-size:11px;min-height:33px}.coastal-place{position:absolute;left:22px;top:67px;color:#1c3135;pointer-events:none;text-shadow:0 1px 8px #eef0e6aa}.coastal-place span{display:block;font-weight:600;font-size:15px;letter-spacing:.06em}.coastal-place small{font:9px/2 ui-monospace,monospace;letter-spacing:.13em}
 .coastal-pin{position:absolute!important;z-index:2;transform:translate(-50%,-110%);font-size:10px!important;min-height:26px!important;padding:4px 7px!important;background:#12252be8!important;box-shadow:0 2px 9px #12221c20;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}.coastal-pin::after{content:'';position:absolute;bottom:-5px;left:50%;height:5px;width:1px;background:#d5dfce}.coastal-pin[data-status=failed]{border-left:3px solid #d3876f!important}.coastal-pin[data-status=serving]{border-left:3px solid #9ebdae!important}.coastal-pin[data-status=standby]{border-left:3px solid #c1bca0!important}
@@ -27,3 +27,24 @@
 /* R3 node labels leave the admitted route endpoints visible. */
 .coastal-pin[data-coastal-node=ground-bs-01]{transform:translate(-95%,-170%)}
 .coastal-pin[data-coastal-node=citizen-01]{transform:translate(10%,-130%)}
+
+/* Signal continuity: only scene preparation, never route qualification or ACK. */
+.coastal-loading{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(ellipse at 50% 48%,#11212b 0%,var(--bg,#080e15) 68%);color:var(--ink,#e8edf0);overflow:hidden}
+.coastal-loading[hidden]{display:none!important}
+.coastal-loading strong{font:400 13px/1.8 var(--sans);letter-spacing:.12em;margin:0;text-align:center}
+.signal-identity{width:min(400px,82%);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
+.signal-wordmark{font:500 10px/1.5 var(--sans);letter-spacing:.4em;color:var(--muted);padding-left:.4em}
+.signal-tracks{display:block;width:100%;height:auto;overflow:visible;color:var(--cyan)}
+.signal-guides{stroke:currentColor;stroke-width:.6;opacity:.18}
+.signal-pulse{stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-dasharray:16 100;stroke-dashoffset:16;opacity:0;animation:signal-pass 2.6s cubic-bezier(.4,0,.2,1) infinite}
+.signal-pulse-b{animation-delay:.32s;stroke-width:.8}
+.signal-pulse-c{animation-delay:.92s}
+.signal-star ellipse{stroke:currentColor;stroke-width:.7;opacity:.4}
+.signal-star path{fill:currentColor}
+@keyframes signal-pass{0%{stroke-dashoffset:16;opacity:0}10%{opacity:.8}48%{stroke-dashoffset:-100;opacity:.8}58%,100%{stroke-dashoffset:-100;opacity:0}}
+.coastal-loading.is-revealing .signal-pulse{animation:none}
+.coastal-loading.is-revealing .signal-identity,.coastal-loading.is-revealing strong{opacity:0;transition:opacity 90ms ease-out}
+.coastal-demo:is([data-loading=data],[data-loading=preparing]) .coastal-stage,.coastal-boot .coastal-stage{border-color:transparent;background:var(--bg)}
+.coastal-demo:is([data-loading=data],[data-loading=preparing],[data-revealing=true]) :is(.coastal-place,.coastal-now,.coastal-key){visibility:hidden}
+@media(prefers-reduced-motion:reduce){.signal-pulse{animation:none!important;display:none}.coastal-loading.is-revealing *{transition:none}}
+html[data-motion=reduce] .signal-pulse{animation:none!important;display:none}

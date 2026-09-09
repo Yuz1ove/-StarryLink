@@ -33,11 +33,23 @@
         <svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="20" rx="19" ry="9" transform="rotate(-35 20 20)"/><path d="M20 3L23 17L37 20L23 23L20 37L17 23L3 20L17 17Z"/></svg>
         <span>StarryLink <small>星夜 / 2.0</small></span>
       </a>
-      <nav class="nav-tabs" aria-label="主要導覽"></nav>
+      <nav class="nav-tabs" aria-label="主要導覽"><a href="?page=intro" data-page-target="intro"><small>01</small>重新連結</a><a href="?page=architecture" data-page-target="architecture"><small>02</small>地海空星</a><a href="?page=demo" data-page-target="demo"><small>03</small>天災情境</a><a href="?page=conflict" data-page-target="conflict"><small>04</small>戰爭情境</a><a href="?page=matrix" data-page-target="matrix"><small>05</small>計算決策</a><a href="?page=runtime" data-page-target="runtime"><small>06</small>送達證據</a><a href="?page=arci" data-page-target="arci"><small>07</small>ARCI 架構</a></nav>
       <button class="tour-button" data-action="tour">導覽模式 <span>↗</span></button>
     </header>
     <div class="source-bar"><span><i class="status-dot"></i>SCENARIO SIMULATION</span><span>Resilient Communication Intelligence Platform</span><button data-action="source">資料來源與模式 <span>↗</span></button></div>
-    <main class="page-stage" id="main" tabindex="-1"><p class="loading-copy">正在載入韌性通訊場景…</p></main>
+    <main class="page-stage" id="main" tabindex="-1"><section class="coastal-demo coastal-boot">
+      <header class="coastal-heading"><div><p class="eyebrow" data-boot-eyebrow>03 / SCENARIO A · 星灣 / FICTIONAL COAST</p><h1 data-boot-title>地震過後，求救還有下一段路。</h1></div><p>虛構局部地景與示意部署<br>ARCI 未連接 · 本機模擬執行</p></header>
+      <div class="coastal-stage"><div class="coastal-loading" role="status" aria-live="polite" aria-atomic="true"><div class="signal-identity" aria-hidden="true"><span class="signal-wordmark">STARRYLINK</span><svg class="signal-tracks" viewBox="0 0 400 112" fill="none"><g class="signal-guides"><path d="M12 80H98L154 56H200"/><path d="M48 24H116L164 56H200"/><path d="M200 56H242L298 32H388"/></g><path class="signal-pulse signal-pulse-a" pathLength="100" d="M12 80H98L154 56H200"/><path class="signal-pulse signal-pulse-b" pathLength="100" d="M48 24H116L164 56H200"/><path class="signal-pulse signal-pulse-c" pathLength="100" d="M200 56H242L298 32H388"/><g class="signal-star"><ellipse cx="200" cy="56" rx="22" ry="10" transform="rotate(-35 200 56)"/><path d="M200 36L203 53L220 56L203 59L200 76L197 59L180 56L197 53Z"/></g></svg></div><strong data-boot-copy>正在準備天災場景…</strong></div></div>
+    </section></main>
+    <script>
+      // Parser-time shell: fully styled before the module graph or API can arrive.
+      {
+        const query=new URLSearchParams(location.search),page=query.get('page'),war=page==='conflict'||query.get('scenario')==='conflict';
+        if(war){document.querySelector('[data-boot-copy]').textContent='正在準備戰爭場景…';document.querySelector('[data-boot-title]').textContent='設施受損之後，逐區接回訊息。';document.querySelector('[data-boot-eyebrow]').textContent='04 / SCENARIO B · 星灣 / FICTIONAL COAST';}
+        if(!['demo','disaster','conflict'].includes(page)){document.querySelector('.coastal-boot .coastal-heading').hidden=true;document.querySelector('[data-boot-copy]').textContent='正在準備 StarryLink…';}
+        if(query.get('motion')==='reduce')document.documentElement.dataset.motion='reduce';
+      }
+    </script>
     <footer class="page-controls"><span>STAR RY LINK <i>/</i> EVERY MESSAGE MATTERS</span><div><span id="pageProgress"></span><button data-action="previous" aria-label="上一頁">←</button><button data-action="next" aria-label="下一頁">→</button></div><a href="./legacy.html?page=platform&motion=reduce">原有工程展示 ↗</a></footer>
   </div>
   <div class="transmission" aria-hidden="true"><div class="transmission-grid"></div><div class="transmission-beam"></div><span>DECONSTRUCT <b>→</b> TRANSMIT <b>→</b> RECONSTRUCT</span></div>

@@ -3,12 +3,13 @@ import {frameAtTime} from './coastal-contract.js';
 const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const PHASE_NAMES=['正常','事件前兆','衝擊','設施受損','等待接續','備援起飛','資格檢查','路徑選定','次級失效','等待輪替','接收端核對','確認結果'];
 const FAULT_LABELS={none:'預設情境','no-egress':'所有回傳出口失效','no-spare':'輪替機不可用','ack-loss':'目的端 ACK 遺失','arci-timeout':'決策 timeout（模擬）','arci-schema':'決策格式錯誤（模擬）','arci-stale':'過期決策（模擬）'};
-export function coastalMarkup(scenario,error='',busy=false){return `<section class="coastal-demo" data-coastal-root data-scenario="${scenario}">
+export function coastalMarkup(scenario,error='',busy=false){return `<section class="coastal-demo" data-coastal-root data-scenario="${scenario}" data-loading="data" data-ready="false">
  <header class="coastal-heading"><div><p class="eyebrow">${scenario==='conflict'?'04 / SCENARIO B':'03 / SCENARIO A'} · 星灣 / FICTIONAL COAST</p><h1>${scenario==='conflict'?'設施受損之後，逐區接回訊息。':'地震過後，求救還有下一段路。'}</h1></div><p>虛構局部地景與示意部署<br>ARCI 未連接 · 本機模擬執行</p></header>
  ${error?`<div class="error-state" role="alert">${E(error)} · 未推測任何成功結果。<button class="button" data-action="reload">重新載入</button></div>`:''}
  <div class="coastal-stage" data-coastal-stage><div class="coastal-view-controls"><button data-coastal="guide" aria-pressed="true">導覽鏡頭</button><button data-coastal="free" aria-pressed="false">自由檢視</button><button data-coastal="topology" aria-pressed="false">透視拓樸</button><button data-coastal="cutaway" aria-pressed="false">海纜剖切</button></div>
  <div class="coastal-now" data-coastal-now>正常 / 模擬</div><div class="coastal-place"><span>星灣 · 河口與山谷</span><small>LOCAL SCENARIO · 全部為模擬設定</small></div>
- <div class="coastal-fallback" data-coastal-fallback ${busy||error?'':'hidden'}><strong>${busy?'正在載入場景與事件資料':'3D 尚未就緒'}</strong><p>仍可用播放、事件步進與節點清單檢查通訊因果。</p></div>
+ <div class="coastal-loading" data-coastal-loading role="status" aria-live="polite" aria-atomic="true"><div class="signal-identity" aria-hidden="true"><span class="signal-wordmark">STARRYLINK</span><svg class="signal-tracks" viewBox="0 0 400 112" fill="none"><g class="signal-guides"><path d="M12 80H98L154 56H200"/><path d="M48 24H116L164 56H200"/><path d="M200 56H242L298 32H388"/></g><path class="signal-pulse signal-pulse-a" pathLength="100" d="M12 80H98L154 56H200"/><path class="signal-pulse signal-pulse-b" pathLength="100" d="M48 24H116L164 56H200"/><path class="signal-pulse signal-pulse-c" pathLength="100" d="M200 56H242L298 32H388"/><g class="signal-star"><ellipse cx="200" cy="56" rx="22" ry="10" transform="rotate(-35 200 56)"/><path d="M200 36L203 53L220 56L203 59L200 76L197 59L180 56L197 53Z"/></g></svg></div><strong data-coastal-loading-copy>正在準備${scenario==='conflict'?'戰爭':'天災'}場景…</strong></div>
+ <div class="coastal-fallback" data-coastal-fallback hidden role="status"></div>
  <div class="coastal-focus" aria-label="定位與縮放"><button data-coastal-focus="overview">總覽</button><button data-coastal-focus="source">求救端</button><button data-coastal-focus="fault">故障點</button><button data-coastal-focus="center">應變中心</button>${scenario==='conflict'?'<button data-coastal-focus="vessel">艦艇</button>':''}<button data-coastal="zoom-in" aria-label="放大">＋</button><button data-coastal="zoom-out" aria-label="縮小">−</button></div>
  <div class="coastal-key"><span>━ 採用</span><span>┄ 失效／拒絕</span><span>·· 未驗證</span><span>↩ 目的端 ACK</span></div>
  </div>
@@ -20,29 +21,104 @@ export function coastalMarkup(scenario,error='',busy=false){return `<section cla
  </section>`;}
 
 export class CoastalDemo {
- constructor(root,state,{onPhase,onFault,reduced=false}={}){
-  this.root=root;this.state=state;this.onPhase=onPhase;this.onFault=onFault;this.reduced=reduced;this.time=0;this.phase=-1;this.playing=false;this.guide=true;this.events=new AbortController();this.dialog=root.querySelector('dialog');this.last=0;
+ constructor(root,state,{onPhase,onFault,reduced=false,identity={}}={}){
+  this.root=root;this.identity=identity;this.attempt=0;this.state=null;this.onPhase=onPhase;this.onFault=onFault;this.reduced=reduced;this.time=0;this.phase=-1;this.playing=false;this.guide=true;this.events=new AbortController();this.dialog=root.querySelector('dialog');this.last=0;
   this.host=root.querySelector('[data-coastal-stage]');this.query=s=>root.querySelector(s);this.boundaryError='';
   root.addEventListener('click',e=>this.click(e),{signal:this.events.signal});root.addEventListener('change',e=>{if(e.target.matches('[data-coastal-motion]')){if(this.renderer)this.renderer.reduced=!e.target.checked;}if(e.target.matches('[data-coastal-fault]'))this.onFault?.(e.target.value);if(e.target.matches('[data-coastal-node-select]'))this.selectNode(e.target.value);},{signal:this.events.signal});
+  this.motionQuery=matchMedia('(prefers-reduced-motion: reduce)');
   this.dialog.addEventListener('close',()=>{const target=this.returnFocus?.isConnected?this.returnFocus:this.query('[data-coastal-panel="'+this.panel+'"]');this.panel=null;target?.focus();},{signal:this.events.signal});
   root.addEventListener('keydown',e=>{if(e.key.startsWith('Arrow'))e.stopPropagation();},{signal:this.events.signal});
-  if(!state)return;
-  const renderReady=this.initializeRenderer();
-  root.querySelectorAll('[data-coastal="play"],[data-coastal="back"],[data-coastal="next"],[data-coastal="restart"]').forEach(b=>b.disabled=false);
-  this.setTime(0);this.tick=this.tick.bind(this);this.raf=requestAnimationFrame(this.tick);
-  Promise.all([document.fonts.ready,renderReady]).then(()=>{if(!this.disposed){this.renderer?.render(this.time);root.dataset.ready='true';}});
+  this.tick=this.tick.bind(this);this.raf=requestAnimationFrame(this.tick);
+  this.beginData(identity);
+  if(state)this.setState(state);else if(root.querySelector('.error-state'))this.dataFailure(root.querySelector('.error-state').textContent);
  }
- async initializeRenderer(){
-  try{
+ mark(event){this.timings[event]=performance.now();}
+ renewReady(){this.resolveReady?.({status:'superseded',identity:this.identity});this.ready=new Promise(resolve=>{this.resolveReady=resolve;});}
+ settle(status){this.resolveReady?.({status,identity:{...this.identity},timings:{...this.timings}});this.resolveReady=null;}
+ invalidate(){++this.attempt;this.visualAbort?.abort();this.preparing=null;}
+ beginData(identity=this.identity){
+  this.restoreFocus=this.root.contains(document.activeElement);this.pause();this.dialog?.close();this.invalidate();this.renewReady();this.identity=identity;this.timings={};this.mark('dataWait');this.state=null;this.frame=null;this.phase=-1;this.boundaryError='';
+  this.setLoading('data');
+  this.query('[data-coastal-title]').textContent='等待情境資料';this.query('[data-coastal-copy]').textContent='沒有資料時，不建立候選或送達確認。';this.query('[data-coastal-regions]').replaceChildren();this.query('[data-coastal-event]').textContent='WAITING';this.query('[data-coastal-now]').textContent='等待資料';
+ }
+ cancelReveal(){this.revealEvents?.abort();this.revealEvents=null;const animation=this.revealAnimation;this.revealAnimation=null;animation?.cancel();}
+ finishReveal(){
+  if(this.disposed||this.status!=='ready')return;
+  const loader=this.query('[data-coastal-loading]');loader.hidden=true;loader.classList.remove('is-revealing');
+  this.root.dataset.revealing='false';this.mark('loadingRemoved');this.syncLoadingControls();this.mark('interactive');
+  if(this.restoreFocus){this.renderer?.canvas.focus({preventScroll:true});this.restoreFocus=false;}
+ }
+ syncLoadingControls(){
+  const waiting=this.status==='data'||this.status==='preparing'||this.root.dataset.revealing==='true';
+  this.root.querySelectorAll('[data-coastal-phase],[data-coastal-panel],.coastal-play button').forEach(b=>b.disabled=!this.state||waiting);
+  this.host.querySelectorAll('button').forEach(b=>b.disabled=waiting||this.status!=='ready'&&!b.matches('[data-coastal="retry-3d"],[data-coastal-panel]'));
+  if(this.renderer?.canvas)this.renderer.canvas.inert=this.status!=='ready'||waiting;
+ }
+ setLoading(status){
+  this.cancelReveal();this.status=status;this.root.dataset.loading=status;this.root.dataset.ready=String(status==='ready');this.root.dataset.revealing='false';
+  const waiting=status==='data'||status==='preparing',loader=this.query('[data-coastal-loading]');
+  this.query('.coastal-view-controls').setAttribute('aria-busy',String(waiting));loader.classList.remove('is-revealing');
+  // One stable announcement across actual preparation events; no fictional progress or ACK.
+  if(waiting){loader.hidden=false;this.query('[data-coastal-fallback]').hidden=true;}
+  else if(status==='ready'&&!loader.hidden){
+   this.mark('revealStart');
+   if(this.reduced||this.motionQuery.matches)this.finishReveal();
+   else{
+    this.root.dataset.revealing='true';loader.classList.add('is-revealing');
+    // Only the validated first frame starts this short directional reveal.
+    const animation=loader.animate([{clipPath:'inset(0 0 0 0)'},{clipPath:'inset(0 0 0 100%)'}],{duration:180,easing:'cubic-bezier(.22,.61,.36,1)',fill:'forwards'});
+    this.revealAnimation=animation;this.revealEvents=new AbortController();
+    this.motionQuery.addEventListener('change',e=>{if(e.matches){this.cancelReveal();this.finishReveal();}},{signal:this.revealEvents.signal});
+    this.revealDone=animation.finished.then(()=>{if(this.revealAnimation===animation){this.finishReveal();this.cancelReveal();}}).catch(()=>{});
+   }
+  }else loader.hidden=true;
+  this.syncLoadingControls();
+  if(status!=='ready')this.host.dataset.render='unavailable';
+ }
+ setState(state){
+  if(this.disposed)return;
+  if(state.scenarioId!==this.root.dataset.scenario){this.dataFailure('Stale scenario response');return;}
+  this.renderer?.dispose();this.renderer=null;this.state=state;this.identity={...this.identity,scenario:state.scenarioId,runId:state.runId,inputHash:state.inputHash};this.mark('dataReady');
+  this.time=0;this.phase=-1;this.setTime(0);void this.initializeRenderer();
+ }
+ dataFailure(message){
+  this.invalidate();this.state=null;this.renderer?.dispose();this.renderer=null;this.boundaryError=message;this.setLoading('failed');
+  const el=this.query('[data-coastal-fallback]');el.hidden=false;el.innerHTML=`<strong>情境資料無法取得</strong><p>${E(message)}</p><p>尚無可用資料，播放、事件步進與送達狀態均未啟用。</p><button data-action="reload">重新載入</button>`;this.mark('failed');this.settle('failed');
+ }
+ initializeRenderer(){
+  if(this.disposed||!this.state)return Promise.resolve({status:'unavailable'});
+  if(this.preparing)return this.preparing;
+  this.restoreFocus=this.restoreFocus||document.activeElement?.matches('[data-coastal=retry-3d]');this.renewReady();const attempt=++this.attempt,state=this.state;this.visualAbort=new AbortController();const signal=this.visualAbort.signal;
+  const current=()=>!this.disposed&&!signal.aborted&&attempt===this.attempt&&this.state===state&&this.root.isConnected;
+  this.setLoading('preparing');this.mark('visualStart');
+  // Local baseline 2.88–3.77s end-to-end. This is a recovery bound, never a readiness delay.
+  const deadline=performance.now()+12000;let timer;
+  const cancelled=new Promise((_,reject)=>{signal.addEventListener('abort',()=>reject(new DOMException('Visual preparation cancelled','AbortError')),{once:true});});
+  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('3D 載入超過 12 秒；可重試或使用文字演練。')),12000);});
+  const prepare=async()=>{
    if(new URLSearchParams(location.search).get('webgl')==='off')throw Error('已選擇無 WebGL 文字模式');
-   const {CoastalRenderer}=await import('./coastal-renderer.js');
-   await CoastalRenderer.prepare?.();
-   if(this.disposed)return;
-   this.renderer?.dispose();this.renderer=new CoastalRenderer(this.host,this.state,{reduced:this.reduced,quality:new URLSearchParams(location.search).get('quality')||'standard',select:id=>this.selectNode(id),onFree:()=>this.setGuide(false),onFailure:m=>this.fallback(m)});
-   this.renderer.setFrame(this.frame||this.state.timeline.frames[0],this.time);this.query('[data-coastal-fallback]').hidden=true;this.boundaryError='';
-  }catch(e){if(!this.disposed)this.fallback(e.message);}
+   const {CoastalRenderer}=await import('./coastal-renderer.js');if(!current())return;this.mark('moduleReady');
+   await CoastalRenderer.prepare();if(!current())return;this.mark('assetsReady');
+   this.renderer?.dispose();this.renderer=null;this.mark('rendererStart');
+   const renderer=new CoastalRenderer(this.host,state,{initialFrame:this.frame,initialTime:this.time,topology:this.topology,cutaway:this.cutaway,reduced:this.reduced,quality:new URLSearchParams(location.search).get('quality')||'standard',select:id=>this.selectNode(id),onFree:()=>this.setGuide(false),onFailure:m=>{if(current())this.fallback(m);}});
+   this.renderer=renderer;this.syncLoadingControls();this.mark('rendererCreated');
+   await renderer.firstDraw;
+   if(!current())return;
+   if(performance.now()>deadline)throw Error('3D 載入超過 12 秒；可重試或使用文字演練。');
+   const receipt=renderer.firstFrame;
+   if(!receipt||renderer.lost||renderer.disposed||receipt.runId!==state.runId||receipt.inputHash!==state.inputHash||receipt.scenario!==state.scenarioId||receipt.snapshotId!==this.frame.snapshotId)throw Error('3D 首幀與目前情境版本不符');
+   this.timings.firstDraw=receipt.at;this.boundaryError='';this.query('[data-coastal-fallback]').hidden=true;this.host.dataset.render='ready';this.setLoading('ready');this.settle('ready');
+  };
+  this.preparing=Promise.race([prepare(),timeout,cancelled]).catch(error=>{if(current()){this.fallback(error.message);}}).finally(()=>{clearTimeout(timer);if(attempt===this.attempt)this.preparing=null;});
+  return this.preparing;
  }
- fallback(message){this.boundaryError=message;const el=this.query('[data-coastal-fallback]');el.hidden=false;el.innerHTML=`<strong>文字演練模式</strong><p>${E(message)}</p><p>場景：虛構海岸—河口—城市—山谷。求救端 → 合格接入／中繼 → 配置回傳終端 → 應變中心；失效與未驗證鏈路不採用。</p><button data-coastal-panel="nodes">查看節點與可用狀態</button><button data-coastal="retry-3d">重新載入 3D</button>`;this.host.dataset.render='unavailable';}
+ fallback(message){
+  this.boundaryError=message;this.pause();this.setLoading(this.state?'fallback':'failed');this.mark('fallback');this.settle(this.status);
+  // A failed/expired attempt must never mount late or retain a lost GPU context.
+  this.invalidate();this.renderer?.dispose();this.renderer=null;
+  const el=this.query('[data-coastal-fallback]');el.hidden=false;el.innerHTML=`<strong>文字演練模式</strong><p>${E(message)}</p><p>情境資料已可用，可播放、事件步進或查看節點；3D 尚未就緒。</p><button data-coastal-panel="nodes">查看節點與可用狀態</button><button data-coastal="retry-3d">重新載入 3D</button>`;if(this.restoreFocus)this.query('[data-coastal=retry-3d]').focus({preventScroll:true});
+ }
+
  setGuide(value){this.guide=value;this.query('[data-coastal="guide"]').setAttribute('aria-pressed',String(value));this.query('[data-coastal="free"]').setAttribute('aria-pressed',String(!value));}
  setTime(value,{fixedCamera=false}={}){
   if(!this.state)return;this.time=Math.max(0,Math.min(32,value));const frame=frameAtTime(this.state,this.time);const changed=frame.phase!==this.phase;
@@ -70,7 +146,7 @@ export class CoastalDemo {
   if(this.panel)this.renderPanel();
  }
  click(e){
-  const b=e.target.closest('button');if(!b)return;
+  const b=e.target.closest('button');if(!b||b.disabled||!this.state)return;
   if(b.dataset.coastalPanel){this.showPanel(b.dataset.coastalPanel,b);return;}
   if(b.dataset.coastalNode){this.selectNode(b.dataset.coastalNode);return;}
   if(b.dataset.coastalLink){this.selectedLink=b.dataset.coastalLink;if(this.renderer)this.renderer.selectedLink=this.selectedLink;this.showPanel('links',b);return;}
@@ -110,10 +186,10 @@ export class CoastalDemo {
   }
   this.query('[data-coastal-detail]').innerHTML=html;
  }
- tick(t){if(this.disposed)return;this.raf=requestAnimationFrame(this.tick);const dt=this.last?Math.min(.1,(t-this.last)/1000):0;this.last=t;if(document.hidden||this.renderer&&!this.renderer.visible)return;
+ tick(t){if(this.disposed)return;this.raf=requestAnimationFrame(this.tick);const dt=this.last?Math.min(.1,(t-this.last)/1000):0;this.last=t;if(document.hidden||!this.state||this.status==='data'||this.renderer&&!this.renderer.visible)return;
   if(this.playing){const next=Math.min(32,this.time+dt);if(frameAtTime(this.state,next).phase!==this.phase)this.setTime(next);else{this.time=next;this.query('[data-coastal-time]').textContent=`T+${next.toFixed(1).padStart(4,'0')}`;}if(next===32)this.setTime(32);}
-  this.renderer?.render(this.time);
+  try{this.renderer?.render(this.time);}catch(error){this.fallback(error.message);}
  }
- snapshot(){return {ready:this.root.dataset.ready==='true',runId:this.state?.runId,scenario:this.state?.scenarioId,time:this.time,phase:this.phase,playing:this.playing,guided:this.guide,confirmed:!!this.frame?.confirmed,decision:this.frame?.decision,status:this.frame?.routeStatus,fallback:this.boundaryError||null,stats:this.renderer?.stats()};}
- dispose(){if(this.disposed)return;this.disposed=true;cancelAnimationFrame(this.raf);this.events.abort();this.dialog?.close();this.renderer?.dispose();this.renderer=null;}
+ snapshot(){return {ready:this.status==='ready',loading:this.status,identity:this.identity,timings:{...this.timings},runId:this.state?.runId,scenario:this.state?.scenarioId,time:this.time,phase:this.phase,playing:this.playing,guided:this.guide,confirmed:!!this.frame?.confirmed,decision:this.frame?.decision,status:this.frame?.routeStatus,fallback:this.boundaryError||null,stats:this.renderer?.stats()};}
+ dispose(){if(this.disposed)return;this.disposed=true;this.cancelReveal();this.invalidate();this.settle('disposed');cancelAnimationFrame(this.raf);this.events.abort();this.dialog?.close();this.renderer?.dispose();this.renderer=null;}
 }

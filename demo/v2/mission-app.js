@@ -81,6 +81,7 @@ async function ensureTwin(){
  finally{if(epoch===twinEpoch)twinPending=null;}
 }
 function render(){
+ const bootMotion=[...main.querySelectorAll('.coastal-boot .signal-pulse')].map(el=>el.getAnimations()[0]?.currentTime);
  clearComponents();
  if(page!=='arci')releaseTwin();
  main.innerHTML=page==='intro'?intro():page==='architecture'?network():page==='demo'||page==='conflict'?coastalMarkup(scenario,loadError,busy):page==='matrix'?decision():page==='runtime'?runtime():arciPage();
@@ -92,31 +93,46 @@ function render(){
   const root=$('.sl-domains'),version=componentVersion;
   import('./domains.js').then(({mountDomains})=>{if(version===componentVersion&&root.isConnected)domains=mountDomains(root);}).catch(()=>{if(root.isConnected){root.querySelector('#fallback').hidden=false;}});
  }else if(page==='demo'||page==='conflict'){
-  coastal=new CoastalDemo($('[data-coastal-root]'),state,{reduced,onPhase:p=>{phase=p;},onFault:f=>{coastalFault=f;void loadScenario(false);}});
+  coastal=new CoastalDemo($('[data-coastal-root]'),state,{reduced,identity:{route:routeVersion,request:requestVersion},onPhase:p=>{phase=p;},onFault:f=>{coastalFault=f;void loadScenario(false);}});
  }else{attachTwin();void ensureTwin();}
+ // Continue the parser shell's light tracks without restarting the loading gesture.
+ if(bootMotion.length)main.querySelectorAll('.signal-pulse').forEach((el,i)=>{const animation=el.getAnimations()[0];if(animation&&bootMotion[i]!=null)animation.currentTime=bootMotion[i];});
  syncBusy();
 }
 function attachTwin(){const host=$('[data-scene-host]');if(!host||!twin)return;if(twin.host!==host)twin.mount(host,page==='arci'?'arci':'twin');if(page==='arci'){twin.setSphereLayer(arciLayer);twin.setExploded(exploded);}else{twin.setPresentation({phase,layer,view:phase>=8?'routing':'impact',routeId:state?.recommendation.routeId,playing});twin.followTarget=followTarget;twin.selectNode(selectedNode);if($('[data-world-title]'))$('[data-world-title]').textContent=WORLD_PRESETS[layer].title;if($('[data-world-detail]'))$('[data-world-detail]').textContent=WORLD_PRESETS[layer].detail;}}
-function syncBusy(){document.querySelectorAll('[data-action="fail-best"],[data-action="restore-routes"],[data-action="drop-ack"],[data-action="resend"],[data-action="play-scenario"],[data-action="step-scenario"]').forEach(b=>b.disabled=busy||!state||(b.dataset.action==='fail-best'&&!state.recommendation.routeId));main.setAttribute('aria-busy',String(busy&&!['intro','architecture'].includes(page)));}
+function syncBusy(){document.querySelectorAll('[data-action="fail-best"],[data-action="restore-routes"],[data-action="drop-ack"],[data-action="resend"],[data-action="play-scenario"],[data-action="step-scenario"]').forEach(b=>b.disabled=busy||!state||(b.dataset.action==='fail-best'&&!state.recommendation.routeId));main.setAttribute('aria-busy',String(busy&&!['intro','architecture','demo','conflict'].includes(page)));}
 async function loadScenario(reset=false){
  const clarityFocus=['matrix','runtime'].includes(page)?document.activeElement?.dataset:null;const focusAction=clarityFocus?.action,focusScenario=clarityFocus?.scenarioSelect!=null;
- const version=++requestVersion;controller?.abort();controller=new AbortController();busy=true;loadError='';state=null;twin?.setState(null);if(!['intro','architecture'].includes(page))render();
+ const version=++requestVersion;controller?.abort();controller=new AbortController();busy=true;loadError='';state=null;twin?.setState(null);if(coastal&&coastal.root.dataset.scenario===scenario)coastal.beginData({route:routeVersion,request:version});else if(!['intro','architecture'].includes(page))render();syncBusy();
  if(reset){excluded=[];dropAck=false;selectedRoute=null;reevaluation='';}
  const currentController=controller;const timeout=setTimeout(()=>currentController.abort(),12000);
  try{const next=await adapter.load({scenarioId:scenario,sceneProfile:'coastal-v1',testFault:coastalFault,excludedRouteIds:excluded,dropAck},currentController.signal);if(version!==requestVersion)return;state=next;loadError='';if(page!=='arci')twin?.setState(state);announce(`${state.title}，情境資料就緒。`);}
  catch(error){if(version!==requestVersion)return;loadError=error.name==='AbortError'?'source timeout':error.message;state=null;twin?.setState(null);}
- finally{clearTimeout(timeout);if(version===requestVersion){busy=false;if(!['intro','architecture'].includes(page))render();if(['matrix','runtime'].includes(page)){const target=focusScenario?$('[data-scenario-select]'):focusAction?document.querySelector(`[data-action="${focusAction}"]`):null;if(target&&!target.disabled)target.focus({preventScroll:true});else if(focusAction)main.focus({preventScroll:true});}}}
+ finally{clearTimeout(timeout);if(version===requestVersion){busy=false;if(coastal&&coastal.root.dataset.scenario===scenario){if(state)coastal.setState(state);else coastal.dataFailure(loadError);syncBusy();}else if(!['intro','architecture'].includes(page))render();if(['matrix','runtime'].includes(page)){const target=focusScenario?$('[data-scenario-select]'):focusAction?document.querySelector(`[data-action="${focusAction}"]`):null;if(target&&!target.disabled)target.focus({preventScroll:true});else if(focusAction)main.focus({preventScroll:true});}}}
 }
 function stopPlayback(){clearTimeout(phaseTimer);opening?.pause();coastal?.pause();clearInterval(traceTimer);clearInterval(flowTimer);playing=false;if(twin)twin.playing=false;}
 function stopTour(){clearInterval(tourTimer);tourTimer=null;document.querySelector('.tour-button').classList.remove('active');document.querySelector('.tour-button').innerHTML='導覽模式 <span>↗</span>';}
 async function navigate(target,{history=true,touring=false}={}){
  target=pageAlias(target);if(!touring)stopTour();const version=++routeVersion;stopPlayback();
- if(!reduced&&target!==page){const tr=$('.transmission');tr.classList.remove('active');void tr.offsetWidth;tr.classList.add('active');setTimeout(()=>{if(version===routeVersion)tr.classList.remove('active');},1250);await new Promise(r=>setTimeout(r,440));}
+ ++requestVersion;controller?.abort();busy=false;
+ const tr=$('.transmission'),sceneTarget=target==='demo'||target==='conflict';tr.classList.remove('active');main.inert=true;
+ // Scene entry owns its transition in the stage: mount and request immediately.
+ // Keep the existing page transition for other destinations.
+ if(!sceneTarget&&!reduced&&target!==page){
+  tr.style.top=`${Math.max(0,main.getBoundingClientRect().top)}px`;tr.classList.remove('active');void tr.offsetWidth;tr.classList.add('active');
+  await Promise.all(tr.getAnimations().map(animation=>animation.finished.catch(()=>{})));
+ }
  if(version!==routeVersion)return;page=target;phase=0;layer='all';view='network';
  const nextScenario=target==='demo'?'disaster':target==='conflict'?'conflict':scenario;const changed=nextScenario!==scenario;scenario=nextScenario;if(changed){state=null;coastalFault='none';}
  if(history){const url=new URL(location.href);url.searchParams.set('page',page);url.searchParams.set('scenario',scenario);window.history.pushState({},'',url);}
- render();window.scrollTo({top:0,behavior:'instant'});main.focus({preventScroll:true});
- if(!['intro','architecture'].includes(page)&&(changed||!state&&!busy))await loadScenario(true);if(version!==routeVersion)return;
+ render();window.scrollTo({top:0,behavior:'instant'});
+ if(sceneTarget)main.inert=false; // Only unready scene controls are locked; navigation stays available.
+ if(!['intro','architecture'].includes(page)&&(changed||!state))await loadScenario(true);if(version!==routeVersion)return;
+ const targetCoastal=coastal;
+ if(targetCoastal){const outcome=await targetCoastal.ready;if(version!==routeVersion||coastal!==targetCoastal||outcome.status==='superseded'||outcome.status==='disposed')return;await targetCoastal.revealDone;}
+ if(version!==routeVersion)return;tr.classList.remove('active');main.inert=false;main.focus({preventScroll:true});
+ if(targetCoastal){targetCoastal.mark('handoff');announce(targetCoastal.status==='ready'?'3D 場景已就緒。':targetCoastal.status==='fallback'?'3D 不可用，已開放文字演練。':'資料載入失敗，可重新載入。');}
+
  if(page==='arci'&&arciMode==='flow'&&!reduced)playFlow();
 }
 function setPhase(p){phase=Math.min(11,Math.max(0,p));if(coastal&&state){coastal.setTime(state.timeline.frames[phase].seconds);return;}attachTwin();if(page==='demo'||page==='conflict'){
